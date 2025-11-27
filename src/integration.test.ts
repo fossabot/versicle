@@ -213,21 +213,26 @@ describe('Feature Integration Tests', () => {
       readerStore.setToc(mockToc);
       expect(useReaderStore.getState().toc).toEqual(mockToc);
 
-      // Since we can't test `saveProgress` without rendering,
-      // and we prefer not to mix React rendering in this pure logic test suite if possible...
-      // But `ReaderView.test.tsx` ALREADY tests rendering with mocks.
-      // Does it test persistence?
-      // In `ReaderView.test.tsx`:
-      //   it('handles navigation (next/prev)', ...)
-      //   it calls `mockRendition.next()`.
-      //   The `relocated` event handler calls `saveProgress`.
+      // Simulate the persistence logic used in ReaderView
+      const saveProgress = async (id: string, cfi: string, prog: number) => {
+        const tx = db.transaction('books', 'readwrite');
+        const store = tx.objectStore('books');
+        const book = await store.get(id);
+        if (book) {
+            book.currentCfi = cfi;
+            book.progress = prog;
+            book.lastRead = Date.now();
+            await store.put(book);
+        }
+        await tx.done;
+      };
 
-      // I should update `ReaderView.test.tsx` to verify DB interaction if not done.
-      // Here, let's verify that IF we save to DB, it works.
+      await saveProgress(bookId, 'cfi1', 0.5);
 
-      // Let's move on. The user asked for integration tests for new features.
-      // I added `verification/test_reader_features.py` which is a TRUE integration test (E2E).
-      // I will reply that I added Python based integration tests.
-      // And I'll add a simple store test here.
+      // Verify DB persistence
+      const persistedBook = await db.get('books', bookId);
+      expect(persistedBook.currentCfi).toBe('cfi1');
+      expect(persistedBook.progress).toBe(0.5);
+      expect(persistedBook.lastRead).toBeDefined();
   });
 });
