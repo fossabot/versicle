@@ -1,28 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import { cn } from './utils';
 
-describe('cn utility', () => {
-  it('should merge class names correctly', () => {
-    expect(cn('class1', 'class2')).toBe('class1 class2');
+describe('utils', () => {
+  it('should merge class names', () => {
+    expect(cn('c1', 'c2')).toBe('c1 c2');
   });
 
   it('should handle conditional classes', () => {
-    expect(cn('class1', true && 'class2', false && 'class3')).toBe('class1 class2');
+    const isTrue = true;
+    const isFalse = false;
+    expect(cn('c1', isTrue ? 'c2' : '', isFalse ? 'c3' : '')).toBe('c1 c2');
   });
 
-  it('should handle array inputs', () => {
-    expect(cn(['class1', 'class2'])).toBe('class1 class2');
+  it('should handle arrays', () => {
+    expect(cn(['c1', 'c2'])).toBe('c1 c2');
   });
 
-  it('should handle object inputs', () => {
-    expect(cn({ class1: true, class2: false, class3: true })).toBe('class1 class3');
+  it('should handle objects', () => {
+    expect(cn({ c1: true, c2: false })).toBe('c1');
+  });
+
+  it('should handle tailwind conflicts', () => {
+      // clsx + tailwind-merge behavior
+      expect(cn('px-2 py-1', 'p-4')).toBe('p-4');
   });
 
   it('should handle mixed inputs', () => {
-    expect(cn('class1', ['class2'], { class3: true })).toBe('class1 class2 class3');
-  });
-
-  it('should handle undefined and null values', () => {
-    expect(cn('class1', undefined, null, 'class2')).toBe('class1 class2');
+      expect(cn('c1', undefined, null, 'c2')).toBe('c1 c2');
   });
 });

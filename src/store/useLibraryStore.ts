@@ -10,6 +10,7 @@ interface LibraryState {
   error: string | null;
   fetchBooks: () => Promise<void>;
   addBook: (file: File) => Promise<void>;
+  removeBook: (id: string) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
@@ -44,6 +45,30 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     } catch (err) {
       console.error('Failed to import book:', err);
       set({ error: 'Failed to import book.', isImporting: false });
+    }
+  },
+
+  removeBook: async (id: string) => {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(['books', 'files', 'annotations'], 'readwrite');
+      await tx.objectStore('books').delete(id);
+      await tx.objectStore('files').delete(id);
+
+      // Delete annotations for this book
+      const index = tx.objectStore('annotations').index('by_bookId');
+      let cursor = await index.openCursor(IDBKeyRange.only(id));
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      await tx.done;
+
+      await get().fetchBooks();
+    } catch (err) {
+      console.error('Failed to remove book:', err);
+      set({ error: 'Failed to remove book.' });
     }
   },
 }));

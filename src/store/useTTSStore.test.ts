@@ -1,33 +1,43 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useTTSStore } from './useTTSStore';
 
 describe('useTTSStore', () => {
   beforeEach(() => {
     useTTSStore.setState({
       isPlaying: false,
-      rate: 1.0,
+      rate: 1,
+      pitch: 1,
       voice: null,
     });
+  });
+
+  afterEach(() => {
+      // Cleanup if needed
+      vi.clearAllMocks();
   });
 
   it('should have initial state', () => {
     const state = useTTSStore.getState();
     expect(state.isPlaying).toBe(false);
-    expect(state.rate).toBe(1.0);
+    expect(state.rate).toBe(1);
+    expect(state.pitch).toBe(1);
     expect(state.voice).toBeNull();
   });
 
-  it('should toggle playing state', () => {
-    const store = useTTSStore.getState();
+  it('should set playing state', () => {
+    useTTSStore.getState().setPlaying(true);
+    expect(useTTSStore.getState().isPlaying).toBe(true);
+  });
 
-    store.play();
+  it('should play, pause, and stop', () => {
+    useTTSStore.getState().play();
     expect(useTTSStore.getState().isPlaying).toBe(true);
 
-    store.pause();
+    useTTSStore.getState().pause();
     expect(useTTSStore.getState().isPlaying).toBe(false);
 
-    store.play();
-    store.stop();
+    useTTSStore.getState().play();
+    useTTSStore.getState().stop();
     expect(useTTSStore.getState().isPlaying).toBe(false);
   });
 
@@ -36,9 +46,15 @@ describe('useTTSStore', () => {
     expect(useTTSStore.getState().rate).toBe(1.5);
   });
 
+  it('should set pitch', () => {
+    useTTSStore.getState().setPitch(1.2);
+    expect(useTTSStore.getState().pitch).toBe(1.2);
+  });
+
   it('should set voice', () => {
-    const mockVoice = { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice;
-    useTTSStore.getState().setVoice(mockVoice);
-    expect(useTTSStore.getState().voice).toBe(mockVoice);
+    // Mock voice object
+    const voice = { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice;
+    useTTSStore.getState().setVoice(voice);
+    expect(useTTSStore.getState().voice).toBe(voice);
   });
 });
