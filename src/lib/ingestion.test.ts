@@ -22,6 +22,13 @@ vi.mock('epubjs', () => {
   };
 });
 
+// Mock fetch
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    blob: () => Promise.resolve(new Blob(['cover'], { type: 'image/jpeg' })),
+  } as Response)
+);
+
 // Mock uuid
 vi.mock('uuid', () => ({
   v4: () => 'mock-uuid',
