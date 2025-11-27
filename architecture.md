@@ -71,7 +71,7 @@ graph TD
 
     %% Reader Engine Flow
     Reader --> EpubJS
-    EpubJS --> ReaderStore : "Update Progress/Location"
+    EpubJS -- "Update Progress/Location" --> ReaderStore
     Reader --> SearchClient
     SearchClient --> SearchWorker
     SearchWorker --> FlexSearch[FlexSearch Engine]
@@ -80,7 +80,7 @@ graph TD
     TTSControls --> TTSStore
     TTSStore --> TTS
     TTS --> WebSpeech
-    TTS --> EpubJS : "Highlight Text"
+    TTS -- "Highlight Text" --> EpubJS
 
     %% Data Flow
     DB --> BooksStore
