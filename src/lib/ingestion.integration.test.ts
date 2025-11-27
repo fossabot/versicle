@@ -18,14 +18,12 @@ describe('ingestion integration', () => {
     await tx.done;
   });
 
-  it('should process a real epub file (Alice in Wonderland)', async () => {
+  it('should process a real epub file (Alice in Wonderland) and extract metadata + cover', async () => {
     // Read the fixture file
     const fixturePath = path.resolve(__dirname, '../test/fixtures/alice.epub');
     const buffer = fs.readFileSync(fixturePath);
 
     // Create a File object (JSDOM environment has File)
-    // JSDOM 27 (used here) might not implement File.prototype.arrayBuffer().
-    // We can polyfill it or just assign it.
     const file = new File([buffer], 'alice.epub', { type: 'application/epub+zip' });
 
     // Use FileReader to implement arrayBuffer since Response doesn't seem to work with Blob in JSDOM 27
@@ -52,6 +50,18 @@ describe('ingestion integration', () => {
     expect(book?.title).toContain("Alice's Adventures in Wonderland");
     // Author might be 'Lewis Carroll' or 'Carroll, Lewis' depending on metadata in the file
     expect(book?.author).toContain('Lewis Carroll');
+
+    // Verify cover extraction
+    // alice.epub should have a cover
+    expect(book?.coverBlob).toBeDefined();
+    // Use loose check for Blob because of JSDOM/Node Blob mismatch
+    expect(book?.coverBlob?.constructor.name).toBe('Blob');
+
+    // Optional: check size or type if known, but just being a Blob is a good start.
+    if (book?.coverBlob) {
+        expect(book.coverBlob.size).toBeGreaterThan(0);
+        expect(book.coverBlob.type).toMatch(/image\//);
+    }
 
     const storedFile = await db.get('files', bookId);
     expect(storedFile).toBeDefined();

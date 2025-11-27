@@ -17,7 +17,8 @@ export async function processEpub(file: File): Promise<string> {
 
   if (coverUrl) {
     try {
-      coverBlob = await book.archive.getBlob(coverUrl);
+      const response = await fetch(coverUrl);
+      coverBlob = await response.blob();
     } catch (error) {
       console.warn('Failed to retrieve cover blob:', error);
     }
