@@ -203,7 +203,7 @@ export const ReaderView: React.FC = () => {
       <div className="flex-1 relative overflow-hidden flex">
          {/* TOC Sidebar */}
          {showToc && (
-             <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto z-20 absolute inset-y-0 left-0 md:static">
+             <div className="w-64 shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto z-20 absolute inset-y-0 left-0 md:static">
                  <div className="p-4">
                      <h2 className="text-lg font-bold mb-4 dark:text-white">Contents</h2>
                      <ul className="space-y-2">
