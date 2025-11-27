@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getDB } from './db/db';
-import { processEpub } from './lib/ingestion';
 import { useLibraryStore } from './store/useLibraryStore';
 import * as fs from 'fs';
 import * as path from 'path';
