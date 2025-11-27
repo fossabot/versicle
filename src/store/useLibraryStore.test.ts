@@ -1,10 +1,28 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useLibraryStore } from './useLibraryStore';
-import { initDB, getDB } from '../db';
+import { getDB } from '../db/db';
 import type { BookMetadata } from '../types/db';
 
-// The fake-indexeddb/auto import in setup.ts handles the IDB mocking
-// We just need to make sure we clear the DB between tests
+// Mock ingestion
+vi.mock('../lib/ingestion', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  processEpub: vi.fn(async (file: File) => {
+    // Mock implementation of processEpub that just puts a dummy book in DB
+    const db = await getDB();
+    const mockBook: BookMetadata = {
+      id: 'test-id',
+      title: 'Test Book',
+      author: 'Test Author',
+      description: 'Test Description',
+      cover: 'cover-data',
+      addedAt: 1234567890,
+    };
+    await db.put('books', mockBook);
+    // Use a simpler way to get buffer or just mock data
+    await db.put('files', new ArrayBuffer(8), 'test-id');
+    return 'test-id';
+  }),
+}));
 
 describe('useLibraryStore', () => {
   const mockBook: BookMetadata = {
@@ -16,7 +34,13 @@ describe('useLibraryStore', () => {
     addedAt: 1234567890,
   };
 
-  const mockFile = new ArrayBuffer(8);
+  // Create a mock file
+  const mockFile = new File(['dummy content'], 'test.epub', { type: 'application/epub+zip' });
+
+  // Polyfill arrayBuffer if missing (JSDOM/Vitest issue sometimes)
+  if (!mockFile.arrayBuffer) {
+      mockFile.arrayBuffer = async () => new ArrayBuffer(8);
+  }
 
   beforeEach(async () => {
     // Reset Zustand store
@@ -34,6 +58,10 @@ describe('useLibraryStore', () => {
     await tx.done;
   });
 
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('should have initial state', () => {
     const state = useLibraryStore.getState();
     expect(state.books).toEqual([]);
@@ -41,7 +69,7 @@ describe('useLibraryStore', () => {
   });
 
   it('should add a book', async () => {
-    await useLibraryStore.getState().addBook(mockBook, mockFile);
+    await useLibraryStore.getState().addBook(mockFile);
 
     const state = useLibraryStore.getState();
     expect(state.books).toHaveLength(1);
@@ -52,14 +80,11 @@ describe('useLibraryStore', () => {
     const db = await getDB();
     const storedBook = await db.get('books', 'test-id');
     expect(storedBook).toEqual(mockBook);
-
-    const storedFile = await db.get('files', 'test-id');
-    expect(storedFile).toEqual(mockFile);
   });
 
   it('should remove a book', async () => {
     // First add a book
-    await useLibraryStore.getState().addBook(mockBook, mockFile);
+    await useLibraryStore.getState().addBook(mockFile);
 
     // Verify it was added
     expect(useLibraryStore.getState().books).toHaveLength(1);
@@ -90,7 +115,7 @@ describe('useLibraryStore', () => {
     expect(useLibraryStore.getState().books).toHaveLength(0);
 
     // Refresh library
-    await useLibraryStore.getState().refreshLibrary();
+    await useLibraryStore.getState().fetchBooks();
 
     // State should now have the book
     const state = useLibraryStore.getState();
@@ -106,7 +131,7 @@ describe('useLibraryStore', () => {
     await db.put('books', book1);
     await db.put('books', book2);
 
-    await useLibraryStore.getState().refreshLibrary();
+    await useLibraryStore.getState().fetchBooks();
 
     const state = useLibraryStore.getState();
     expect(state.books).toHaveLength(2);
@@ -116,7 +141,7 @@ describe('useLibraryStore', () => {
 
   it('should handle annotations deletion when removing a book', async () => {
       // Add a book and an annotation
-      await useLibraryStore.getState().addBook(mockBook, mockFile);
+      await useLibraryStore.getState().addBook(mockFile);
 
       const db = await getDB();
       const annotation = {

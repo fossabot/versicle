@@ -1,0 +1,56 @@
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { BookCard } from './BookCard';
+import type { BookMetadata } from '../../types/db';
+
+describe('BookCard', () => {
+  const mockBook: BookMetadata = {
+    id: '1',
+    title: 'Test Title',
+    author: 'Test Author',
+    description: 'Test Description',
+    addedAt: 1234567890,
+    coverBlob: new Blob(['mock-image'], { type: 'image/jpeg' }),
+  };
+
+  beforeEach(() => {
+    // Mock URL.createObjectURL and revokeObjectURL
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    global.URL.revokeObjectURL = vi.fn();
+  });
+
+  // Removed afterEach since clearAllMocks is handled automatically if configured, or not needed if we overwrite mocks in beforeEach
+
+  it('should render book info', () => {
+    render(<BookCard book={mockBook} />);
+
+    expect(screen.getByText('Test Title')).toBeInTheDocument();
+    expect(screen.getByText('Test Author')).toBeInTheDocument();
+  });
+
+  it('should render cover image if blob is present', () => {
+    render(<BookCard book={mockBook} />);
+
+    const img = screen.getByRole('img');
+    expect(img).toHaveAttribute('src', 'blob:mock-url');
+    expect(img).toHaveAttribute('alt', 'Cover of Test Title');
+  });
+
+  it('should render placeholder if no cover blob', () => {
+    const bookWithoutCover = { ...mockBook, coverBlob: undefined };
+    render(<BookCard book={bookWithoutCover} />);
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText('Aa')).toBeInTheDocument();
+  });
+
+  it('should clean up object URL on unmount', () => {
+    const { unmount } = render(<BookCard book={mockBook} />);
+
+    expect(global.URL.createObjectURL).toHaveBeenCalledWith(mockBook.coverBlob);
+
+    unmount();
+
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+  });
+});
