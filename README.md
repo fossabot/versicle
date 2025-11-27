@@ -1,52 +1,35 @@
 # Versicle
 
-A local-first, web-based EPUB manager and reader.
-
-## Project Overview
-
-Versicle is a Progressive Web App (PWA) designed to ingest, manage, and render EPUB files directly in the browser. It leverages `epub.js` for rendering and IndexedDB for storing large files and metadata locally.
+Versicle is a local-first, web-based EPUB manager and reader. It allows you to organize your digital library and read books directly in your browser without uploading files to a server.
 
 ## Features
 
-- **Local-First:** All data is stored locally in the browser using IndexedDB.
-- **Library Management:** Import and organize your EPUB collection.
-- **Reader Interface:** Read books with pagination, chapter navigation, and Table of Contents.
-- **Customization:** Adjustable font size and themes (Light, Dark, Sepia).
-- **Text-to-Speech (TTS):** Synchronized reading with sentence highlighting (In Progress).
-- **Annotations:** Highlight text and add notes (In Progress).
-
-## Tech Stack
-
-- **Frontend:** React, TypeScript, Vite
-- **State Management:** Zustand
-- **Database:** IndexedDB (via `idb`)
-- **Rendering:** epub.js
-- **Routing:** react-router-dom
+- **Local-First:** All data is stored in your browser using IndexedDB.
+- **Library Management:** Import, sort, and search your EPUB collection.
+- **Advanced Reader:** Customizable themes, font sizes, and layout.
+- **Annotations:** Highlight text in multiple colors and add personal notes.
+- **Text-to-Speech:** Listen to your books with sentence-level highlighting.
+- **Search:** Full-text search within books.
 
 ## Getting Started
 
-1.  **Install Dependencies:**
-    ```bash
-    npm install
-    ```
+1.  Clone the repository.
+2.  Install dependencies: `npm install`
+3.  Start the development server: `npm run dev`
 
-2.  **Run Development Server:**
-    ```bash
-    npm run dev
-    ```
+## Architecture
 
-3.  **Build for Production:**
-    ```bash
-    npm run build
-    ```
+See [architecture.md](architecture.md) for a detailed overview of the system design.
 
-## Development Status
+## Project Plan
 
-- **Step 1: Skeleton & Database** - Completed
-- **Step 2: Ingestion & Library** - Completed
-- **Step 3: The Reader Interface** - Completed
-  - `ReaderView` component implemented.
-  - `epub.js` integration for rendering.
-  - Navigation (Next/Prev/TOC) and Progress tracking.
-  - Theming and Font Size controls.
-  - Unit and Integration tests added.
+The project is being implemented in phases. See [plan.md](plan.md) and the `plan/` directory for details.
+
+- [x] Phase 1: Skeleton
+- [x] Phase 2: Ingestion
+- [x] Phase 3: Reader
+- [x] Phase 4: TTS & Optimization
+- [x] Phase 5: Annotations
+- [ ] Phase 6: Advanced Theming
+- [ ] Phase 7: PWA
+- [ ] Phase 8: Polish & Verification

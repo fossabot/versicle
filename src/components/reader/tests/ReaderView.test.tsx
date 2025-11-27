@@ -16,6 +16,7 @@ vi.mock('../../../db/db', () => ({
       if (store === 'books') return Promise.resolve({ title: 'Test Book' });
       return Promise.resolve(null);
     }),
+    getAllFromIndex: vi.fn(() => Promise.resolve([])), // Mock annotations fetch
     transaction: vi.fn(() => ({
         objectStore: vi.fn(() => ({
             get: vi.fn(),
