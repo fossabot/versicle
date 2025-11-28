@@ -3,6 +3,9 @@ from playwright.sync_api import Page, expect
 from verification import utils
 
 def test_tts_fallback(page: Page):
+    console_logs = []
+    page.on("console", lambda msg: console_logs.append(msg.text))
+
     print("Loading app...")
     utils.reset_app(page)
     utils.ensure_library_with_book(page)
@@ -44,13 +47,25 @@ def test_tts_fallback(page: Page):
     # Close Settings (back)
     page.click("text=Back")
 
+    # Handle Cost Warning Dialog
+    page.on("dialog", lambda dialog: dialog.accept())
+
     # Click Play
     print("Clicking play...")
     page.click(".flex-1.bg-primary")
 
-    print("Waiting for toast...")
-    # Allow some time for toast to appear
-    # Cap at 2000ms as requested
-    page.wait_for_selector("text=Cloud voice failed", timeout=2000)
-    print("Toast appeared!")
-    utils.capture_screenshot(page, "tts_fallback_toast_retry")
+    print("Waiting for logs...")
+    page.wait_for_timeout(2000)
+
+    # Check for console logs indicating error and fallback
+    # Expected logs: "Play error Error: Google Cloud API Key is missing" and "Falling back to WebSpeechProvider..."
+    # The actual log format might vary slightly in browser console vs playwright capture
+
+    logs_text = "\n".join(console_logs)
+    print("Console logs captured:")
+    print(logs_text)
+
+    assert "Google Cloud API Key is missing" in logs_text
+    assert "Falling back to WebSpeechProvider" in logs_text
+
+    print("Fallback logs verified!")

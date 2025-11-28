@@ -148,12 +148,6 @@ export const ReaderView: React.FC = () => {
       if (lastError) {
           setToastMessage(lastError);
           setShowToast(true);
-          // Auto-clear error in store so it doesn't persist forever
-          // but we keep local toast visible for duration
-          // Actually, let's keep it simple: store holds error, we show toast, then clear store.
-
-          // Wait for toast duration then clear?
-          // The Toast component handles its own timer for onClose.
       }
   }, [lastError]);
 
@@ -444,7 +438,7 @@ export const ReaderView: React.FC = () => {
 
             if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
             resizeTimeout.current = setTimeout(() => {
-                 renditionRef.current?.resize();
+                 renditionRef.current?.resize(width, height);
             }, 100);
         }
     });

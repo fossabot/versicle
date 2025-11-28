@@ -242,7 +242,10 @@ export class AudioPlayerService {
             // Also might want to unset specific voiceId if it was a cloud voice ID
             // or let the provider handle fallback.
             // For now, let's just retry.
-            this.play();
+            // Defer play to allow error state to propagate to UI (avoid batching)
+            setTimeout(() => {
+                this.play();
+            }, 500);
             return;
         }
 
