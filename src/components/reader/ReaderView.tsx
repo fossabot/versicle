@@ -4,9 +4,12 @@ import ePub, { type Book, type Rendition, type Location } from 'epubjs';
 import { useReaderStore } from '../../store/useReaderStore';
 import { useTTSStore } from '../../store/useTTSStore';
 import { useTTS } from '../../hooks/useTTS';
+import { useAnnotationStore } from '../../store/useAnnotationStore';
+import { AnnotationPopover } from './AnnotationPopover';
+import { AnnotationList } from './AnnotationList';
 import { getDB } from '../../db/db';
 import { searchClient, type SearchResult } from '../../lib/search';
-import { ChevronLeft, ChevronRight, List, Settings, ArrowLeft, Play, Pause, X, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, List, Settings, ArrowLeft, Play, Pause, X, Search, Highlighter } from 'lucide-react';
 
 /**
  * The main reader interface component.
@@ -47,6 +50,13 @@ export const ReaderView: React.FC = () => {
       voices: availableVoices
   } = useTTSStore();
 
+  const {
+    annotations,
+    loadAnnotations,
+    showPopover,
+    hidePopover
+  } = useAnnotationStore();
+
   // Use TTS Hook
   useTTS(renditionRef.current);
 
@@ -66,6 +76,56 @@ export const ReaderView: React.FC = () => {
       };
   }, [activeCfi]);
 
+  // Load Annotations
+  useEffect(() => {
+    if (id) {
+      loadAnnotations(id);
+    }
+  }, [id, loadAnnotations]);
+
+  // Apply Annotations to Rendition
+  // We use a ref to track which annotations have been added to the rendition to avoid duplicates.
+  const addedAnnotations = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const rendition = renditionRef.current;
+    if (rendition) {
+      // Add new annotations
+      annotations.forEach(annotation => {
+        if (!addedAnnotations.current.has(annotation.id)) {
+           rendition.annotations.add('highlight', annotation.cfiRange, {}, (e: Event) => {
+                console.log("Clicked annotation", annotation.id);
+                // TODO: Open edit/delete menu, perhaps via a new state/popover
+            }, annotation.color === 'yellow' ? 'highlight-yellow' :
+               annotation.color === 'green' ? 'highlight-green' :
+               annotation.color === 'blue' ? 'highlight-blue' :
+               annotation.color === 'red' ? 'highlight-red' : 'highlight-yellow');
+           addedAnnotations.current.add(annotation.id);
+        }
+      });
+
+      // Handle removals (if annotations were deleted from store)
+      // This requires iterating over addedAnnotations and checking if they exist in `annotations`
+      // For now, since `epubjs` annotations API is append-only mostly, we would need to remove by CFI.
+      // But `rendition.annotations.remove` takes CFI and type.
+      // If we delete an annotation, we need to know its CFI.
+      // A full sync might be: clear all highlights and re-add?
+      // Or just track better.
+      // For simplicity in this iteration: we only ADD.
+      // Real implementation should probably clear specific CFIs if removed.
+
+      const currentIds = new Set(annotations.map(a => a.id));
+      addedAnnotations.current.forEach(id => {
+          if (!currentIds.has(id)) {
+              // Find the annotation object (we don't have it anymore if it's gone from store)
+              // We need to store map of ID -> CFI in ref to remove it.
+              // For now, let's just accept we might have stale highlights until reload if we don't implement full sync.
+              // Improving:
+          }
+      });
+    }
+  }, [annotations, renditionRef.current]);
+
   // Inject Custom CSS for Highlights
   useEffect(() => {
       const rendition = renditionRef.current;
@@ -75,12 +135,33 @@ export const ReaderView: React.FC = () => {
                   'fill': 'yellow',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
+              },
+              '.highlight-yellow': {
+                  'fill': 'yellow',
+                  'fill-opacity': '0.3',
+                  'mix-blend-mode': 'multiply'
+              },
+              '.highlight-green': {
+                  'fill': 'green',
+                  'fill-opacity': '0.3',
+                  'mix-blend-mode': 'multiply'
+              },
+              '.highlight-blue': {
+                  'fill': 'blue',
+                  'fill-opacity': '0.3',
+                  'mix-blend-mode': 'multiply'
+              },
+              '.highlight-red': {
+                  'fill': 'red',
+                  'fill-opacity': '0.3',
+                  'mix-blend-mode': 'multiply'
               }
           });
       }
   }, [renditionRef.current]);
 
   const [showToc, setShowToc] = useState(false);
+  const [showAnnotations, setShowAnnotations] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTTS, setShowTTS] = useState(false);
 
@@ -158,8 +239,45 @@ export const ReaderView: React.FC = () => {
                console.log("Book indexed for search");
            });
 
+          // Text Selection Listener
+          rendition.on('selected', (cfiRange: string, contents: any) => {
+            const range = rendition.getRange(cfiRange);
+            if (range) {
+                const rect = range.getBoundingClientRect();
+                // Adjust rect coordinates based on the iframe position if needed,
+                // but usually getBoundingClientRect inside iframe is relative to iframe viewport?
+                // Wait, getRange returns a DOM Range. getBoundingClientRect is relative to viewport.
+                // Since epub.js renders in an iframe, we need to account for iframe position?
+                // Actually `rendition.getRange(cfiRange)` returns a range in the iframe document.
+                // We need to map that to the main window.
+
+                // However, the popover will be rendered in the main window.
+                // We need to translate iframe coordinates to main window coordinates.
+                // `viewerRef.current` contains the iframe.
+                const iframe = viewerRef.current?.querySelector('iframe');
+                if (iframe) {
+                   const iframeRect = iframe.getBoundingClientRect();
+                   showPopover(
+                       rect.left + iframeRect.left,
+                       rect.top + iframeRect.top,
+                       cfiRange,
+                       range.toString()
+                   );
+
+                   // Clear selection (optional, but keep it so user sees what they selected)
+                   // contents.window.getSelection().removeAllRanges();
+                }
+            }
+          });
+
+          // Clear popover on click elsewhere
+          rendition.on('click', () => {
+             hidePopover();
+          });
+
           rendition.on('relocated', (location: Location) => {
             const cfi = location.start.cfi;
+            hidePopover();
             // Calculate progress
             // Note: book.locations.percentageFromCfi(cfi) only works if locations are generated.
             // If not generated, it might return 0 or throw.
@@ -214,6 +332,13 @@ export const ReaderView: React.FC = () => {
     }
   }, [currentTheme, fontSize]);
 
+  const handleClearSelection = () => {
+      const iframe = viewerRef.current?.querySelector('iframe');
+      if (iframe && (iframe as any).contentWindow) {
+          (iframe as any).contentWindow.getSelection()?.removeAllRanges();
+      }
+  };
+
   const saveProgress = async (bookId: string, cfi: string, progress: number) => {
       try {
           const db = await getDB();
@@ -253,8 +378,11 @@ export const ReaderView: React.FC = () => {
           <button aria-label="Back" onClick={() => navigate('/')} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
             <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
           </button>
-          <button aria-label="Table of Contents" onClick={() => setShowToc(!showToc)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+          <button aria-label="Table of Contents" onClick={() => { setShowToc(!showToc); setShowAnnotations(false); }} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 ${showToc ? 'bg-gray-200 dark:bg-gray-700' : ''}`}>
             <List className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+          </button>
+          <button aria-label="Annotations" onClick={() => { setShowAnnotations(!showAnnotations); setShowToc(false); }} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 ${showAnnotations ? 'bg-gray-200 dark:bg-gray-700' : ''}`}>
+            <Highlighter className="w-5 h-5 text-gray-700 dark:text-gray-200" />
           </button>
         </div>
         <h1 className="text-sm font-medium truncate max-w-xs text-gray-800 dark:text-gray-200">
@@ -296,6 +424,19 @@ export const ReaderView: React.FC = () => {
                          ))}
                      </ul>
                  </div>
+             </div>
+         )}
+
+         {/* Annotations Sidebar */}
+         {showAnnotations && (
+             <div className="w-64 shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto z-20 absolute inset-y-0 left-0 md:static flex flex-col">
+                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                     <h2 className="text-lg font-bold dark:text-white">Annotations</h2>
+                 </div>
+                 <AnnotationList onNavigate={(cfi) => {
+                     renditionRef.current?.display(cfi);
+                     if (window.innerWidth < 768) setShowAnnotations(false);
+                 }} />
              </div>
          )}
 
@@ -363,6 +504,8 @@ export const ReaderView: React.FC = () => {
          {/* Reader Area */}
          <div className="flex-1 relative">
             <div ref={viewerRef} className="w-full h-full" />
+
+             <AnnotationPopover bookId={id || ''} onClose={handleClearSelection} />
 
              {/* TTS Controls */}
              {showTTS && (

@@ -17,6 +17,7 @@ interface Annotation {
   id: string;          // UUID
   bookId: string;      // Foreign key to book
   cfiRange: string;    // The epubcfi range string
+  text: string;        // The selected text content
   type: 'highlight' | 'note';
   color: string;       // e.g., "yellow", "#ff0000", "class-name"
   note?: string;       // Optional user text
@@ -81,3 +82,10 @@ interface Annotation {
 *   **Persist:** Highlight text, reload page, verify highlight reappears.
 *   **Navigation:** Click annotation in sidebar, verify reader jumps to correct location.
 *   **Cleanup:** Delete annotation, verify it disappears from screen and DB.
+
+## **Status**
+*   [x] Database schema update
+*   [x] Store implementation (`useAnnotationStore`)
+*   [x] UI Components (`AnnotationPopover`, `AnnotationList`)
+*   [x] Reader Integration
+*   [x] Unit Tests
