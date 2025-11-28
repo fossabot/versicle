@@ -360,6 +360,21 @@ export const ReaderView: React.FC = () => {
   const handlePrev = () => renditionRef.current?.prev();
   const handleNext = () => renditionRef.current?.next();
 
+  // Handle Container Resize (e.g. sidebar toggle)
+  useEffect(() => {
+    if (!viewerRef.current) return;
+
+    const observer = new ResizeObserver(() => {
+      if (renditionRef.current) {
+        renditionRef.current.resize();
+      }
+    });
+
+    observer.observe(viewerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
