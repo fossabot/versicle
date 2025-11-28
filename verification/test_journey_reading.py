@@ -26,7 +26,9 @@ async def run_test():
         print("Testing Next/Prev...")
         next_btn = page.get_by_label("Next Page")
         await next_btn.click()
-        await page.wait_for_timeout(1000) # Wait for transition
+        # Increased wait time to ensure page transition completes, as epub.js
+        # may require more time for rendering the next spine item/page.
+        await page.wait_for_timeout(3000)
         await utils.capture_screenshot(page, "reading_2_next_page")
 
         prev_btn = page.get_by_label("Previous Page")
