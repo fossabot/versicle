@@ -10,6 +10,7 @@ import { AnnotationList } from './AnnotationList';
 import { ReaderSettings } from './ReaderSettings';
 import { TTSCostIndicator } from './TTSCostIndicator';
 import { TTSQueue } from './TTSQueue';
+import { TTSAbbreviationSettings } from './TTSAbbreviationSettings';
 import { getDB } from '../../db/db';
 import { searchClient, type SearchResult } from '../../lib/search';
 import { ChevronLeft, ChevronRight, List, Settings, ArrowLeft, Play, Pause, X, Search, Highlighter } from 'lucide-react';
@@ -620,6 +621,7 @@ export const ReaderView: React.FC = () => {
                                 <button
                                     onClick={() => setShowVoiceSettings(true)}
                                     className="px-2 py-1 bg-secondary text-surface rounded hover:opacity-90"
+                                    aria-label="Voice Settings"
                                 >
                                     <Settings className="w-4 h-4" />
                                 </button>
@@ -701,6 +703,10 @@ export const ReaderView: React.FC = () => {
                                     />
                                 </div>
                             )}
+
+                            <div className="pt-2 border-t border-border">
+                                <TTSAbbreviationSettings />
+                            </div>
                         </div>
                      )}
 
