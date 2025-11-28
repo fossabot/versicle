@@ -1,4 +1,4 @@
-import { ITTSProvider, TTSVoice } from './providers/types';
+import type { ITTSProvider, TTSVoice } from './providers/types';
 import { WebSpeechProvider } from './providers/WebSpeechProvider';
 
 export type TTSStatus = 'playing' | 'paused' | 'stopped' | 'loading';

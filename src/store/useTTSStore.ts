@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { TTSVoice } from '../lib/tts/providers/types';
-import { AudioPlayerService, TTSStatus } from '../lib/tts/AudioPlayerService';
+import type { TTSVoice } from '../lib/tts/providers/types';
+import { AudioPlayerService } from '../lib/tts/AudioPlayerService';
+import type { TTSStatus } from '../lib/tts/AudioPlayerService';
 
 /**
  * State interface for the Text-to-Speech (TTS) store.
