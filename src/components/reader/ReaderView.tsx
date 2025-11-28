@@ -141,26 +141,31 @@ export const ReaderView: React.FC = () => {
           rendition.themes.default({
               '.tts-highlight': {
                   'fill': 'yellow',
+                  'background-color': 'rgba(255, 255, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-yellow': {
                   'fill': 'yellow',
+                  'background-color': 'rgba(255, 255, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-green': {
                   'fill': 'green',
+                  'background-color': 'rgba(0, 255, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-blue': {
                   'fill': 'blue',
+                  'background-color': 'rgba(0, 0, 255, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-red': {
                   'fill': 'red',
+                  'background-color': 'rgba(255, 0, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               }
@@ -294,6 +299,10 @@ export const ReaderView: React.FC = () => {
 
           rendition.on('relocated', (location: Location) => {
             const cfi = location.start.cfi;
+
+            // Prevent infinite loop if CFI hasn't changed
+            if (cfi === useReaderStore.getState().currentCfi) return;
+
             hidePopover();
             // Calculate progress
             // Note: book.locations.percentageFromCfi(cfi) only works if locations are generated.
@@ -396,25 +405,33 @@ export const ReaderView: React.FC = () => {
   };
 
   // Handle Container Resize (e.g. sidebar toggle)
+  const prevSize = useRef({ width: 0, height: 0 });
+  const resizeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!viewerRef.current) return;
 
     const observer = new ResizeObserver((entries) => {
-        // Debounce or check if size actually changed significantly to avoid loops/resets
-        // Simple check: if we have entries
-        if (entries.length > 0 && renditionRef.current) {
-            // We can assume if ResizeObserver fires, the container size changed.
-            // Just call resize().
-            // However, to prevent initial load reset issues, maybe we delay it?
-            requestAnimationFrame(() => {
+        if (!renditionRef.current || !entries.length) return;
+
+        const { width, height } = entries[0].contentRect;
+
+        if (Math.abs(prevSize.current.width - width) > 1 || Math.abs(prevSize.current.height - height) > 1) {
+            prevSize.current = { width, height };
+
+            if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
+            resizeTimeout.current = setTimeout(() => {
                  renditionRef.current?.resize();
-            });
+            }, 100);
         }
     });
 
     observer.observe(viewerRef.current);
 
-    return () => observer.disconnect();
+    return () => {
+        observer.disconnect();
+        if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
+    };
   }, []);
 
   // Keyboard navigation
@@ -558,7 +575,7 @@ export const ReaderView: React.FC = () => {
 
          {/* Reader Area */}
          <div className="flex-1 relative">
-            <div ref={viewerRef} className="w-full h-full" />
+            <div ref={viewerRef} className="w-full h-full overflow-hidden" />
 
              <AnnotationPopover bookId={id || ''} onClose={handleClearSelection} />
 
