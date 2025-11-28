@@ -370,10 +370,17 @@ export const ReaderView: React.FC = () => {
   useEffect(() => {
     if (!viewerRef.current) return;
 
-    const observer = new ResizeObserver(() => {
-      if (renditionRef.current) {
-        renditionRef.current.resize();
-      }
+    const observer = new ResizeObserver((entries) => {
+        // Debounce or check if size actually changed significantly to avoid loops/resets
+        // Simple check: if we have entries
+        if (entries.length > 0 && renditionRef.current) {
+            // We can assume if ResizeObserver fires, the container size changed.
+            // Just call resize().
+            // However, to prevent initial load reset issues, maybe we delay it?
+            requestAnimationFrame(() => {
+                 renditionRef.current?.resize();
+            });
+        }
     });
 
     observer.observe(viewerRef.current);
