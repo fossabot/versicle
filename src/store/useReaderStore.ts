@@ -86,9 +86,6 @@ export const useReaderStore = create<ReaderState>()(
       partialize: (state) => ({
         currentTheme: state.currentTheme,
         fontSize: state.fontSize,
-        // We probably don't want to persist currentBookId or isLoading or toc globally
-        // But maybe we do want to remember last theme/font? Yes.
-        // And maybe last read book? User journey doesn't test that but it's nice.
       }),
     }
   )
