@@ -25,12 +25,17 @@ def test_search_journey(page: Page):
         search_input.fill("Alice")
         search_input.press("Enter")
 
-        try:
-            # Wait briefly for results to appear
-            expect(results_list.locator("li").first).to_be_visible(timeout=2000)
+        # Wait for potential update
+        page.wait_for_timeout(500)
+
+        # Check for results
+        count = page.locator("ul.space-y-4 li").count()
+        print(f"List items count: {count}")
+
+        if count > 0:
             print("Results found.")
             break
-        except AssertionError:
+        else:
             print("No results yet, waiting...")
             page.wait_for_timeout(1000)
     else:
@@ -39,9 +44,10 @@ def test_search_journey(page: Page):
     utils.capture_screenshot(page, "search_results")
 
     # Check text content of result
-    first_result = results_list.locator("li").first
+    first_result = page.locator("ul.space-y-4 li").first
     text = first_result.text_content()
     print(f"First result: {text}")
+    assert "Alice" in text or "Wonderland" in text, "Search result should contain query terms"
 
     # Click result to navigate
     first_result.locator("button").click()
