@@ -6,7 +6,7 @@ Phase 4 is about refining the user experience. Now that the engines are working,
 
 ## **2. Design Specifications**
 
-### **2.1. Improved Text Segmentation (`src/lib/tts/TextSegmenter.ts`)**
+### 2.1. Improved Text Segmentation (`src/lib/tts/TextSegmenter.ts`) [Completed]
 
 The current regex-based splitter (`src/lib/tts.ts`) is naive. It breaks on "Mr. Smith" or "e.g.".
 
@@ -18,7 +18,7 @@ The current regex-based splitter (`src/lib/tts.ts`) is naive. It breaks on "Mr. 
 *   **Fallback**: Keep regex for older browsers if necessary, but `Intl.Segmenter` is widely supported.
 *   **Integration**: Update the `extractSentences` function used by the `AudioPlayerService` queue generator.
 
-### **2.2. Playlist / Queue UI**
+### **2.2. Playlist / Queue UI** (Completed)
 
 A visual representation of what is being read helps users understand context and navigation.
 
@@ -26,6 +26,7 @@ A visual representation of what is being read helps users understand context and
 *   **Display**: List of upcoming sentences.
 *   **Interaction**: Click a sentence to jump the queue (and seeking in the book).
 *   **Auto-Scroll**: The active sentence in the list should scroll into view.
+*   **Status**: Implemented in `src/components/reader/TTSQueue.tsx` and integrated into `ReaderView.tsx`.
 
 ### **2.3. Pre-fetching / buffering**
 
