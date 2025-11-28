@@ -43,4 +43,19 @@ def test_search_journey(page: Page):
 
     utils.capture_screenshot(page, "search_results")
 
+    # Check text content of result
+    first_result = page.locator("ul.space-y-4 li").first
+    text = first_result.text_content()
+    print(f"First result: {text}")
+    assert "Alice" in text or "Wonderland" in text, "Search result should contain query terms"
+
+    # Click result to navigate
+    first_result.locator("button").click()
+
+    # Close search using the Close button next to input
+    close_btn = page.locator("input[placeholder='Search in book...']").locator("xpath=following-sibling::button")
+    close_btn.click()
+
+    utils.capture_screenshot(page, "search_after_nav")
+
     print("Search Journey Passed!")
