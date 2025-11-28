@@ -1,4 +1,4 @@
-import { ITTSProvider, SpeechSegment, TTSVoice } from './types';
+import type { ITTSProvider, SpeechSegment, TTSVoice } from './types';
 
 type TTSCallback = (event: { type: 'start' | 'end' | 'boundary' | 'error', charIndex?: number, error?: any }) => void;
 

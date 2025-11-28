@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { NavigationItem } from 'epubjs';
 
 /**
@@ -47,33 +48,45 @@ interface ReaderState {
  * Zustand store for managing the state of the book reader.
  * Controls settings like theme and font size, as well as tracking reading progress and location.
  */
-export const useReaderStore = create<ReaderState>((set) => ({
-  isLoading: false,
-  currentBookId: null,
-  currentTheme: 'light',
-  fontSize: 100,
-  currentCfi: null,
-  currentChapterTitle: null,
-  progress: 0,
-  toc: [],
+export const useReaderStore = create<ReaderState>()(
+  persist(
+    (set) => ({
+      isLoading: false,
+      currentBookId: null,
+      currentTheme: 'light',
+      fontSize: 100,
+      currentCfi: null,
+      currentChapterTitle: null,
+      progress: 0,
+      toc: [],
 
-  setIsLoading: (isLoading) => set({ isLoading }),
-  setCurrentBookId: (id) => set({ currentBookId: id }),
-  setTheme: (theme) => set({ currentTheme: theme }),
-  setFontSize: (size) => set({ fontSize: size }),
-  updateLocation: (cfi, progress, chapterTitle) =>
-    set((state) => ({
-      currentCfi: cfi,
-      progress,
-      currentChapterTitle: chapterTitle ?? state.currentChapterTitle
-    })),
-  setToc: (toc) => set({ toc }),
-  reset: () => set({
-    isLoading: false,
-    currentBookId: null,
-    currentCfi: null,
-    currentChapterTitle: null,
-    progress: 0,
-    toc: []
-  })
-}));
+      setIsLoading: (isLoading) => set({ isLoading }),
+      setCurrentBookId: (id) => set({ currentBookId: id }),
+      setTheme: (theme) => set({ currentTheme: theme }),
+      setFontSize: (size) => set({ fontSize: size }),
+      updateLocation: (cfi, progress, chapterTitle) =>
+        set((state) => ({
+          currentCfi: cfi,
+          progress,
+          currentChapterTitle: chapterTitle ?? state.currentChapterTitle
+        })),
+      setToc: (toc) => set({ toc }),
+      reset: () => set({
+        isLoading: false,
+        currentBookId: null,
+        currentCfi: null,
+        currentChapterTitle: null,
+        progress: 0,
+        toc: []
+      })
+    }),
+    {
+      name: 'reader-storage', // unique name
+      storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
+      partialize: (state) => ({
+        currentTheme: state.currentTheme,
+        fontSize: state.fontSize,
+      }),
+    }
+  )
+);

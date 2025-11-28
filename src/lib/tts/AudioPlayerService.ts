@@ -1,4 +1,4 @@
-import { ITTSProvider, TTSVoice, SpeechSegment } from './providers/types';
+import type { ITTSProvider, TTSVoice, SpeechSegment } from './providers/types';
 import { WebSpeechProvider } from './providers/WebSpeechProvider';
 import { AudioElementPlayer } from './AudioElementPlayer';
 import { SyncEngine } from './SyncEngine';

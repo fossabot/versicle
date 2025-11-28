@@ -357,8 +357,36 @@ export const ReaderView: React.FC = () => {
       }
   };
 
-  const handlePrev = () => renditionRef.current?.prev();
-  const handleNext = () => renditionRef.current?.next();
+  const handlePrev = () => {
+      console.log("Navigating to previous page");
+      renditionRef.current?.prev();
+  };
+  const handleNext = () => {
+      console.log("Navigating to next page");
+      renditionRef.current?.next();
+  };
+
+  // Handle Container Resize (e.g. sidebar toggle)
+  useEffect(() => {
+    if (!viewerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+        // Debounce or check if size actually changed significantly to avoid loops/resets
+        // Simple check: if we have entries
+        if (entries.length > 0 && renditionRef.current) {
+            // We can assume if ResizeObserver fires, the container size changed.
+            // Just call resize().
+            // However, to prevent initial load reset issues, maybe we delay it?
+            requestAnimationFrame(() => {
+                 renditionRef.current?.resize();
+            });
+        }
+    });
+
+    observer.observe(viewerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
