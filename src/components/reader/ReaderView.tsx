@@ -137,26 +137,31 @@ export const ReaderView: React.FC = () => {
           rendition.themes.default({
               '.tts-highlight': {
                   'fill': 'yellow',
+                  'background-color': 'rgba(255, 255, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-yellow': {
                   'fill': 'yellow',
+                  'background-color': 'rgba(255, 255, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-green': {
                   'fill': 'green',
+                  'background-color': 'rgba(0, 255, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-blue': {
                   'fill': 'blue',
+                  'background-color': 'rgba(0, 0, 255, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               },
               '.highlight-red': {
                   'fill': 'red',
+                  'background-color': 'rgba(255, 0, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               }
