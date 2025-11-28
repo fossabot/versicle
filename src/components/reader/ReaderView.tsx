@@ -551,7 +551,7 @@ export const ReaderView: React.FC = () => {
 
          {/* Reader Area */}
          <div className="flex-1 relative">
-            <div ref={viewerRef} className="w-full h-full" />
+            <div ref={viewerRef} className="w-full h-full overflow-hidden" />
 
              <AnnotationPopover bookId={id || ''} onClose={handleClearSelection} />
 
