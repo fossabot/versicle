@@ -311,16 +311,6 @@ export const ReaderView: React.FC = () => {
             const range = (rendition as any).getRange(cfiRange);
             if (range) {
                 const rect = range.getBoundingClientRect();
-                // Adjust rect coordinates based on the iframe position if needed,
-                // but usually getBoundingClientRect inside iframe is relative to iframe viewport?
-                // Wait, getRange returns a DOM Range. getBoundingClientRect is relative to viewport.
-                // Since epub.js renders in an iframe, we need to account for iframe position?
-                // Actually `rendition.getRange(cfiRange)` returns a range in the iframe document.
-                // We need to map that to the main window.
-
-                // However, the popover will be rendered in the main window.
-                // We need to translate iframe coordinates to main window coordinates.
-                // `viewerRef.current` contains the iframe.
                 const iframe = viewerRef.current?.querySelector('iframe');
                 if (iframe) {
                    const iframeRect = iframe.getBoundingClientRect();
@@ -330,11 +320,41 @@ export const ReaderView: React.FC = () => {
                        cfiRange,
                        range.toString()
                    );
-
-                   // Clear selection (optional, but keep it so user sees what they selected)
-                   // contents.window.getSelection().removeAllRanges();
                 }
             }
+          });
+
+          // Manual selection listener to handle cases where epub.js event fails (e.g. after highlighting)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          rendition.hooks.content.register((contents: any) => {
+              const doc = contents.document;
+              doc.addEventListener('mouseup', () => {
+                  const selection = contents.window.getSelection();
+                  if (!selection || selection.isCollapsed) return;
+
+                  // Wait a tick to let epub.js handle it first (if it works)
+                  setTimeout(() => {
+                      const range = selection.getRangeAt(0);
+                      if (!range) return;
+
+                      // Check if we are selecting inside the same range (optional)
+
+                      const cfi = contents.cfiFromRange(range);
+                      if (cfi) {
+                           const rect = range.getBoundingClientRect();
+                           const iframe = viewerRef.current?.querySelector('iframe');
+                           if (iframe) {
+                               const iframeRect = iframe.getBoundingClientRect();
+                               showPopover(
+                                   rect.left + iframeRect.left,
+                                   rect.top + iframeRect.top,
+                                   cfi,
+                                   range.toString()
+                               );
+                           }
+                      }
+                  }, 10);
+              });
           });
 
           // Clear popover on click elsewhere
