@@ -33,6 +33,6 @@ The project is being implemented in phases. See [plan.md](plan.md) and the `plan
 - [x] Phase 3: Reader
 - [x] Phase 4: TTS & Optimization
 - [x] Phase 5: Annotations
-- [ ] Phase 6: Advanced Theming
-- [ ] Phase 7: PWA
+- [x] Phase 6: Advanced Theming
+- [x] Phase 7: PWA
 - [ ] Phase 8: Polish & Verification
