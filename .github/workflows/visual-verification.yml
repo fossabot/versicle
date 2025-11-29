@@ -29,7 +29,7 @@ jobs:
 
       - name: Install Python Deps
         run: |
-          pip install pytest playwright
+          pip install pytest playwright pytest-playwright
           playwright install --with-deps chromium
 
       # 3. Start the App in the Background
