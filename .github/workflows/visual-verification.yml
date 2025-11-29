@@ -1,0 +1,56 @@
+name: Visual Verification
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify-screenshots:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Setup Environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      # 2. Install Dependencies
+      - name: Install Frontend Deps
+        run: npm ci
+
+      - name: Install Python Deps
+        run: |
+          pip install pytest playwright
+          playwright install --with-deps chromium
+
+      # 3. Start the App in the Background
+      # We use 'preview' instead of 'dev' for a more production-like build in CI
+      - name: Build and Start App
+        run: |
+          npm run build
+          npm run preview -- --port 5173 &
+          npx wait-on http://localhost:5173
+
+      # 4. Run Verification (Generates Screenshots)
+      - name: Run Visual Tests
+        run: python verification/run_all.py
+
+      # 5. Upload Screenshots as Artifacts
+      # This makes them available for download in the "Summary" tab of the Action run
+      - name: Upload Screenshots
+        if: always() # Upload even if tests fail so you can see why
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-screenshots
+          path: verification/screenshots/
+          retention-days: 14
