@@ -36,6 +36,15 @@ def test_immersive_mode(page: Page):
     # Screenshot 1: Default View
     page.screenshot(path="verification/screenshots/sprint1_1_default.png")
 
+    # Wait for book content to be fully loaded and interactive
+    # The click listener is attached to the rendition, which wraps the iframe content.
+    # We wait for the iframe to contain body/text to ensure it's ready.
+    frame = page.frame_locator("iframe")
+    frame.locator("body").wait_for(state="visible", timeout=10000)
+
+    # Wait a bit more to ensure event listeners are attached by epub.js
+    page.wait_for_timeout(2000)
+
     # 2. Toggle Immersive Mode
     # Click center of viewport.
     # We need to make sure we click the reader area, not the header/footer.
