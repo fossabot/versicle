@@ -6,6 +6,7 @@ import { TTSCache } from './TTSCache';
 import { CostEstimator } from './CostEstimator';
 import { LexiconService } from './LexiconService';
 import { MediaSessionManager } from './MediaSessionManager';
+import { useTTSStore } from '../../store/useTTSStore';
 
 export type TTSStatus = 'playing' | 'paused' | 'stopped' | 'loading';
 
@@ -183,7 +184,7 @@ export class AudioPlayerService {
       }
   }
 
-  async play() {
+  async play(): Promise<void> {
     if (this.status === 'paused') {
         return this.resume();
     }
@@ -281,12 +282,55 @@ export class AudioPlayerService {
     }
   }
 
-  async resume() {
+  async resume(): Promise<void> {
      if (this.status === 'paused') {
-        if (this.provider instanceof WebSpeechProvider && this.provider.resume) {
-             this.provider.resume();
-             this.setStatus('playing');
+        // Smart Resume Logic
+        const lastPauseTime = useTTSStore.getState().lastPauseTime;
+        const now = Date.now();
+        let elapsed = 0;
+        if (lastPauseTime) {
+            elapsed = now - lastPauseTime;
+        }
+
+        // Reset pause time
+        useTTSStore.getState().setLastPauseTime(null);
+
+        if (this.provider instanceof WebSpeechProvider) {
+            // Local provider: rewind by index
+            if (elapsed > 5 * 60 * 1000) { // 5 minutes
+                 // Rewind 2 sentences, clamp to 0
+                 // Note: WebSpeech pause/resume is fragile. Often better to just restart segment if "rewind" needed.
+                 // But strictly speaking, if we just call resume(), it continues where it left off.
+                 // To rewind, we must modify currentIndex and call play().
+                 const rewindAmount = elapsed > 24 * 60 * 60 * 1000 ? 5 : 2; // Rewind more if away for a day
+                 const newIndex = Math.max(0, this.currentIndex - rewindAmount);
+
+                 if (newIndex !== this.currentIndex) {
+                     this.currentIndex = newIndex;
+                     // Set status to stopped so play() starts fresh
+                     this.setStatus('stopped');
+                     return this.play();
+                 }
+            }
+
+            if (this.provider.resume) {
+                this.provider.resume();
+                this.setStatus('playing');
+            } else {
+                // Fallback if provider doesn't support resume
+                this.play();
+            }
+
         } else if (this.audioPlayer) {
+             // Cloud provider: rewind by time
+             if (elapsed > 5 * 60 * 1000) {
+                 const rewindSeconds = elapsed > 24 * 60 * 60 * 1000 ? 60 : 10;
+                 const currentTime = this.audioPlayer.getCurrentTime();
+                 const newTime = Math.max(0, currentTime - rewindSeconds);
+                 this.audioPlayer.seek(newTime);
+                 // Toast notification could go here if we had a way to trigger it from service
+             }
+
              await this.audioPlayer.resume();
              this.setStatus('playing');
         }
@@ -301,12 +345,19 @@ export class AudioPlayerService {
     } else if (this.audioPlayer) {
         this.audioPlayer.pause();
     }
+
+    // Record pause time
+    useTTSStore.getState().setLastPauseTime(Date.now());
+
     this.setStatus('paused');
   }
 
   stop() {
     this.setStatus('stopped');
     this.notifyListeners(null);
+
+    // Clear pause time on stop (we don't smart resume from stop)
+    useTTSStore.getState().setLastPauseTime(null);
 
     if (this.provider instanceof WebSpeechProvider && this.provider.stop) {
         this.provider.stop();
