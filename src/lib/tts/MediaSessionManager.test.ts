@@ -20,6 +20,7 @@ describe('MediaSessionManager', () => {
       setActionHandler: vi.fn(),
       playbackState: 'none',
       metadata: null,
+      setPositionState: vi.fn(),
     };
 
     // Mock navigator.mediaSession
@@ -87,5 +88,56 @@ describe('MediaSessionManager', () => {
     // Should not throw
     manager.setMetadata({ title: 'test', artist: 'test', album: 'test' });
     manager.setPlaybackState('playing');
+    manager.setPositionState({ duration: 100, position: 10 });
+  });
+
+  it('handles partial callbacks correctly', () => {
+      const partialCallbacks = {
+          onPlay: vi.fn()
+      };
+
+      new MediaSessionManager(partialCallbacks);
+
+      expect(mediaSessionMock.setActionHandler).toHaveBeenCalledWith('play', partialCallbacks.onPlay);
+      // Others should be called with null or undefined (implementation detail: usually we loop through possible actions)
+      // The implementation iterates over a list of actions and checks if callback exists.
+      // If it exists, it sets it. If not, it sets it to null (clears it).
+
+      expect(mediaSessionMock.setActionHandler).toHaveBeenCalledWith('pause', null);
+  });
+
+  it('sets position state correctly', () => {
+      const manager = new MediaSessionManager(callbacks);
+      const state = { duration: 60, playbackRate: 1, position: 30 };
+
+      manager.setPositionState(state);
+
+      expect(mediaSessionMock.setPositionState).toHaveBeenCalledWith(state);
+  });
+
+  it('handles setPositionState errors gracefully', () => {
+      mediaSessionMock.setPositionState.mockImplementation(() => {
+          throw new Error('Invalid state');
+      });
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const manager = new MediaSessionManager(callbacks);
+      manager.setPositionState({ duration: 10, position: 20 }); // Invalid
+
+      expect(consoleSpy).toHaveBeenCalledWith("Failed to set MediaSession position state", expect.any(Error));
+      consoleSpy.mockRestore();
+  });
+
+  it('logs warning for unsupported actions', () => {
+      mediaSessionMock.setActionHandler.mockImplementation((action: string) => {
+          if (action === 'seekto') throw new Error('Not supported');
+      });
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const callbacksWithSeekTo = { ...callbacks, onSeekTo: vi.fn() };
+      new MediaSessionManager(callbacksWithSeekTo);
+
+      expect(consoleSpy).toHaveBeenCalledWith("MediaSession action 'seekto' is not supported.");
+      consoleSpy.mockRestore();
   });
 });
