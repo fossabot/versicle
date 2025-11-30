@@ -325,13 +325,15 @@ export const ReaderView: React.FC = () => {
            // This is heavy, maybe we skip for step 03 or do it async without await?
            book.locations.generate(1000).then(() => {
                // Update progress immediately if we are already at a location
-               if (rendition.location && rendition.location.start) {
-                   const cfi = rendition.location.start.cfi;
+               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               const currentLoc = (rendition as any).location;
+               if (currentLoc && currentLoc.start) {
+                   const cfi = currentLoc.start.cfi;
                    const pct = book.locations.percentageFromCfi(cfi);
 
                    // Get chapter title (simplified)
                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                   const item = book.spine.get(rendition.location.start.href) as any;
+                   const item = book.spine.get(currentLoc.start.href) as any;
                    const title = item ? (item.label || 'Chapter') : 'Unknown';
 
                    updateLocation(cfi, pct, title);
