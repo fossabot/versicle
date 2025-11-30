@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useUIStore } from '../store/useUIStore';
 import { useReaderStore } from '../store/useReaderStore';
 import { useTTSStore } from '../store/useTTSStore';

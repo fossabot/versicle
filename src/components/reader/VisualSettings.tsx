@@ -1,4 +1,3 @@
-import * as React from "react"
 import { useReaderStore } from "../../store/useReaderStore"
 import { PopoverContent } from "../ui/Popover"
 import { Button } from "../ui/Button"
