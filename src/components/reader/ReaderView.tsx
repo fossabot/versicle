@@ -12,7 +12,6 @@ import { LexiconManager } from './LexiconManager';
 import { VisualSettings } from './VisualSettings';
 import { GestureOverlay } from './GestureOverlay';
 import { Toast } from '../ui/Toast';
-import { Dialog } from '../ui/Dialog';
 import { Popover, PopoverTrigger } from '../ui/Popover';
 import { Sheet, SheetTrigger } from '../ui/Sheet';
 import { UnifiedAudioPanel } from './UnifiedAudioPanel';
