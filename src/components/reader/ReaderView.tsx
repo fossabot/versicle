@@ -222,6 +222,7 @@ export const ReaderView: React.FC = () => {
   // Search State
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -528,6 +529,65 @@ export const ReaderView: React.FC = () => {
       renditionRef.current?.next();
   };
 
+  const scrollToText = (text: string) => {
+      const iframe = viewerRef.current?.querySelector('iframe');
+      if (iframe && iframe.contentWindow) {
+          const doc = iframe.contentDocument;
+          if (!doc) return;
+
+          // Method 1: window.find
+          iframe.contentWindow.getSelection()?.removeAllRanges();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const found = (iframe.contentWindow as any).find(text, false, false, true, false, false, false);
+
+          let element: HTMLElement | null = null;
+          let range: Range | null = null;
+
+          if (found) {
+             const selection = iframe.contentWindow.getSelection();
+             if (selection && selection.rangeCount > 0) {
+                 range = selection.getRangeAt(0);
+                 element = range.startContainer.parentElement;
+             }
+          } else {
+              // Method 2: TreeWalker (Fallback)
+              const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+              let node;
+              while ((node = walker.nextNode())) {
+                  if (node.textContent?.toLowerCase().includes(text.toLowerCase())) {
+                      range = doc.createRange();
+                      range.selectNodeContents(node);
+                      element = node.parentElement;
+
+                      // Highlight selection
+                      const selection = iframe.contentWindow.getSelection();
+                      selection?.removeAllRanges();
+                      selection?.addRange(range);
+                      break;
+                  }
+              }
+          }
+
+          if (element) {
+              if (viewMode === 'scrolled') {
+                 const wrapper = viewerRef.current?.firstElementChild as HTMLElement;
+                 if (wrapper && wrapper.scrollHeight > wrapper.clientHeight) {
+                     const rect = element.getBoundingClientRect();
+                     // rect.top is relative to the iframe document top (which is full height)
+                     // Center the element in the wrapper
+                     const targetTop = rect.top - (wrapper.clientHeight / 2) + (rect.height / 2);
+                     wrapper.scrollTo({ top: Math.max(0, targetTop), behavior: 'auto' });
+                 } else {
+                     element.scrollIntoView({ behavior: 'auto', block: 'center' });
+                 }
+              } else {
+                  element.scrollIntoView({ behavior: 'auto', block: 'center' });
+              }
+              return;
+          }
+      }
+  };
+
   const [autoPlayNext, setAutoPlayNext] = useState(false);
 
   // Auto-advance chapter when TTS completes
@@ -700,6 +760,7 @@ export const ReaderView: React.FC = () => {
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     setIsSearching(true);
+                                    setActiveSearchQuery(searchQuery);
                                     searchClient.search(searchQuery, id || '').then(results => {
                                         setSearchResults(results);
                                         setIsSearching(false);
@@ -728,8 +789,14 @@ export const ReaderView: React.FC = () => {
                                      <button
                                         data-testid={`search-result-${idx}`}
                                         className="text-left w-full"
-                                        onClick={() => {
-                                            renditionRef.current?.display(result.href);
+                                        onClick={async () => {
+                                            if (renditionRef.current) {
+                                                await renditionRef.current.display(result.href);
+                                                // Small delay to ensure rendering is complete before searching DOM
+                                                setTimeout(() => {
+                                                    scrollToText(activeSearchQuery);
+                                                }, 500);
+                                            }
                                         }}
                                      >
                                          <p className="text-xs text-muted mb-1">Result {idx + 1}</p>
