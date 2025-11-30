@@ -24,6 +24,7 @@ This document outlines the roadmap for the next generation of Text-to-Speech fea
 
 ### 4. Smart Resume ("Recall" Buffer)
 **Plan:** [plan/tts_v2_plan04_smart_resume.md](./tts_v2_plan04_smart_resume.md)
+**Status:** **Completed**
 **Goal:** Intelligently rewind playback (10s - 60s) upon resumption based on how long the user has been away to help regain context.
 **Key Components:** `useTTSStore` (lastPauseTime), `AudioPlayerService` logic.
 
