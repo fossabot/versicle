@@ -17,6 +17,7 @@ import { Dialog } from '../ui/Dialog';
 import { getDB } from '../../db/db';
 import { searchClient, type SearchResult } from '../../lib/search';
 import { ChevronLeft, ChevronRight, List, Settings, ArrowLeft, Play, Pause, X, Search, Highlighter, RotateCcw, RotateCw } from 'lucide-react';
+import { AudioPlayerService } from '../../lib/tts/AudioPlayerService';
 
 /**
  * The main reader interface component.
@@ -219,6 +220,9 @@ export const ReaderView: React.FC = () => {
   // Initialize Book
   useEffect(() => {
     if (!id) return;
+
+    // Update AudioPlayerService with current book context
+    AudioPlayerService.getInstance().setBookId(id);
 
     const loadBook = async () => {
       setIsLoading(true);

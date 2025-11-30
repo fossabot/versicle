@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useReaderStore } from '../../store/useReaderStore';
-import { X } from 'lucide-react';
+import { X, Mic } from 'lucide-react';
+import { LexiconManager } from './LexiconManager';
 
 interface ReaderSettingsProps {
   onClose: () => void;
@@ -23,6 +24,8 @@ export const ReaderSettings: React.FC<ReaderSettingsProps> = ({ onClose }) => {
     gestureMode,
     setGestureMode
   } = useReaderStore();
+
+  const [isLexiconOpen, setIsLexiconOpen] = useState(false);
 
   const fontOptions = [
     { label: 'Serif', value: 'Merriweather, Georgia, serif' },
@@ -230,7 +233,21 @@ export const ReaderSettings: React.FC<ReaderSettingsProps> = ({ onClose }) => {
                </div>
            </div>
         </div>
+
+        {/* Tools Section */}
+        <div>
+           <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase">Tools</label>
+           <button
+              onClick={() => setIsLexiconOpen(true)}
+              className="w-full flex items-center gap-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-left text-sm"
+           >
+              <Mic size={16} className="text-primary"/>
+              <span>Pronunciation Lexicon</span>
+           </button>
+        </div>
       </div>
+
+      <LexiconManager open={isLexiconOpen} onOpenChange={setIsLexiconOpen} />
     </div>
   );
 };
