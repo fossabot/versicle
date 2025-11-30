@@ -17,16 +17,19 @@ def test_journey_gesture_mode(page: Page):
     page.click("text=Alice's Adventures in Wonderland")
     expect(page.locator("div[data-testid='reader-iframe-container']")).to_be_visible(timeout=10000)
 
-    # 3. Open Settings
+    # 3. Open Settings (Global)
     page.click("button[data-testid='reader-settings-button']")
-    expect(page.locator("div[data-testid='settings-panel']")).to_be_visible()
+    expect(page.get_by_role("dialog")).to_be_visible()
 
     # 4. Toggle Gesture Mode
-    # The toggle is in the "Controls" section.
-    # We find the checkbox for Gesture Mode.
-    checkbox = page.locator("input[type='checkbox']").first
+    # Default tab is General. Find the switch for Gesture Mode.
+    # Radix Switch uses a button with role='switch'.
+    # We find the container with "Gesture Mode" text.
+    switch = page.locator("div").filter(has_text="Gesture Mode").get_by_role("switch").first
+    switch.click()
 
-    checkbox.check(force=True)
+    # Close Settings Dialog
+    page.get_by_role("button", name="Close").last.click()
 
     # 5. Verify Overlay Appears
     expect(page.locator("text=Gesture Mode Active")).to_be_visible()

@@ -1,40 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LexiconService } from '../../lib/tts/LexiconService';
 import type { LexiconRule } from '../../types/db';
 import { Plus, Trash2, Volume2, Save, X } from 'lucide-react';
-// import { Button } from '../ui/Button'; // Removed missing import
-import { Dialog as UiDialog } from '../ui/Dialog'; // Use default Dialog implementation
+import { Button } from '../ui/Button';
+import { Dialog as UiDialog } from '../ui/Dialog';
 import { useReaderStore } from '../../store/useReaderStore';
 
 interface LexiconManagerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTerm?: string;
 }
 
-// Simple internal Button component since ui/Button doesn't exist
-const Button = ({ children, onClick, variant = 'primary', className = '', size = 'default', ...props }: any) => {
-    const baseClass = "px-4 py-2 rounded font-medium transition-colors flex items-center justify-center";
-
-    // Quick fix for semantic classes if they don't map directly in this project's tailwind config
-    // Actually project uses `bg-blue-500` etc in ReaderSettings, let's stick to simple classes or reuse what works.
-    // ReaderSettings uses: bg-gray-100, text-gray-800 etc.
-    // Let's use simple utility classes.
-    const styleClass = variant === 'primary'
-        ? "bg-blue-600 text-white hover:bg-blue-700"
-        : variant === 'ghost'
-            ? "bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-            : variant === 'outline'
-                ? "border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
-                : "";
-
-    return (
-        <button onClick={onClick} className={`${baseClass} ${styleClass} ${className}`} {...props}>
-            {children}
-        </button>
-    );
-};
-
-export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
+export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManagerProps) {
   const [rules, setRules] = useState<LexiconRule[]>([]);
   const [editingRule, setEditingRule] = useState<Partial<LexiconRule> | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -46,13 +24,7 @@ export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
   const [testInput, setTestInput] = useState('');
   const [testOutput, setTestOutput] = useState('');
 
-  useEffect(() => {
-    if (open) {
-      loadRules();
-    }
-  }, [open, scope, currentBookId]);
-
-  const loadRules = async () => {
+  const loadRules = useCallback(async () => {
     if (scope === 'global') {
         const globals = await lexiconService.getRules();
         setRules(globals);
@@ -62,7 +34,17 @@ export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
     } else {
         setRules([]);
     }
-  };
+  }, [scope, currentBookId, lexiconService]);
+
+  useEffect(() => {
+    if (open) {
+      loadRules();
+      if (initialTerm) {
+          setIsAdding(true);
+          setEditingRule({ original: initialTerm, replacement: '' });
+      }
+    }
+  }, [open, loadRules, initialTerm]);
 
   const handleSave = async () => {
     if (!editingRule?.original || !editingRule?.replacement) return;
@@ -109,7 +91,6 @@ export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
       window.speechSynthesis.speak(u);
   };
 
-  // Adapting to existing Dialog structure
   return (
     <UiDialog
         isOpen={open}

@@ -14,19 +14,14 @@ def test_abbrev_settings(page: Page):
     # Wait for navigation to reader
     expect(page).to_have_url(re.compile(r".*/read/.*"), timeout=2000)
 
-    # 1. Open TTS Panel
-    print("Opening TTS Panel...")
-    page.get_by_label("Text to Speech").click()
+    # 1. Open Global Settings
+    print("Opening Global Settings...")
+    page.click("button[data-testid='reader-settings-button']")
+    expect(page.get_by_role("dialog")).to_be_visible()
 
-    # 2. Open Voice Settings (inside TTS Panel)
-    print("Opening Voice Settings...")
-    # Try aria-label first
-    try:
-        page.get_by_label("Voice Settings").click(timeout=1000)
-    except:
-        # Fallback to nth(2) if label missing
-        tts_panel = page.locator("h3", has_text="Text to Speech").locator("xpath=../..")
-        tts_panel.locator("button").nth(2).click()
+    # 2. Switch to Dictionary Tab
+    print("Switching to Dictionary Tab...")
+    page.get_by_role("button", name="Dictionary").click()
 
     # 3. Verify TTS/Abbreviation settings are visible.
     # The header has changed from "Sentence Segmentation" to specific sections like "Abbreviations"
