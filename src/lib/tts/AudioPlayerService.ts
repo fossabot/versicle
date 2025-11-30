@@ -37,6 +37,7 @@ export class AudioPlayerService {
 
   // Settings
   private speed: number = 1.0;
+  private currentSpeechSpeed: number = 1.0;
   private voiceId: string | null = null;
 
   // State for current book context (to filter rules)
@@ -209,6 +210,7 @@ export class AudioPlayerService {
         const lexiconHash = await this.lexiconService.getRulesHash(rules);
 
         if (this.provider instanceof WebSpeechProvider) {
+             this.currentSpeechSpeed = this.speed;
              await this.provider.synthesize(processedText, voiceId, this.speed);
         } else {
              // Cloud provider flow with Caching
@@ -316,12 +318,13 @@ export class AudioPlayerService {
                  }
             }
 
-            if (this.provider.resume) {
+            if (this.provider.resume && this.speed === this.currentSpeechSpeed) {
                 this.provider.resume();
                 this.setStatus('playing');
             } else {
-                // Fallback if provider doesn't support resume
-                this.play();
+                // Force restart if speed changed or resume not supported
+                this.status = 'stopped';
+                return this.play();
             }
 
         } else if (this.audioPlayer) {
