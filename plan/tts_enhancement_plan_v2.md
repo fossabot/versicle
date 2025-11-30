@@ -73,6 +73,7 @@ This document outlines the roadmap for the next generation of Text-to-Speech fea
 
 ### 13. Gesture Pad Overlay
 **Plan:** [plan/tts_v2_plan13_gesture_pad.md](./tts_v2_plan13_gesture_pad.md)
+**Status:** Completed
 **Goal:** A full-screen invisible overlay that accepts gestures (Tap, Swipe) for blind control.
 **Key Components:** `GestureOverlay`.
 
