@@ -53,6 +53,9 @@ interface TTSState {
   /** Whether to enable chapter pre-roll announcements */
   prerollEnabled: boolean;
 
+  /** Whether to enable text sanitization (remove URLs, page numbers, etc.) */
+  sanitizationEnabled: boolean;
+
   /** Actions */
   play: () => void;
   pause: () => void;
@@ -67,6 +70,7 @@ interface TTSState {
   setSentenceStarters: (words: string[]) => void;
   setEnableCostWarning: (enable: boolean) => void;
   setPrerollEnabled: (enable: boolean) => void;
+  setSanitizationEnabled: (enable: boolean) => void;
   loadVoices: () => Promise<void>;
   jumpTo: (index: number) => void;
   seek: (seconds: number) => void;
@@ -129,6 +133,7 @@ export const useTTSStore = create<TTSState>()(
             },
             enableCostWarning: true,
             prerollEnabled: false,
+            sanitizationEnabled: true,
             customAbbreviations: [
                 'Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'Gen.', 'Rep.', 'Sen.', 'St.', 'vs.', 'Jr.', 'Sr.',
                 'e.g.', 'i.e.'
@@ -201,6 +206,9 @@ export const useTTSStore = create<TTSState>()(
             setPrerollEnabled: (enable) => {
                 set({ prerollEnabled: enable });
             },
+            setSanitizationEnabled: (enable) => {
+                set({ sanitizationEnabled: enable });
+            },
             loadVoices: async () => {
                 // Ensure provider is set on player (in case of fresh load)
                 const { providerId, apiKeys } = get();
@@ -267,6 +275,7 @@ export const useTTSStore = create<TTSState>()(
             sentenceStarters: state.sentenceStarters,
             enableCostWarning: state.enableCostWarning,
             prerollEnabled: state.prerollEnabled,
+            sanitizationEnabled: state.sanitizationEnabled,
         }),
     }
   )
