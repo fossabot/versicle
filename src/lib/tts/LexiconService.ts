@@ -35,6 +35,7 @@ export class LexiconService {
       id: rule.id || uuidv4(),
       original: rule.original,
       replacement: rule.replacement,
+      isRegex: rule.isRegex,
       bookId: rule.bookId,
       created: Date.now(),
     };
@@ -63,15 +64,22 @@ export class LexiconService {
         if (!rule.original || !rule.replacement) continue;
 
         try {
-            // Escape special regex characters in the original string
-            const escapedOriginal = rule.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            let regex: RegExp;
 
-            // Check if start/end are word characters to determine if \b is appropriate
-            const startIsWord = /^\w/.test(rule.original);
-            const endIsWord = /\w$/.test(rule.original);
+            if (rule.isRegex) {
+                // Use original string directly as regex
+                regex = new RegExp(rule.original, 'gi');
+            } else {
+                // Escape special regex characters in the original string
+                const escapedOriginal = rule.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-            const regexStr = `${startIsWord ? '\\b' : ''}${escapedOriginal}${endIsWord ? '\\b' : ''}`;
-            const regex = new RegExp(regexStr, 'gi');
+                // Check if start/end are word characters to determine if \b is appropriate
+                const startIsWord = /^\w/.test(rule.original);
+                const endIsWord = /\w$/.test(rule.original);
+
+                const regexStr = `${startIsWord ? '\\b' : ''}${escapedOriginal}${endIsWord ? '\\b' : ''}`;
+                regex = new RegExp(regexStr, 'gi');
+            }
 
             processedText = processedText.replace(regex, rule.replacement);
         } catch (e) {

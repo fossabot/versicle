@@ -71,6 +71,7 @@ export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
       id: editingRule.id,
       original: editingRule.original,
       replacement: editingRule.replacement,
+      isRegex: editingRule.isRegex,
       bookId: scope === 'book' ? (currentBookId || undefined) : undefined
     });
 
@@ -92,6 +93,7 @@ export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
               id: editingRule.id || 'temp',
               original: editingRule.original,
               replacement: editingRule.replacement,
+              isRegex: editingRule.isRegex,
               bookId: scope === 'book' ? (currentBookId || undefined) : undefined,
               created: 0
           } as LexiconRule;
@@ -142,26 +144,44 @@ export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
                <div key={rule.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                    {editingRule?.id === rule.id ? (
                        <div className="flex flex-1 items-center gap-2">
-                           <input
-                              className="border p-1 rounded w-1/3 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                              value={editingRule.original}
-                              onChange={e => setEditingRule({...editingRule, original: e.target.value})}
-                              placeholder="Original"
-                           />
-                           <span className="text-gray-500">→</span>
-                           <input
-                              className="border p-1 rounded w-1/3 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                              value={editingRule.replacement}
-                              onChange={e => setEditingRule({...editingRule, replacement: e.target.value})}
-                              placeholder="Replacement"
-                           />
-                           <button onClick={handleSave} className="p-1 text-green-600 hover:bg-green-100 rounded"><Save size={18} /></button>
-                           <button onClick={() => setEditingRule(null)} className="p-1 text-red-600 hover:bg-red-100 rounded"><X size={18} /></button>
+                           <div className="flex flex-col gap-1 w-full">
+                               <div className="flex items-center gap-2 w-full">
+                                    <input
+                                        className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        value={editingRule.original}
+                                        onChange={e => setEditingRule({...editingRule, original: e.target.value})}
+                                        placeholder="Original"
+                                    />
+                                    <span className="text-gray-500">→</span>
+                                    <input
+                                        className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        value={editingRule.replacement}
+                                        onChange={e => setEditingRule({...editingRule, replacement: e.target.value})}
+                                        placeholder="Replacement"
+                                    />
+                                    <button onClick={handleSave} className="p-1 text-green-600 hover:bg-green-100 rounded"><Save size={18} /></button>
+                                    <button onClick={() => setEditingRule(null)} className="p-1 text-red-600 hover:bg-red-100 rounded"><X size={18} /></button>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                   <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                       <input
+                                           type="checkbox"
+                                           checked={editingRule.isRegex || false}
+                                           onChange={e => setEditingRule({...editingRule, isRegex: e.target.checked})}
+                                           className="rounded border-gray-300 dark:border-gray-600"
+                                       />
+                                       Regex
+                                   </label>
+                               </div>
+                           </div>
                        </div>
                    ) : (
                        <>
                            <div className="flex-1 grid grid-cols-2 gap-4">
-                               <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{rule.original}</span>
+                               <div className="flex items-center gap-2">
+                                   {rule.isRegex && <span className="text-[10px] uppercase font-bold text-purple-600 border border-purple-200 bg-purple-50 px-1 rounded">Re</span>}
+                                   <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{rule.original}</span>
+                               </div>
                                <span className="text-sm text-gray-500 dark:text-gray-400">{rule.replacement}</span>
                            </div>
                            <div className="flex gap-2">
@@ -182,23 +202,36 @@ export function LexiconManager({ open, onOpenChange }: LexiconManagerProps) {
 
           {/* Add New */}
           {isAdding ? (
-              <div className="flex items-center gap-2 p-2 border rounded bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                   <input
-                      className="border p-1 rounded w-1/3 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      value={editingRule?.original || ''}
-                      onChange={e => setEditingRule({...editingRule, original: e.target.value})}
-                      placeholder="Original"
-                      autoFocus
-                   />
-                   <span className="text-gray-500">→</span>
-                   <input
-                      className="border p-1 rounded w-1/3 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      value={editingRule?.replacement || ''}
-                      onChange={e => setEditingRule({...editingRule, replacement: e.target.value})}
-                      placeholder="Replacement"
-                   />
-                   <button onClick={handleSave} className="p-1 text-green-600 hover:bg-green-100 rounded"><Save size={18} /></button>
-                   <button onClick={() => { setIsAdding(false); setEditingRule(null); }} className="p-1 text-red-600 hover:bg-red-100 rounded"><X size={18} /></button>
+              <div className="flex flex-col gap-2 p-2 border rounded bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                   <div className="flex items-center gap-2">
+                        <input
+                            className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            value={editingRule?.original || ''}
+                            onChange={e => setEditingRule({...editingRule, original: e.target.value})}
+                            placeholder="Original"
+                            autoFocus
+                        />
+                        <span className="text-gray-500">→</span>
+                        <input
+                            className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            value={editingRule?.replacement || ''}
+                            onChange={e => setEditingRule({...editingRule, replacement: e.target.value})}
+                            placeholder="Replacement"
+                        />
+                        <button onClick={handleSave} className="p-1 text-green-600 hover:bg-green-100 rounded"><Save size={18} /></button>
+                        <button onClick={() => { setIsAdding(false); setEditingRule(null); }} className="p-1 text-red-600 hover:bg-red-100 rounded"><X size={18} /></button>
+                   </div>
+                   <div className="flex items-center gap-2">
+                       <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                           <input
+                               type="checkbox"
+                               checked={editingRule?.isRegex || false}
+                               onChange={e => setEditingRule({...editingRule, isRegex: e.target.checked})}
+                               className="rounded border-gray-300 dark:border-gray-600"
+                           />
+                           Regex
+                       </label>
+                   </div>
               </div>
           ) : (
               <Button onClick={() => { setIsAdding(true); setEditingRule({}); }} variant="outline" className="w-full flex items-center justify-center gap-2 text-sm">
