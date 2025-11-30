@@ -4,6 +4,8 @@
 
 Users need to correct mispronunciations, especially for proper nouns in fantasy/sci-fi.
 
+## Status: Implemented
+
 ## Goals
 - Allow users to define specific pronunciation rules (Find -> Replace).
 - Apply these rules before synthesis.

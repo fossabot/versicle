@@ -4,6 +4,7 @@ import { AudioElementPlayer } from './AudioElementPlayer';
 import { SyncEngine, type AlignmentData } from './SyncEngine';
 import { TTSCache } from './TTSCache';
 import { CostEstimator } from './CostEstimator';
+import { LexiconService } from './LexiconService';
 
 export type TTSStatus = 'playing' | 'paused' | 'stopped' | 'loading';
 
@@ -24,6 +25,7 @@ export class AudioPlayerService {
   private audioPlayer: AudioElementPlayer | null = null;
   private syncEngine: SyncEngine | null = null;
   private cache: TTSCache;
+  private lexiconService: LexiconService;
   private queue: TTSQueueItem[] = [];
   private currentIndex: number = 0;
   private status: TTSStatus = 'stopped';
@@ -32,11 +34,14 @@ export class AudioPlayerService {
   // Settings
   private speed: number = 1.0;
   private voiceId: string | null = null;
-  // TODO: Add pitch if providers support it
+
+  // State for current book context (to filter rules)
+  private currentBookId: string | null = null;
 
   private constructor() {
     this.provider = new WebSpeechProvider();
     this.cache = new TTSCache();
+    this.lexiconService = LexiconService.getInstance();
     this.setupWebSpeech();
   }
 
@@ -45,6 +50,13 @@ export class AudioPlayerService {
       AudioPlayerService.instance = new AudioPlayerService();
     }
     return AudioPlayerService.instance;
+  }
+
+  /**
+   * Sets the current book ID to allow loading book-specific lexicon rules.
+   */
+  setBookId(bookId: string | null) {
+      this.currentBookId = bookId;
   }
 
   private setupWebSpeech() {
@@ -184,11 +196,16 @@ export class AudioPlayerService {
     try {
         const voiceId = this.voiceId || '';
 
+        // Retrieve and apply lexicon rules
+        const rules = await this.lexiconService.getRules(this.currentBookId || undefined);
+        const processedText = this.lexiconService.applyLexicon(item.text, rules);
+        const lexiconHash = await this.lexiconService.getRulesHash(rules);
+
         if (this.provider instanceof WebSpeechProvider) {
-             await this.provider.synthesize(item.text, voiceId, this.speed);
+             await this.provider.synthesize(processedText, voiceId, this.speed);
         } else {
              // Cloud provider flow with Caching
-             const cacheKey = await this.cache.generateKey(item.text, voiceId, this.speed);
+             const cacheKey = await this.cache.generateKey(item.text, voiceId, this.speed, 1.0, lexiconHash);
              const cached = await this.cache.get(cacheKey);
 
              let result: SpeechSegment;
@@ -202,9 +219,14 @@ export class AudioPlayerService {
              } else {
                  // Track cost before calling synthesis
                  // We only track when we actually hit the API (cache miss)
-                 CostEstimator.getInstance().track(item.text);
+                 // Note: We track the ORIGINAL text length, not the processed one,
+                 // as that's what the user sees, though technically we send processed text.
+                 // Actually, cloud providers charge by input characters.
+                 // If replacement is much longer, cost increases.
+                 // Let's track processed text to be accurate.
+                 CostEstimator.getInstance().track(processedText);
 
-                 result = await this.provider.synthesize(item.text, voiceId, this.speed);
+                 result = await this.provider.synthesize(processedText, voiceId, this.speed);
                  if (result.audio) {
                      await this.cache.put(
                          cacheKey,
@@ -240,13 +262,7 @@ export class AudioPlayerService {
             console.warn("Falling back to WebSpeechProvider...");
             this.setProvider(new WebSpeechProvider());
             // Retry playback with new provider
-            // We need to wait a tick or ensure provider is ready?
-            // WebSpeechProvider doesn't always need init() for basic usage if voices loaded,
-            // but calling init() is safer.
             await this.init();
-            // Also might want to unset specific voiceId if it was a cloud voice ID
-            // or let the provider handle fallback.
-            // For now, let's just retry.
             // Defer play to allow error state to propagate to UI (avoid batching)
             setTimeout(() => {
                 this.play();
