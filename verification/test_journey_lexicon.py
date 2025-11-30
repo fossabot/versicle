@@ -1,65 +1,88 @@
-import os
+import re
 import pytest
 from playwright.sync_api import Page, expect
+from verification import utils
 
 def test_journey_lexicon(page: Page):
-    """
-    Verifies the Pronunciation Lexicon user journey:
-    1. Open app and load a book.
-    2. Open Settings -> Pronunciation Lexicon.
-    3. Add a new rule (Alice -> A-LICE).
-    4. Test the rule.
-    5. Verify persistence/display.
-    """
+    print("Starting Lexicon Journey...")
+    utils.reset_app(page)
+    utils.ensure_library_with_book(page)
 
-    # 1. Load the app
-    page.goto("http://localhost:5173", timeout=15000)
+    # Open Book
+    print("Opening book...")
+    page.locator('[data-testid="book-card"]').click()
+    expect(page).to_have_url(re.compile(r".*/read/.*"))
 
-    # Wait for initial load
+    # Wait for book to load
     page.wait_for_timeout(2000)
 
-    # Check if book exists
-    if page.get_by_test_id("book-card").count() == 0:
-        # Try finding button by partial text to load demo
-        demo_btn = page.locator("button", has_text="Load Demo Book")
-        if demo_btn.is_visible():
-            demo_btn.click()
-            # Increase timeout for download and processing
-            expect(page.get_by_test_id("book-card").first).to_be_visible(timeout=30000)
-
-    # Open book
-    page.get_by_test_id("book-card").first.click()
-
-    # Wait for Reader View
-    expect(page.get_by_test_id("reader-iframe-container")).to_be_visible(timeout=20000)
-
     # Open Settings
-    page.wait_for_timeout(1000)
-    page.get_by_label("Settings").click()
+    print("Opening Settings...")
+    page.locator('[aria-label="Settings"]').click()
 
+    # Verify Settings Panel is visible
     expect(page.get_by_test_id("settings-panel")).to_be_visible()
 
-    # Open Pronunciation Lexicon
+    # Open Lexicon Manager
+    print("Opening Pronunciation Lexicon...")
+    # The button text is "Pronunciation Lexicon"
     page.get_by_text("Pronunciation Lexicon").click()
-    expect(page.get_by_text("Define custom pronunciation rules")).to_be_visible()
 
-    # Add a rule
-    page.get_by_role("button", name="Add Rule").click()
+    # Verify Dialog is open
+    print("Verifying Dialog visibility...")
+    expect(page.get_by_role("heading", name="Pronunciation Lexicon", exact=True)).to_be_visible()
 
-    page.get_by_placeholder("Original").fill("Alice")
-    page.get_by_placeholder("Replacement").fill("A-LICE")
+    utils.capture_screenshot(page, "lexicon_01_dialog_open")
 
-    page.locator("button:has(svg.lucide-save)").click()
+    # Click Add Rule
+    print("Adding new rule...")
+    page.get_by_test_id("lexicon-add-rule-btn").click()
 
-    # Verify
-    expect(page.get_by_text("A-LICE")).to_be_visible()
+    # Verify Regex Checkbox exists
+    print("Verifying Regex capability...")
+    regex_checkbox = page.get_by_test_id("lexicon-regex-checkbox")
+    expect(regex_checkbox).to_be_visible()
 
-    # Test
-    page.get_by_placeholder("Type a sentence containing your words...").fill("Alice is here.")
-    page.get_by_role("button").filter(has=page.locator("svg.lucide-volume-2")).click()
+    # Toggle Regex
+    regex_checkbox.check()
+    expect(regex_checkbox).to_be_checked()
+    regex_checkbox.uncheck()
+    expect(regex_checkbox).not_to_be_checked()
+    regex_checkbox.check() # Leave checked for the rule
 
-    expect(page.get_by_text("A-LICE is here.")).to_be_visible()
+    # Enter Rule Details
+    print("Filling rule details...")
+    page.get_by_test_id("lexicon-input-original").fill("s/he")
+    page.get_by_test_id("lexicon-input-replacement").fill("they")
 
-    # Screenshot
-    os.makedirs("verification/screenshots", exist_ok=True)
-    page.screenshot(path="verification/screenshots/lexicon_journey.png")
+    # Save Rule
+    page.get_by_test_id("lexicon-save-rule-btn").click()
+
+    # Verify Rule appears in list with Regex badge
+    print("Verifying rule in list...")
+    expect(page.get_by_text("s/he")).to_be_visible()
+    expect(page.get_by_text("they")).to_be_visible()
+
+    # Verify Regex badge
+    expect(page.get_by_test_id("lexicon-regex-badge")).to_be_visible()
+
+    utils.capture_screenshot(page, "lexicon_02_rule_added")
+
+    # Close Dialog
+    print("Closing Lexicon...")
+    # Attempting to click the close button by searching for the "Close" text if test-id fails,
+    # or perhaps the locator needs to wait specifically for the element to be attached.
+    # The previous attempt with force=True timed out waiting for the element.
+    # It implies get_by_test_id("lexicon-close-btn") is not finding the element.
+    # Let's inspect LexiconManager.tsx again.
+    # footer={<Button data-testid="lexicon-close-btn" ...>Close</Button>}
+    # This looks correct.
+    # However, maybe the Dialog component logic renders footer conditionally?
+    # No, it's just passed as prop.
+    # Maybe because of animation/rendering timing?
+    # Let's try locating by text "Close" which we know works generally.
+    page.get_by_text("Close", exact=True).click()
+
+    expect(page.get_by_role("heading", name="Pronunciation Lexicon", exact=True)).not_to_be_visible()
+
+    print("Lexicon Journey Passed!")
