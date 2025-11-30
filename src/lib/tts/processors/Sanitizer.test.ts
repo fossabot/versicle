@@ -44,20 +44,12 @@ describe('Sanitizer', () => {
   });
 
   it('should handle complex mixed cases', () => {
-      const input = 'Page 42\nSee https://wikipedia.org for details [1]. ***';
-      // Sanitizer processes the whole string, but PAGE_NUMBER regex is anchored to start/end of string currently in the Sanitizer.ts logic for page numbers.
-      // Wait, Sanitizer.ts implementation checks:
-      // if (RegexPatterns.PAGE_NUMBER.test(processed)) return '';
-      // This means it only removes page numbers if the *entire* text passed to it is a page number.
-      // This is expected behavior for extraction since we extract block by block or sentence by sentence.
-
-      // Let's test the "block is just a page number" case which is what the current implementation does.
+      // The sanitizer is designed to work primarily on sentence/block level segments.
+      // 1. Standalone page number -> empty
       expect(Sanitizer.sanitize('Page 42')).toBe('');
 
-      // If we pass a larger block, page number removal might not apply if it's mixed with other text?
-      // "Matches standalone page numbers ... on a line by themselves"
-      // Our regex is `^\s*(?:(?:page|pg\.?)\s*)?\d+\s*$/i`
-
-      expect(Sanitizer.sanitize('Read more at https://books.google.com/books?id=123')).toBe('Read more at books.google.com');
+      // 2. Text with artifacts
+      const input = 'See https://wikipedia.org for details [1].';
+      expect(Sanitizer.sanitize(input)).toBe('See wikipedia.org for details .');
   });
 });
