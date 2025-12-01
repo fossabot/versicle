@@ -48,7 +48,8 @@ export const ReaderView: React.FC = () => {
     reset,
     progress,
     currentChapterTitle,
-    viewMode
+    viewMode,
+    shouldForceFont
   } = useReaderStore();
 
   const {
@@ -458,15 +459,48 @@ export const ReaderView: React.FC = () => {
   // Handle Theme/Font/Layout changes
   useEffect(() => {
     if (renditionRef.current) {
-      // Re-register custom theme in case colors changed
-      renditionRef.current.themes.register('custom', `
-        body { background: ${customTheme.bg} !important; color: ${customTheme.fg} !important; }
-        p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
-      `);
+      // Helper to create forced styles if enabled
+      const getThemeStyles = (bg: string, fg: string, linkColor: string) => {
+          if (shouldForceFont) {
+              return {
+                  'html body *': {
+                      'font-family': `${fontFamily} !important`,
+                      'line-height': `${lineHeight} !important`,
+                      'color': `${fg} !important`,
+                      'background-color': 'transparent !important',
+                      'text-align': 'left !important'
+                  },
+                  'html, body': {
+                      'background': `${bg} !important`
+                  },
+                  'a, a *': {
+                      'color': `${linkColor} !important`,
+                      'text-decoration': 'underline !important'
+                  }
+              };
+          } else {
+              return {
+                  'body': { 'background': `${bg} !important`, 'color': `${fg} !important` },
+                  'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
+                  'a': { 'color': `${linkColor} !important` }
+              };
+          }
+      };
 
-      renditionRef.current.themes.select(currentTheme);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const themes = renditionRef.current.themes as any;
+      themes.register('light', getThemeStyles('#ffffff', '#000000', '#0000ee'));
+      themes.register('dark', getThemeStyles('#1a1a1a', '#f5f5f5', '#6ab0f3'));
+      themes.register('sepia', getThemeStyles('#f4ecd8', '#5b4636', '#0000ee'));
+      themes.register('custom', getThemeStyles(customTheme.bg, customTheme.fg, customTheme.fg));
+
+      themes.select(currentTheme);
       renditionRef.current.themes.fontSize(`${fontSize}%`);
-      renditionRef.current.themes.font(fontFamily);
+
+      // When forcing, we don't rely on .font() alone as it only sets body font
+      if (!shouldForceFont) {
+        renditionRef.current.themes.font(fontFamily);
+      }
 
       // Update line height
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -475,7 +509,7 @@ export const ReaderView: React.FC = () => {
         body: { 'line-height': `${lineHeight} !important` }
       });
     }
-  }, [currentTheme, customTheme, fontSize, fontFamily, lineHeight]);
+  }, [currentTheme, customTheme, fontSize, fontFamily, lineHeight, shouldForceFont]);
 
   // Handle View Mode changes
   useEffect(() => {
