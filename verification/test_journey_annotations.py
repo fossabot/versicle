@@ -75,6 +75,8 @@ def test_journey_annotations(page: Page):
     print(f"Added annotations count before reload: {count}")
     assert count >= 1
 
+    utils.capture_screenshot(page, "annotations_1_created")
+
     # 2. Reload Page
     print("Reloading page...")
     page.reload()
@@ -93,10 +95,14 @@ def test_journey_annotations(page: Page):
     print(f"Added annotations count after reload: {count_after}")
     assert count_after >= 1
 
+    utils.capture_screenshot(page, "annotations_2_restored_after_reload")
+
     # 4. Verify Sidebar (sanity check)
     print("Verifying Sidebar...")
     page.get_by_test_id("reader-annotations-button").click()
     expect(page.get_by_test_id("reader-annotations-sidebar")).to_be_visible()
     expect(page.locator("li[data-testid^='annotation-item-']").first).to_be_visible()
+
+    utils.capture_screenshot(page, "annotations_3_sidebar_check")
 
     print("Annotations Journey Passed!")
