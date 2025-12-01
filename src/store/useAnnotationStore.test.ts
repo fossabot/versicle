@@ -51,7 +51,7 @@ describe('useAnnotationStore', () => {
 
   it('should load annotations', async () => {
     const { result } = renderHook(() => useAnnotationStore());
-    const annotations = [{ id: '1', bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight', created: 123 }];
+    const annotations = [{ id: '1', bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight', color: 'yellow', created: 123 }];
     mockDB.getAllFromIndex.mockResolvedValue(annotations);
 
     await act(async () => {
@@ -64,7 +64,7 @@ describe('useAnnotationStore', () => {
 
   it('should add annotation', async () => {
     const { result } = renderHook(() => useAnnotationStore());
-    const newAnnotation = { bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight' };
+    const newAnnotation = { bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight', color: 'yellow' };
 
     await act(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,6 +77,7 @@ describe('useAnnotationStore', () => {
       cfiRange: 'cfi',
       text: 'text',
       type: 'highlight',
+      color: 'yellow',
     }));
     expect(result.current.annotations).toHaveLength(1);
     expect(result.current.annotations[0].id).toBe('test-uuid');
@@ -84,7 +85,7 @@ describe('useAnnotationStore', () => {
 
   it('should delete annotation', async () => {
     const { result } = renderHook(() => useAnnotationStore());
-    const annotation = { id: 'test-uuid', bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight', created: 123 };
+    const annotation = { id: 'test-uuid', bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight', color: 'yellow', created: 123 };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useAnnotationStore.setState({ annotations: [annotation as any] });
 
@@ -98,7 +99,7 @@ describe('useAnnotationStore', () => {
 
   it('should update annotation', async () => {
     const { result } = renderHook(() => useAnnotationStore());
-    const annotation = { id: 'test-uuid', bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight', created: 123 };
+    const annotation = { id: 'test-uuid', bookId: 'book1', cfiRange: 'cfi', text: 'text', type: 'highlight', color: 'yellow', created: 123 };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useAnnotationStore.setState({ annotations: [annotation as any] });
     mockDB.get.mockResolvedValue(annotation);
