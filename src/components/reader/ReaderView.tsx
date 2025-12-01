@@ -553,55 +553,36 @@ export const ReaderView: React.FC = () => {
   // Handle Standard Theme/Font/Layout changes (via epub.js themes)
   useEffect(() => {
     if (renditionRef.current) {
-      // Create separate forced styles
-      const getStandardStyles = (bg: string, fg: string, linkColor: string) => ({
-          'body': { 'background': `${bg} !important`, 'color': `${fg} !important` },
-          'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
-          'a': { 'color': `${linkColor} !important` }
-      });
-
-      const getForcedStyles = (bg: string, fg: string, linkColor: string) => ({
-          'html body *, html body p, html body div, html body span, html body h1, html body h2, html body h3, html body h4, html body h5, html body h6': {
-              'font-family': `${fontFamily} !important`,
-              'line-height': `${lineHeight} !important`,
-              'color': `${fg} !important`,
-              'background-color': 'transparent !important',
-              'text-align': 'left !important'
-          },
-          'html, body': {
-              'background': `${bg} !important`
-          },
-          'a': {
-              'color': `${linkColor} !important`,
-              'text-decoration': 'underline !important'
-          }
-      });
-
+      // Standard non-forced themes (Strings to avoid epub.js object registration bugs)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const themes = renditionRef.current.themes as any;
 
-      // Register Standard Themes
-      themes.register('light', getStandardStyles('#ffffff', '#000000', '#0000ee'));
-      themes.register('dark', getStandardStyles('#1a1a1a', '#f5f5f5', '#6ab0f3'));
-      themes.register('sepia', getStandardStyles('#f4ecd8', '#5b4636', '#0000ee'));
-      themes.register('custom', getStandardStyles(customTheme.bg, customTheme.fg, customTheme.fg));
+      themes.register('light', `
+        body { background: #ffffff !important; color: #000000 !important; }
+        p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
+        a { color: #0000ee !important; }
+      `);
+      themes.register('dark', `
+        body { background: #1a1a1a !important; color: #f5f5f5 !important; }
+        p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
+        a { color: #6ab0f3 !important; }
+      `);
+      themes.register('sepia', `
+        body { background: #f4ecd8 !important; color: #5b4636 !important; }
+        p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
+        a { color: #0000ee !important; }
+      `);
+      themes.register('custom', `
+        body { background: ${customTheme.bg} !important; color: ${customTheme.fg} !important; }
+        p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
+        a { color: ${customTheme.fg} !important; }
+      `);
 
-      // Register Forced Themes
-      themes.register('light-forced', getForcedStyles('#ffffff', '#000000', '#0000ee'));
-      themes.register('dark-forced', getForcedStyles('#1a1a1a', '#f5f5f5', '#6ab0f3'));
-      themes.register('sepia-forced', getForcedStyles('#f4ecd8', '#5b4636', '#0000ee'));
-      themes.register('custom-forced', getForcedStyles(customTheme.bg, customTheme.fg, customTheme.fg));
-
-      // Select appropriate theme
-      const targetTheme = shouldForceFont ? `${currentTheme}-forced` : currentTheme;
-      themes.select(targetTheme);
-
+      themes.select(currentTheme);
       renditionRef.current.themes.fontSize(`${fontSize}%`);
 
-      // When forcing, we don't rely on .font() alone as it only sets body font
-      if (!shouldForceFont) {
-        renditionRef.current.themes.font(fontFamily);
-      }
+      // Always set font (forced styles override via style tag if active)
+      renditionRef.current.themes.font(fontFamily);
 
       // Update line height
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -610,7 +591,7 @@ export const ReaderView: React.FC = () => {
         body: { 'line-height': `${lineHeight} !important` }
       });
     }
-  }, [currentTheme, customTheme, fontSize, fontFamily, lineHeight, shouldForceFont]);
+  }, [currentTheme, customTheme, fontSize, fontFamily, lineHeight]);
 
   // Handle View Mode changes
   useEffect(() => {
