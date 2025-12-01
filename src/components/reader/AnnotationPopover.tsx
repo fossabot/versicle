@@ -1,6 +1,13 @@
 import React from 'react';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
-import { Copy, StickyNote, X, Mic, Highlighter } from 'lucide-react';
+import { Copy, StickyNote, X, Mic } from 'lucide-react';
+
+const COLORS = [
+  { name: 'Yellow', value: '#ffff00', class: 'highlight-yellow' },
+  { name: 'Green', value: '#00ff00', class: 'highlight-green' },
+  { name: 'Blue', value: '#0000ff', class: 'highlight-blue' },
+  { name: 'Red', value: '#ff0000', class: 'highlight-red' },
+];
 
 interface Props {
   bookId: string;
@@ -24,12 +31,13 @@ export const AnnotationPopover: React.FC<Props> = ({ bookId, onClose, onFixPronu
     zIndex: 50,
   };
 
-  const handleHighlight = async () => {
+  const handleColorClick = async (color: string) => {
     await addAnnotation({
       bookId,
       cfiRange: popover.cfiRange,
       text: popover.text,
       type: 'highlight',
+      color,
     });
     hidePopover();
     onClose(); // Triggers parent to clear selection
@@ -46,6 +54,7 @@ export const AnnotationPopover: React.FC<Props> = ({ bookId, onClose, onFixPronu
             cfiRange: popover.cfiRange,
             text: popover.text,
             type: 'note',
+            color: 'yellow',
             note: noteText
         });
         hidePopover();
@@ -87,21 +96,20 @@ export const AnnotationPopover: React.FC<Props> = ({ bookId, onClose, onFixPronu
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-2 flex gap-2 items-center border border-gray-200 dark:border-gray-700" style={style}>
-      <button
-        data-testid="popover-highlight-button"
-        className="p-1 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded text-yellow-600 dark:text-yellow-400"
-        onClick={handleHighlight}
-        title="Highlight"
-      >
-        <Highlighter className="w-4 h-4" />
-      </button>
-
+      {COLORS.map((c) => (
+        <button
+          key={c.name}
+          data-testid={`popover-color-${c.name.toLowerCase()}`}
+          className="w-6 h-6 rounded-full border border-gray-300 hover:scale-110 transition-transform"
+          style={{ backgroundColor: c.value, opacity: 0.7 }}
+          onClick={() => handleColorClick(c.name.toLowerCase())}
+          title={c.name}
+        />
+      ))}
       <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
-
       <button data-testid="popover-add-note-button" onClick={handleNoteClick} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" title="Add Note">
         <StickyNote className="w-4 h-4" />
       </button>
-
       {onFixPronunciation && (
           <button data-testid="popover-fix-pronunciation-button" onClick={() => { onFixPronunciation(popover.text); hidePopover(); onClose(); }} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" title="Fix Pronunciation">
             <Mic className="w-4 h-4" />

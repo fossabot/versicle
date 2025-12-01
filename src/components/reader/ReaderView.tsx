@@ -117,7 +117,10 @@ export const ReaderView: React.FC = () => {
            (rendition as any).annotations.add('highlight', annotation.cfiRange, {}, () => {
                 console.log("Clicked annotation", annotation.id);
                 // TODO: Open edit/delete menu, perhaps via a new state/popover
-            }, 'highlight-yellow'); // Always use default highlight class
+            }, annotation.color === 'yellow' ? 'highlight-yellow' :
+               annotation.color === 'green' ? 'highlight-green' :
+               annotation.color === 'blue' ? 'highlight-blue' :
+               annotation.color === 'red' ? 'highlight-red' : 'highlight-yellow');
            addedAnnotations.current.add(annotation.id);
         }
       });
@@ -170,6 +173,24 @@ export const ReaderView: React.FC = () => {
               '.highlight-yellow': {
                   'fill': 'yellow',
                   'background-color': 'rgba(255, 255, 0, 0.3)',
+                  'fill-opacity': '0.3',
+                  'mix-blend-mode': 'multiply'
+              },
+              '.highlight-green': {
+                  'fill': 'green',
+                  'background-color': 'rgba(0, 255, 0, 0.3)',
+                  'fill-opacity': '0.3',
+                  'mix-blend-mode': 'multiply'
+              },
+              '.highlight-blue': {
+                  'fill': 'blue',
+                  'background-color': 'rgba(0, 0, 255, 0.3)',
+                  'fill-opacity': '0.3',
+                  'mix-blend-mode': 'multiply'
+              },
+              '.highlight-red': {
+                  'fill': 'red',
+                  'background-color': 'rgba(255, 0, 0, 0.3)',
                   'fill-opacity': '0.3',
                   'mix-blend-mode': 'multiply'
               }
