@@ -15,6 +15,7 @@ export class WebSpeechProvider implements ITTSProvider {
   }
 
   async init(): Promise<void> {
+    // If we have voices, we are good.
     if (this.voicesLoaded && this.voices.length > 0) return;
 
     return new Promise((resolve) => {
@@ -24,7 +25,12 @@ export class WebSpeechProvider implements ITTSProvider {
         if (resolved) return;
         resolved = true;
         this.voices = this.synth.getVoices();
-        this.voicesLoaded = true;
+        // Only mark as loaded if we actually got voices.
+        // If we timed out with 0 voices, we leave voicesLoaded as false
+        // so that getVoices() will try again next time.
+        if (this.voices.length > 0) {
+            this.voicesLoaded = true;
+        }
         resolve();
       };
 
@@ -38,16 +44,14 @@ export class WebSpeechProvider implements ITTSProvider {
       // Wait for event
       const onVoicesChanged = () => {
         finish();
+        // Remove listener to clean up
         this.synth.removeEventListener('voiceschanged', onVoicesChanged);
       };
 
-      // Using addEventListener is safer than setting onvoiceschanged directly
-      // However, SpeechSynthesis event support varies. Standard is addEventListener.
-      // If not supported, we fall back to onvoiceschanged.
       if (this.synth.addEventListener) {
           this.synth.addEventListener('voiceschanged', onVoicesChanged);
       } else {
-          // Fallback for older implementations
+          // Fallback
           const original = this.synth.onvoiceschanged;
           this.synth.onvoiceschanged = (e) => {
               if (original) original.call(this.synth, e);
@@ -55,8 +59,7 @@ export class WebSpeechProvider implements ITTSProvider {
           };
       }
 
-      // Safety timeout: some browsers/OSs might not have voices or fail to fire event
-      // We resolve anyway so the app doesn't hang.
+      // Safety timeout
       setTimeout(() => {
           if (!resolved) {
               console.warn('WebSpeechProvider: Voice loading timed out or no voices available.');
@@ -67,9 +70,26 @@ export class WebSpeechProvider implements ITTSProvider {
   }
 
   async getVoices(): Promise<TTSVoice[]> {
+    // If we don't have voices, try init again.
+    // Also, even if voicesLoaded is false, we might have voices now available in the browser
+    // that were loaded after the timeout.
     if (!this.voicesLoaded || this.voices.length === 0) {
-      await this.init();
+        // Double check directly before awaiting init (optimization)
+        const current = this.synth.getVoices();
+        if (current.length > 0) {
+            this.voices = current;
+            this.voicesLoaded = true;
+        } else {
+            await this.init();
+        }
     }
+
+    // Final check after init
+    if (this.voices.length === 0) {
+        this.voices = this.synth.getVoices();
+        if (this.voices.length > 0) this.voicesLoaded = true;
+    }
+
     return this.voices.map(v => ({
       id: v.name, // Using name as ID for local voices as it's usually unique enough or URI
       name: v.name,
@@ -82,7 +102,7 @@ export class WebSpeechProvider implements ITTSProvider {
   async synthesize(text: string, voiceId: string, speed: number): Promise<SpeechSegment> {
     this.cancel(); // specific method to stop previous
 
-    // Ensure voices are loaded before speaking (rare case but safer)
+    // Ensure voices are loaded before speaking
     if (this.voices.length === 0) {
         await this.init();
     }

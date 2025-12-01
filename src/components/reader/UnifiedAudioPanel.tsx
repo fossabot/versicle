@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/Badge';
 import { Switch } from '../ui/Switch';
 import { TTSQueue } from './TTSQueue';
-import { Play, Pause, RotateCcw, RotateCw, Mic } from 'lucide-react';
+import { Play, Pause, RotateCcw, RotateCw, Mic, RefreshCw } from 'lucide-react';
 import { LexiconManager } from './LexiconManager';
 
 export const UnifiedAudioPanel = () => {
@@ -31,6 +31,7 @@ export const UnifiedAudioPanel = () => {
 
   const [view, setView] = useState<'queue' | 'settings'>('queue');
   const [isLexiconOpen, setIsLexiconOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load voices when switching to settings view if empty
   useEffect(() => {
@@ -47,6 +48,12 @@ export const UnifiedAudioPanel = () => {
       }
       const selected = voices.find(v => v.id === voiceId);
       setVoice(selected || null);
+  };
+
+  const handleRefreshVoices = async () => {
+      setIsRefreshing(true);
+      await loadVoices();
+      setIsRefreshing(false);
   };
 
   return (
@@ -102,7 +109,20 @@ export const UnifiedAudioPanel = () => {
                     />
                  </div>
                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Voice</label>
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium">Voice</label>
+                        <Button
+                             variant="ghost"
+                             size="sm"
+                             className="h-6 px-2 text-xs"
+                             onClick={handleRefreshVoices}
+                             disabled={isRefreshing}
+                             title="Refresh Voice List"
+                        >
+                             <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                             Refresh
+                        </Button>
+                    </div>
                     <Select value={voice?.id || 'default'} onValueChange={handleVoiceChange}>
                        <SelectTrigger><SelectValue placeholder="Select Voice" /></SelectTrigger>
                        <SelectContent>
