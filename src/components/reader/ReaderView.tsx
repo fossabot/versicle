@@ -456,45 +456,146 @@ export const ReaderView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);
 
-  // Handle Theme/Font/Layout changes
+  // Apply Forced Theme Styles
+  // Ref to store the current styles calculation function to be used by hook
+  const applyStylesRef = useRef<() => void>(() => {});
+
   useEffect(() => {
-    if (renditionRef.current) {
-      // Helper to create forced styles if enabled
-      const getThemeStyles = (bg: string, fg: string, linkColor: string) => {
-          if (shouldForceFont) {
-              return {
-                  'html body *': {
-                      'font-family': `${fontFamily} !important`,
-                      'line-height': `${lineHeight} !important`,
-                      'color': `${fg} !important`,
-                      'background-color': 'transparent !important',
-                      'text-align': 'left !important'
-                  },
-                  'html, body': {
-                      'background': `${bg} !important`
-                  },
-                  'a, a *': {
-                      'color': `${linkColor} !important`,
-                      'text-decoration': 'underline !important'
-                  }
-              };
-          } else {
-              return {
-                  'body': { 'background': `${bg} !important`, 'color': `${fg} !important` },
-                  'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
-                  'a': { 'color': `${linkColor} !important` }
-              };
+    const applyStyles = () => {
+      if (!renditionRef.current) return;
+
+      const getStyles = () => {
+        if (!shouldForceFont) return '';
+
+        let bg, fg, linkColor;
+        switch (currentTheme) {
+          case 'dark':
+            bg = '#1a1a1a'; fg = '#f5f5f5'; linkColor = '#6ab0f3';
+            break;
+          case 'sepia':
+            bg = '#f4ecd8'; fg = '#5b4636'; linkColor = '#0000ee';
+            break;
+          case 'custom':
+            bg = customTheme.bg; fg = customTheme.fg; linkColor = customTheme.fg;
+            break;
+          default: // light
+            bg = '#ffffff'; fg = '#000000'; linkColor = '#0000ee';
+        }
+
+        return `
+          html body *, html body p, html body div, html body span, html body h1, html body h2, html body h3, html body h4, html body h5, html body h6 {
+            font-family: ${fontFamily} !important;
+            line-height: ${lineHeight} !important;
+            color: ${fg} !important;
+            background-color: transparent !important;
+            text-align: left !important;
+          }
+          html, body {
+            background: ${bg} !important;
+          }
+          a, a * {
+            color: ${linkColor} !important;
+            text-decoration: none !important;
+          }
+          a:hover, a:hover * {
+            text-decoration: underline !important;
+          }
+        `;
+      };
+
+      const css = getStyles();
+
+      // Apply to active contents
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (renditionRef.current as any).getContents().forEach((content: any) => {
+        const doc = content.document;
+        let style = doc.getElementById('force-theme-style');
+        if (!style) {
+          style = doc.createElement('style');
+          style.id = 'force-theme-style';
+          doc.head.appendChild(style);
+        }
+        style.textContent = css;
+      });
+    };
+
+    applyStylesRef.current = applyStyles;
+    applyStyles();
+  }, [shouldForceFont, currentTheme, customTheme, fontFamily, lineHeight]);
+
+  // Register hook to apply styles on new content load
+  useEffect(() => {
+      const rendition = renditionRef.current;
+      if (!rendition) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hook = (content: any) => {
+          const doc = content.document;
+          if (!doc.getElementById('force-theme-style')) {
+              const style = doc.createElement('style');
+              style.id = 'force-theme-style';
+              doc.head.appendChild(style);
+
+              // Apply current styles immediately
+              applyStylesRef.current();
           }
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const themes = renditionRef.current.themes as any;
-      themes.register('light', getThemeStyles('#ffffff', '#000000', '#0000ee'));
-      themes.register('dark', getThemeStyles('#1a1a1a', '#f5f5f5', '#6ab0f3'));
-      themes.register('sepia', getThemeStyles('#f4ecd8', '#5b4636', '#0000ee'));
-      themes.register('custom', getThemeStyles(customTheme.bg, customTheme.fg, customTheme.fg));
+      (rendition.hooks.content as any).register(hook);
 
-      themes.select(currentTheme);
+      return () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (rendition.hooks.content as any).deregister(hook);
+      };
+  }, []);
+
+  // Handle Standard Theme/Font/Layout changes (via epub.js themes)
+  useEffect(() => {
+    if (renditionRef.current) {
+      // Create separate forced styles
+      const getStandardStyles = (bg: string, fg: string, linkColor: string) => ({
+          'body': { 'background': `${bg} !important`, 'color': `${fg} !important` },
+          'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
+          'a': { 'color': `${linkColor} !important` }
+      });
+
+      const getForcedStyles = (bg: string, fg: string, linkColor: string) => ({
+          'html body *, html body p, html body div, html body span, html body h1, html body h2, html body h3, html body h4, html body h5, html body h6': {
+              'font-family': `${fontFamily} !important`,
+              'line-height': `${lineHeight} !important`,
+              'color': `${fg} !important`,
+              'background-color': 'transparent !important',
+              'text-align': 'left !important'
+          },
+          'html, body': {
+              'background': `${bg} !important`
+          },
+          'a': {
+              'color': `${linkColor} !important`,
+              'text-decoration': 'underline !important'
+          }
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const themes = renditionRef.current.themes as any;
+
+      // Register Standard Themes
+      themes.register('light', getStandardStyles('#ffffff', '#000000', '#0000ee'));
+      themes.register('dark', getStandardStyles('#1a1a1a', '#f5f5f5', '#6ab0f3'));
+      themes.register('sepia', getStandardStyles('#f4ecd8', '#5b4636', '#0000ee'));
+      themes.register('custom', getStandardStyles(customTheme.bg, customTheme.fg, customTheme.fg));
+
+      // Register Forced Themes
+      themes.register('light-forced', getForcedStyles('#ffffff', '#000000', '#0000ee'));
+      themes.register('dark-forced', getForcedStyles('#1a1a1a', '#f5f5f5', '#6ab0f3'));
+      themes.register('sepia-forced', getForcedStyles('#f4ecd8', '#5b4636', '#0000ee'));
+      themes.register('custom-forced', getForcedStyles(customTheme.bg, customTheme.fg, customTheme.fg));
+
+      // Select appropriate theme
+      const targetTheme = shouldForceFont ? `${currentTheme}-forced` : currentTheme;
+      themes.select(targetTheme);
+
       renditionRef.current.themes.fontSize(`${fontSize}%`);
 
       // When forcing, we don't rely on .font() alone as it only sets body font
