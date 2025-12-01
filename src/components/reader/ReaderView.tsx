@@ -34,6 +34,7 @@ export const ReaderView: React.FC = () => {
 
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
+  const [isRenditionReady, setIsRenditionReady] = useState(false);
 
   const {
     currentTheme,
@@ -119,7 +120,7 @@ export const ReaderView: React.FC = () => {
 
   useEffect(() => {
     const rendition = renditionRef.current;
-    if (rendition) {
+    if (rendition && isRenditionReady) {
       // Add new annotations
       annotations.forEach(annotation => {
         if (!addedAnnotations.current.has(annotation.id)) {
@@ -136,6 +137,10 @@ export const ReaderView: React.FC = () => {
            addedAnnotations.current.add(annotation.id);
         }
       });
+
+      // Expose for testing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__reader_added_annotations_count = addedAnnotations.current.size;
 
       // Handle removals (if annotations were deleted from store)
       // This requires iterating over addedAnnotations and checking if they exist in `annotations`
@@ -157,7 +162,7 @@ export const ReaderView: React.FC = () => {
           }
       });
     }
-  }, [annotations]); // removed renditionRef.current
+  }, [annotations, isRenditionReady]); // Dependencies updated to ensure re-run when rendition is ready
 
   // Handle TTS Errors
   const [toastMessage, setToastMessage] = useState('');
@@ -263,6 +268,7 @@ export const ReaderView: React.FC = () => {
             manager: 'default',
           });
           renditionRef.current = rendition;
+          setIsRenditionReady(true);
 
           // Disable spreads to prevent layout issues
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
