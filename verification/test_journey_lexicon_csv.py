@@ -27,20 +27,13 @@ def test_journey_lexicon_csv(page: Page):
     # Verify filename
     assert download.suggested_filename == "lexicon_sample.csv"
 
-    # 3. Import Sample CSV
-    sample_csv_content = """original,replacement,isRegex
-"Dr.","Doctor",false
-"API","A.P.I.",false
-"cat|dog","pet",true
-"""
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
-        f.write(sample_csv_content)
-        temp_csv_path = f.name
+    # Save the downloaded file to a path so we can import it back
+    download_path = download.path()
 
+    # 3. Import Sample CSV (using the downloaded file)
     try:
         # Upload the file
-        page.locator('input[data-testid="lexicon-import-input"]').set_input_files(temp_csv_path)
+        page.locator('input[data-testid="lexicon-import-input"]').set_input_files(download_path)
 
         # 4. Verify rules are added
         # Use .first to avoid potential duplicates or strict mode violations
@@ -57,4 +50,6 @@ def test_journey_lexicon_csv(page: Page):
         expect(page.get_by_test_id("lexicon-regex-badge").first).to_be_visible()
 
     finally:
-        os.remove(temp_csv_path)
+        # Playwright cleans up downloads automatically but explicitly deleting if we moved it would be needed
+        # In this case download.path() points to a temp location managed by PW.
+        pass
