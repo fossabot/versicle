@@ -52,7 +52,11 @@ export const extractSentences = (rendition: Rendition): SentenceNode[] => {
             return;
         }
 
-        const segments = segmenter.segment(textBuffer);
+        // Replace newlines with spaces to avoid splitting sentences on newlines within block tags
+        // This preserves the string length so that indices mapping to textNodes remains valid.
+        const textForSegmentation = textBuffer.replace(/\n/g, ' ');
+
+        const segments = segmenter.segment(textForSegmentation);
 
         for (const segment of segments) {
             let processedText = segment.text;
