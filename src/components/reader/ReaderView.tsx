@@ -836,7 +836,7 @@ export const ReaderView: React.FC = () => {
             <div className="flex items-center gap-2">
             <Sheet>
                 <SheetTrigger asChild>
-                    <button data-testid="reader-tts-button" aria-label="Open Audio Deck" className={`p-2 rounded-full hover:bg-border ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`}>
+                    <button data-testid="reader-audio-button" aria-label="Open Audio Deck" className={`p-2 rounded-full hover:bg-border ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`}>
                         <Headphones className="w-5 h-5" />
                     </button>
                 </SheetTrigger>

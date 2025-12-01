@@ -17,18 +17,21 @@ def test_journey_gesture_mode(page: Page):
     page.click("text=Alice's Adventures in Wonderland")
     expect(page.locator("div[data-testid='reader-iframe-container']")).to_be_visible(timeout=10000)
 
-    # 3. Open Settings (Global)
-    page.click("button[data-testid='reader-settings-button']")
-    expect(page.get_by_role("dialog")).to_be_visible()
+    # 3. Open Audio Panel (UnifiedAudioPanel)
+    page.click("button[data-testid='reader-audio-button']")
+    expect(page.get_by_test_id("tts-panel")).to_be_visible()
+
+    # Switch to Settings view in Audio Panel
+    page.click("button:has-text('Settings')")
 
     # 4. Toggle Gesture Mode
-    # Default tab is General. Find the switch for Gesture Mode.
-    # Radix Switch uses a button with role='switch'.
-    # We find the container with "Gesture Mode" text.
-    switch = page.locator("div").filter(has_text="Gesture Mode").get_by_role("switch").first
+    # Find the switch for Gesture Mode.
+    # Use exact text to find label, then parent, then switch.
+    switch = page.get_by_text("Gesture Mode", exact=True).locator("xpath=..").get_by_role("switch")
     switch.click()
 
-    # Close Settings Dialog
+    # Close Audio Panel (click outside or use close button if available, currently just backdrop or separate control)
+    # The Sheet component usually has a close button.
     page.get_by_role("button", name="Close").last.click()
 
     # 5. Verify Overlay Appears

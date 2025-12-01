@@ -150,7 +150,7 @@ export const GestureOverlay: React.FC<GestureOverlayProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center select-none touch-none"
+      className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center select-none touch-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       // Prevent defaults to stop scrolling/zooming

@@ -50,13 +50,6 @@ export const GlobalSettingsDialog = ({ open, onOpenChange }) => {
                    <h3 className="text-lg font-medium mb-2">Interaction</h3>
                    <div className="flex items-center justify-between py-2 border-b">
                       <div>
-                         <div className="font-medium">Gesture Mode</div>
-                         <div className="text-sm text-muted-foreground">Swipe to turn pages</div>
-                      </div>
-                      <Switch checked={gestures.enabled} onCheckedChange={gestures.toggle} />
-                   </div>
-                   <div className="flex items-center justify-between py-2 border-b">
-                      <div>
                          <div className="font-medium">Immersive Mode</div>
                          <div className="text-sm text-muted-foreground">Hide UI automatically while reading</div>
                       </div>

@@ -37,7 +37,7 @@ Similar to Car Mode, this is a UI overlay.
    - Show transient icons on action (e.g., big Play icon fades in and out).
 
 4. **Integration**
-   - "Gesture Mode" toggle in settings.
+   - "Gesture Mode" toggle in Audio Deck (UnifiedAudioPanel).
 
 5. **Pre-commit Steps**
    - Ensure proper testing, verification, review, and reflection are done.

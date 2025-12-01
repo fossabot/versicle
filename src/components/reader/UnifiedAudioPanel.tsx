@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTTSStore } from '../../store/useTTSStore';
+import { useReaderStore } from '../../store/useReaderStore';
 import { SheetContent, SheetHeader, SheetTitle } from '../ui/Sheet';
 import { Button } from '../ui/Button';
 import { Slider } from '../ui/Slider';
@@ -36,6 +37,8 @@ export const UnifiedAudioPanel = () => {
     setPrerollEnabled
   } = useTTSStore();
 
+  const { gestureMode, setGestureMode } = useReaderStore();
+
   const [view, setView] = useState<'queue' | 'settings'>('queue');
   const [isLexiconOpen, setIsLexiconOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -61,6 +64,10 @@ export const UnifiedAudioPanel = () => {
       setIsRefreshing(true);
       await loadVoices();
       setIsRefreshing(false);
+  };
+
+  const handleGestureToggle = (checked: boolean) => {
+      setGestureMode(checked);
   };
 
   return (
@@ -149,6 +156,10 @@ export const UnifiedAudioPanel = () => {
                  <div className="flex items-center justify-between">
                     <label className="text-sm">Announce Chapter Titles</label>
                     <Switch checked={prerollEnabled} onCheckedChange={setPrerollEnabled} />
+                 </div>
+                 <div className="flex items-center justify-between">
+                    <label className="text-sm">Gesture Mode</label>
+                    <Switch checked={gestureMode} onCheckedChange={handleGestureToggle} />
                  </div>
               </section>
 
