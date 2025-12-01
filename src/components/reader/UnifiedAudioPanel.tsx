@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTTSStore } from '../../store/useTTSStore';
 import { SheetContent, SheetHeader, SheetTitle } from '../ui/Sheet';
 import { Button } from '../ui/Button';
@@ -20,6 +20,7 @@ export const UnifiedAudioPanel = () => {
     voice,
     setVoice,
     voices,
+    loadVoices,
     seek,
     providerId,
     sanitizationEnabled,
@@ -30,6 +31,13 @@ export const UnifiedAudioPanel = () => {
 
   const [view, setView] = useState<'queue' | 'settings'>('queue');
   const [isLexiconOpen, setIsLexiconOpen] = useState(false);
+
+  // Load voices when switching to settings view if empty
+  useEffect(() => {
+     if (view === 'settings' && voices.length === 0) {
+         loadVoices();
+     }
+  }, [view, voices.length, loadVoices]);
 
   // Helper for voice selection
   const handleVoiceChange = (voiceId: string) => {
