@@ -180,6 +180,8 @@ describe('AudioPlayerService - Smart Resume', () => {
                 lastPauseTime: now - (6 * 60 * 1000) // 6 mins ago
             });
 
+            // Set current index before "pausing" logic simulation
+            service['currentIndex'] = 3;
             service['status'] = 'paused';
 
             await service.resume();

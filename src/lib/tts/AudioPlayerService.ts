@@ -354,6 +354,9 @@ export class AudioPlayerService {
   }
 
   async resume(): Promise<void> {
+     // Mark session as restored to prevent play() from re-triggering restoration logic
+     this.sessionRestored = true;
+
      // Smart Resume Logic
      let lastPauseTime: number | null = null;
 
