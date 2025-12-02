@@ -20,13 +20,13 @@ export const GestureOverlay: React.FC<GestureOverlayProps> = ({
   onClose
 }) => {
   const { isPlaying, play, pause, seek, rate, setRate } = useTTSStore();
-  const { gestureMode } = useReaderStore(); // Assuming we add this to store
+  const { gestureMode } = useReaderStore();
 
   const [icon, setIcon] = useState<React.ReactNode | null>(null);
   const [iconKey, setIconKey] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
 
-  // Touch tracking
+  // Pointer tracking
   const touchStart = useRef<{ x: number, y: number } | null>(null);
   const touchStartTime = useRef<number>(0);
 
@@ -40,21 +40,29 @@ export const GestureOverlay: React.FC<GestureOverlayProps> = ({
     setTimeout(() => setIcon(null), 800);
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Prevent default to stop text selection or native touch actions
+    // However, touch-action: none handles the scrolling part.
+    // e.preventDefault();
+
+    // Capture pointer to track movement even if it leaves the element
+    e.currentTarget.setPointerCapture(e.pointerId);
+
     touchStart.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY
+      x: e.clientX,
+      y: e.clientY
     };
     touchStartTime.current = Date.now();
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+
     if (!touchStart.current) return;
 
     const touchEnd = {
-      x: e.changedTouches[0].clientX,
-      y: e.changedTouches[0].clientY
+      x: e.clientX,
+      y: e.clientY
     };
     const endTime = Date.now();
 
@@ -111,25 +119,7 @@ export const GestureOverlay: React.FC<GestureOverlayProps> = ({
           }
         }
       } else {
-        // Vertical Swipe -> Speed Control (Plan says Volume, but TTS API usually controls Speed more reliably on web, Volume is often system)
-        // Let's stick to Plan which says "Swipe Up/Down: Volume +/-".
-        // However, Web Audio / SpeechSynth volume control can be tricky.
-        // Let's implement Volume if store supports it, or Speed as fallback if logic map allows deviation?
-        // Plan says "Swipe Up/Down: Volume +/-".
-        // NOTE: Standard iOS/Android behavior prevents programmatic volume control often.
-        // Speed is safer. But let's check store. useTTSStore has `rate`, `setRate`. Does it have volume?
-        // Checking useTTSStore... currently visible in ReaderView: `rate, setRate`. No volume.
-        // So I will implement SPEED instead, or add Volume to store.
-        // Given "Volume" is in plan, but `rate` is in store. I'll use Rate for now as it's implemented.
-        // Or I should add volume to store?
-        // Let's check `useTTSStore`.
-
-        // Actually, let's map Swipe Up to Speed Up, Swipe Down to Speed Down for now, as volume is often hardware button.
-        // Plan logic: "Swipe Up/Down: Volume +/-".
-        // I will interpret this as Rate/Speed since Volume is not in the slice I saw.
-        // Or I'll add Volume to store if I can read it.
-
-        // Let's stick to Speed (Rate) as it is most useful for TTS users.
+        // Vertical Swipe -> Speed Control
         if (dy < 0) {
           // Swipe Up -> Faster
           const newRate = Math.min(rate + 0.1, 3.0);
@@ -152,21 +142,21 @@ export const GestureOverlay: React.FC<GestureOverlayProps> = ({
   return (
     <div
       className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center select-none touch-none"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      // Prevent defaults to stop scrolling/zooming
-      onTouchMove={(e) => e.preventDefault()}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      // Stop clicks from propagating to underlying elements (e.g. reader iframe)
+      onClick={(e) => e.stopPropagation()}
+      // Prevent browser default actions
+      onContextMenu={(e) => e.preventDefault()}
     >
       <div className="absolute top-6 right-6 z-[70]">
         <button
-            onClick={onClose}
-            // Add explicit touch handlers that stop propagation and call onClose
-            // This ensures functionality on both Mouse (onClick) and Touch devices
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => {
-                e.stopPropagation();
-                if (onClose) onClose();
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onClose) onClose();
             }}
+            // Stop pointer down from starting a gesture
+            onPointerDown={(e) => e.stopPropagation()}
             className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full backdrop-blur-md transition-all active:scale-95"
             aria-label="Exit Gesture Mode"
         >
@@ -197,7 +187,7 @@ export const GestureOverlay: React.FC<GestureOverlayProps> = ({
       </div>
 
       {icon && (
-        <div key={iconKey} className="absolute inset-0 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+        <div key={iconKey} className="absolute inset-0 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300 pointer-events-none">
           <div className="bg-white/20 p-8 rounded-full backdrop-blur-sm text-white drop-shadow-lg mb-4">
             {icon}
           </div>
