@@ -2,7 +2,8 @@ import React, { useRef, useState } from 'react';
 import {
   Play, Pause, RotateCcw, RotateCw,
   Volume1, Volume2,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight,
+  X
 } from 'lucide-react';
 import { useTTSStore } from '../../store/useTTSStore';
 import { useReaderStore } from '../../store/useReaderStore';
@@ -150,20 +151,27 @@ export const GestureOverlay: React.FC<GestureOverlayProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center select-none touch-none"
+      className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center select-none touch-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       // Prevent defaults to stop scrolling/zooming
       onTouchMove={(e) => e.preventDefault()}
     >
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-6 right-6 z-[70]">
         <button
             onClick={onClose}
+            // Add explicit touch handlers that stop propagation and call onClose
+            // This ensures functionality on both Mouse (onClick) and Touch devices
             onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-            className="text-white/50 border border-white/30 rounded-full px-3 py-1 text-sm hover:bg-white/10"
+            onTouchEnd={(e) => {
+                e.stopPropagation();
+                if (onClose) onClose();
+            }}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-full backdrop-blur-md transition-all active:scale-95"
+            aria-label="Exit Gesture Mode"
         >
-            Exit Gesture Mode
+            <X size={16} />
+            <span className="font-medium">Exit</span>
         </button>
       </div>
 

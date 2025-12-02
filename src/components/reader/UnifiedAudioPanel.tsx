@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/Badge';
 import { Switch } from '../ui/Switch';
 import { TTSQueue } from './TTSQueue';
-import { Play, Pause, RotateCcw, RotateCw, Mic, RefreshCw } from 'lucide-react';
+import { Play, Pause, RotateCcw, RotateCw, Mic, RefreshCw, Hand } from 'lucide-react';
 import { LexiconManager } from './LexiconManager';
 
 /**
@@ -92,13 +92,23 @@ export const UnifiedAudioPanel = () => {
           </div>
 
           {/* Quick Toggles */}
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-4 items-center">
              <Badge variant="outline" className="cursor-pointer" onClick={() => setView('settings')}>
                 {rate}x
              </Badge>
              <Badge variant="outline" className="cursor-pointer truncate max-w-[150px]" onClick={() => setView('settings')}>
                 {voice?.name || 'Default Voice'}
              </Badge>
+             <Button
+                variant={gestureMode ? "default" : "outline"}
+                size="icon"
+                className={`h-8 w-8 rounded-full ${gestureMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+                onClick={() => handleGestureToggle(!gestureMode)}
+                title="Toggle Gesture Mode"
+                aria-label="Toggle Gesture Mode"
+             >
+                <Hand className="h-4 w-4" />
+             </Button>
           </div>
        </div>
 

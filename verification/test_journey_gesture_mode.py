@@ -36,7 +36,7 @@ def test_journey_gesture_mode(page: Page):
 
     # 5. Verify Overlay Appears
     expect(page.locator("text=Gesture Mode Active")).to_be_visible()
-    expect(page.locator("text=Exit Gesture Mode")).to_be_visible()
+    expect(page.get_by_label("Exit Gesture Mode")).to_be_visible()
 
     # 6. Interact with Overlay (Tap Center)
     # Verify feedback icon appears
@@ -59,5 +59,5 @@ def test_journey_gesture_mode(page: Page):
     capture_screenshot(page, "gesture_mode_active")
 
     # 8. Exit Gesture Mode
-    page.click("text=Exit Gesture Mode")
+    page.get_by_label("Exit Gesture Mode").click()
     expect(page.locator("text=Gesture Mode Active")).not_to_be_visible()

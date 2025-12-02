@@ -46,7 +46,7 @@ def test_settings_persistence(page: Page):
     # However, GestureOverlay has an "Exit Gesture Mode" button (based on previous error log).
     # Let's verify that button exists, which confirms Gesture Mode persisted.
 
-    exit_btn = page.locator("button", has_text="Exit Gesture Mode")
+    exit_btn = page.get_by_label("Exit Gesture Mode")
     # Or based on GestureOverlay.tsx (which I haven't read but saw in logs)
 
     expect(exit_btn).to_be_visible()
