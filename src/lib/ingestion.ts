@@ -31,6 +31,11 @@ export async function processEpub(file: File): Promise<string> {
     }
   }
 
+  // Calculate SHA-256 hash
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
   const bookId = uuidv4();
 
   const newBook: BookMetadata = {
@@ -40,6 +45,8 @@ export async function processEpub(file: File): Promise<string> {
     description: metadata.description,
     addedAt: Date.now(),
     coverBlob: coverBlob,
+    fileHash,
+    isOffloaded: false,
   };
 
   const db = await getDB();
