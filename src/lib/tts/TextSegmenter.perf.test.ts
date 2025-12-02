@@ -20,12 +20,10 @@ describe('TextSegmenter Performance', () => {
 
         splitSpy.mockRestore();
 
-        // FAIL CONDITION:
-        // Currently, it splits roughly once per sentence boundary (checking for abbreviations).
-        // For 100 sentences, we expect ~99 splits.
-        // We want to optimize this to near 0.
-        // So we assert that it is less than 10.
-        // This assertion should FAIL currently.
+        // REGRESSION TEST:
+        // Previously, the implementation used `split` roughly once per sentence boundary.
+        // This test ensures we rely on efficient regex extraction instead.
+        // We assert that split calls are minimal (effectively 0 for this logic).
         expect(callCount).toBeLessThan(10);
     });
 });
