@@ -18,6 +18,8 @@ vi.mock('lucide-react', () => ({
   ChevronLeft: () => <div data-testid="icon-prev">Prev</div>,
   ChevronRight: () => <div data-testid="icon-next">Next</div>,
   X: () => <div data-testid="icon-close">Close</div>,
+  Rewind: () => <div data-testid="icon-rewind">Rewind</div>,
+  FastForward: () => <div data-testid="icon-forward">Forward</div>,
 }));
 
 describe('GestureOverlay', () => {
@@ -42,24 +44,15 @@ describe('GestureOverlay', () => {
       pause: mockPause,
       seek: mockSeek,
       rate: 1.0,
-      setRate: mockSetRate
+      setRate: mockSetRate,
+      providerId: 'cloud'
     });
     // Set window dimensions for tap zones
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1000 });
 
-    // Mock Pointer Capture methods for JSDOM
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Element.prototype as any).setPointerCapture = vi.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Element.prototype as any).releasePointerCapture = vi.fn();
-  });
-
-  afterEach(() => {
-      // Clean up mocks if necessary (though vitest handles reset, prototyping modification persists)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (Element.prototype as any).setPointerCapture;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (Element.prototype as any).releasePointerCapture;
+    // Mock Pointer Capture methods which are missing in JSDOM
+    Element.prototype.setPointerCapture = vi.fn();
+    Element.prototype.releasePointerCapture = vi.fn();
   });
 
   it('renders nothing when gestureMode is false', () => {
