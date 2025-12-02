@@ -61,9 +61,13 @@ describe('Sanitizer', () => {
 
   it('should handle URLs ending in parentheses by keeping the domain', () => {
       // Valid URL ending in ')'
-      // The sanitizer replaces the URL with the domain.
-      // If the regex excludes the closing ')', it remains part of the text.
+      // Since parentheses are balanced, the closing ')' is part of the URL and should be replaced.
       const input = 'Check https://en.wikipedia.org/wiki/Earth_(planet).';
-      expect(Sanitizer.sanitize(input)).toBe('Check en.wikipedia.org).');
+      expect(Sanitizer.sanitize(input)).toBe('Check en.wikipedia.org.');
+  });
+
+  it('should handle complex parenthesized URLs', () => {
+      // Unbalanced closing ')' outside the URL
+      expect(Sanitizer.sanitize('(Check https://site.com/foo(bar))')).toBe('(Check site.com)');
   });
 });
