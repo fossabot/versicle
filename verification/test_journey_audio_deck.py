@@ -27,8 +27,8 @@ def test_audio_deck_journey(page: Page):
     # Using aria-labels defined in UnifiedAudioPanel
     expect(page.get_by_label("Play")).to_be_visible()
     # Updated to support "Previous Sentence" for local TTS
-    expect(page.get_by_label("Rewind 15s").or_(page.get_by_label("Previous Sentence"))).to_be_visible()
-    expect(page.get_by_label("Forward 15s").or_(page.get_by_label("Next Sentence"))).to_be_visible()
+    expect(page.get_by_test_id("tts-rewind-button")).to_be_visible()
+    expect(page.get_by_test_id("tts-forward-button")).to_be_visible()
 
     # Verify Queue View (Default)
     # Check if we see text from the book (Alice in Wonderland)
