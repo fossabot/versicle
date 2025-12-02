@@ -26,13 +26,12 @@ def test_settings_persistence(page: Page):
     gesture_switch.click()
     page.wait_for_timeout(500)
 
-    # Verify State (aria-checked)
-    expect(gesture_switch).to_have_attribute("aria-checked", "true")
+    # Verify Overlay Appears (Switch disappears because Audio Panel closes)
+    expect(page.locator("text=Gesture Mode Active")).to_be_visible()
 
     utils.capture_screenshot(page, "settings_persistence_1_enabled")
 
-    # Close Settings
-    page.get_by_role("button", name="Close").click()
+    # Audio Panel is already closed automatically.
 
     # 3. Reload
     print("Reloading...")

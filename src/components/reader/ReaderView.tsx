@@ -224,6 +224,8 @@ export const ReaderView: React.FC = () => {
 
   const { setGlobalSettingsOpen } = useUIStore();
 
+  const [audioPanelOpen, setAudioPanelOpen] = useState(false);
+
   // Search State
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -790,7 +792,14 @@ export const ReaderView: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const { setGestureMode } = useReaderStore();
+  const { gestureMode, setGestureMode } = useReaderStore();
+
+  // Close Audio Panel when Gesture Mode is enabled
+  useEffect(() => {
+      if (gestureMode) {
+          setAudioPanelOpen(false);
+      }
+  }, [gestureMode]);
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground relative">
@@ -834,7 +843,7 @@ export const ReaderView: React.FC = () => {
                 {currentChapterTitle || 'Reading'}
             </h1>
             <div className="flex items-center gap-2">
-            <Sheet>
+            <Sheet open={audioPanelOpen} onOpenChange={setAudioPanelOpen}>
                 <SheetTrigger asChild>
                     <button data-testid="reader-audio-button" aria-label="Open Audio Deck" className={`p-2 rounded-full hover:bg-border ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`}>
                         <Headphones className="w-5 h-5" />

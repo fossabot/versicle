@@ -30,9 +30,9 @@ def test_journey_gesture_mode(page: Page):
     switch = page.get_by_text("Gesture Mode", exact=True).locator("xpath=..").get_by_role("switch")
     switch.click()
 
-    # Close Audio Panel (click outside or use close button if available, currently just backdrop or separate control)
-    # The Sheet component usually has a close button.
-    page.get_by_role("button", name="Close").last.click()
+    # The Audio Panel should close automatically when Gesture Mode is enabled.
+    # So we don't need to manually close it.
+    expect(page.get_by_test_id("tts-panel")).not_to_be_visible()
 
     # 5. Verify Overlay Appears
     expect(page.locator("text=Gesture Mode Active")).to_be_visible()
