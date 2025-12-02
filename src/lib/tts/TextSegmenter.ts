@@ -114,8 +114,10 @@ export class TextSegmenter {
                     isAbbreviation = true;
                     lastWord = lastTextTrimmed;
                 } else {
-                    const words = lastTextTrimmed.split(/\s+/);
-                    lastWord = words[words.length - 1];
+                    // Optimized: Get last word without splitting the whole string
+                    const match = /\S+$/.exec(lastTextTrimmed);
+                    lastWord = match ? match[0] : lastTextTrimmed;
+
                     if (this.abbreviations.has(lastWord)) {
                         isAbbreviation = true;
                         // lastWord is already set correctly
@@ -130,7 +132,10 @@ export class TextSegmenter {
                     } else {
                         // Check the next segment (current) to see if it looks like a new sentence
                         const nextTextTrimmed = current.text.trim();
-                        const nextFirstWord = nextTextTrimmed.split(/\s+/)[0];
+                        // Optimized: Get first word without splitting the whole string
+                        const match = /^\S+/.exec(nextTextTrimmed);
+                        const nextFirstWord = match ? match[0] : nextTextTrimmed;
+
                         // Remove trailing punctuation from the word (e.g. "He," -> "He")
                         const cleanNextWord = nextFirstWord.replace(/[.,!?;:]$/, '');
 
