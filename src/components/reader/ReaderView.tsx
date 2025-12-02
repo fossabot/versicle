@@ -347,7 +347,7 @@ export const ReaderView: React.FC = () => {
                    const title = item ? (item.label || 'Chapter') : 'Unknown';
 
                    updateLocation(cfi, pct, title);
-                   saveProgress(id, cfi, pct);
+                   dbService.saveProgress(id, cfi, pct);
                }
           };
 
