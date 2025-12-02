@@ -82,11 +82,17 @@ vi.mock('./AudioElementPlayer', () => {
 // Mock Audio globally using stubGlobal
 const mockAudioInstances: any[] = [];
 class MockAudio {
-    play = vi.fn().mockResolvedValue(undefined);
-    pause = vi.fn();
+    play = vi.fn().mockImplementation(() => {
+        this.paused = false;
+        return Promise.resolve();
+    });
+    pause = vi.fn().mockImplementation(() => {
+        this.paused = true;
+    });
     loop = false;
     currentTime = 0;
     src = '';
+    paused = true; // Default to paused
 
     constructor(src?: string) {
         this.src = src || '';

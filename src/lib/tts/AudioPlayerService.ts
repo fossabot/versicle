@@ -98,7 +98,10 @@ export class AudioPlayerService {
            if (event.type === 'start') {
                this.setStatus('playing');
                // Ensure silent audio is playing to keep MediaSession active
-               this.silentAudio.play().catch(e => console.warn("Silent audio play failed", e));
+               // Only play if not already playing to avoid audio artifacts/interruptions
+               if (this.silentAudio.paused) {
+                   this.silentAudio.play().catch(e => console.warn("Silent audio play failed", e));
+               }
            } else if (event.type === 'end') {
                // Don't stop silent audio here, wait for playNext or stop
                this.playNext();
