@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useUIStore } from '../store/useUIStore';
-import { useReaderStore } from '../store/useReaderStore';
 import { useTTSStore } from '../store/useTTSStore';
 import { Modal, ModalContent } from './ui/Modal';
 import { Button } from './ui/Button';
-import { Switch } from './ui/Switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import { Input } from './ui/Input';
 import { TTSAbbreviationSettings } from './reader/TTSAbbreviationSettings';
@@ -15,8 +13,6 @@ export const GlobalSettingsDialog = () => {
     const { isGlobalSettingsOpen, setGlobalSettingsOpen } = useUIStore();
     const [activeTab, setActiveTab] = useState('general');
     const [isLexiconOpen, setIsLexiconOpen] = useState(false);
-
-    const { gestureMode, setGestureMode } = useReaderStore();
 
     const {
         providerId, setProviderId,
@@ -69,13 +65,9 @@ export const GlobalSettingsDialog = () => {
                         <div className="space-y-6">
                             <div>
                                 <h3 className="text-lg font-medium mb-2">Interaction</h3>
-                                <div className="flex items-center justify-between py-2 border-b">
-                                    <div>
-                                        <div className="font-medium">Gesture Mode</div>
-                                        <div className="text-sm text-muted-foreground">Swipe to turn pages</div>
-                                    </div>
-                                    <Switch checked={gestureMode} onCheckedChange={setGestureMode} />
-                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    General system interaction settings.
+                                </p>
                             </div>
                         </div>
                     )}

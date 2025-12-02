@@ -18,7 +18,7 @@ def test_journey_lexicon(page: Page):
 
     # Open Audio Deck
     print("Opening Audio Deck...")
-    page.get_by_test_id("reader-tts-button").click()
+    page.get_by_test_id("reader-audio-button").click()
 
     # Switch to Settings
     page.get_by_role("button", name="Settings").click()

@@ -15,8 +15,8 @@ def test_audio_deck_journey(page: Page):
 
     # Open Audio Deck
     print("Opening Audio Deck...")
-    # New ID: reader-tts-button (kept same ID for compatibility/ease)
-    tts_btn = page.get_by_test_id("reader-tts-button")
+    # New ID: reader-audio-button
+    tts_btn = page.get_by_test_id("reader-audio-button")
     tts_btn.click()
 
     # Verify Sheet Content

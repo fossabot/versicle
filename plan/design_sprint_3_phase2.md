@@ -105,6 +105,10 @@ export const UnifiedAudioPanel = () => {
                    <label className="text-sm">Skip URLs & Citations</label>
                    <Switch checked={sanitization.enabled} onCheckedChange={sanitization.toggle} />
                 </div>
+                <div className="flex items-center justify-between">
+                   <label className="text-sm">Gesture Mode</label>
+                   <Switch checked={gestures.enabled} onCheckedChange={gestures.toggle} />
+                </div>
                 {/* Add Smart Resume Toggle if available in store */}
              </section>
 

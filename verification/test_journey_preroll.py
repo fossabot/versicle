@@ -12,11 +12,11 @@ def test_preroll_journey(page: Page):
     # Open Book
     print("Opening book...")
     page.locator('[data-testid="book-card"]').click()
-    expect(page.get_by_test_id("reader-tts-button")).to_be_visible(timeout=5000)
+    expect(page.get_by_test_id("reader-audio-button")).to_be_visible(timeout=5000)
 
     # Open TTS Panel
     print("Opening TTS panel...")
-    page.get_by_test_id("reader-tts-button").click()
+    page.get_by_test_id("reader-audio-button").click()
     expect(page.get_by_test_id("tts-panel")).to_be_visible()
 
     # Open Settings
@@ -41,7 +41,7 @@ def test_preroll_journey(page: Page):
     page.reload()
 
     # Navigate back to settings
-    page.get_by_test_id("reader-tts-button").click()
+    page.get_by_test_id("reader-audio-button").click()
     page.get_by_role("button", name="Settings").click()
 
     preroll_switch = page.get_by_text("Announce Chapter Titles", exact=True).locator("xpath=..").get_by_role("switch")

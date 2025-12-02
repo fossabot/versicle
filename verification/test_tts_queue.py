@@ -25,13 +25,13 @@ def test_tts_queue(page: Page):
 
     # Open TTS Controls
     print("Opening TTS controls...")
-    page.get_by_test_id("reader-tts-button").click()
+    page.get_by_test_id("reader-audio-button").click()
 
     # Wait for popup
     try:
         expect(page.get_by_test_id("tts-panel")).to_be_visible(timeout=5000)
     except:
-        page.get_by_test_id("reader-tts-button").click()
+        page.get_by_test_id("reader-audio-button").click()
         expect(page.get_by_test_id("tts-panel")).to_be_visible(timeout=5000)
 
     # Search for text by paging forward
