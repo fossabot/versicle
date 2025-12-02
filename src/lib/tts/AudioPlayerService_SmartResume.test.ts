@@ -1,8 +1,51 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AudioPlayerService } from './AudioPlayerService';
-import { useTTSStore } from '../../store/useTTSStore';
 import { WebSpeechProvider } from './providers/WebSpeechProvider';
 import { AudioElementPlayer } from './AudioElementPlayer';
+
+// Define hoisted mocks first to avoid reference errors
+const { mockDB, mockBook } = vi.hoisted(() => {
+    const mockBook = {
+        id: 'test-book-id',
+        lastPauseTime: undefined as number | undefined | null,
+        lastPlayedCfi: undefined as string | undefined | null,
+    };
+
+    const mockDB = {
+        get: vi.fn().mockImplementation((store, key) => {
+            if (store === 'books' && key === 'test-book-id') {
+                return Promise.resolve(mockBook);
+            }
+            return Promise.resolve(undefined);
+        }),
+        put: vi.fn().mockImplementation((store, val) => {
+            if (store === 'books') {
+                 if (val.id === 'test-book-id') {
+                     if (val.lastPauseTime !== undefined) mockBook.lastPauseTime = val.lastPauseTime;
+                     if (val.lastPlayedCfi !== undefined) mockBook.lastPlayedCfi = val.lastPlayedCfi;
+                 }
+            }
+            return Promise.resolve();
+        }),
+        transaction: vi.fn().mockReturnValue({
+            objectStore: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue(mockBook),
+                put: vi.fn().mockImplementation((val) => {
+                     if (val.lastPauseTime !== undefined) mockBook.lastPauseTime = val.lastPauseTime;
+                     if (val.lastPlayedCfi !== undefined) mockBook.lastPlayedCfi = val.lastPlayedCfi;
+                     return Promise.resolve();
+                }),
+            }),
+            done: Promise.resolve(),
+        }),
+    };
+
+    return { mockDB, mockBook };
+});
+
+vi.mock('../../db/db', () => ({
+    getDB: vi.fn().mockResolvedValue(mockDB)
+}));
 
 // Mock WebSpeechProvider
 const mockSynthesize = vi.fn();
@@ -50,17 +93,7 @@ vi.mock('./AudioElementPlayer', () => {
     };
 });
 
-// Mock Store
-vi.mock('../../store/useTTSStore', () => ({
-    useTTSStore: {
-        getState: vi.fn().mockReturnValue({
-            lastPauseTime: null,
-            setLastPauseTime: vi.fn(),
-        })
-    }
-}));
-
-// Mock LexiconService to avoid DB calls during fake timers
+// Mock LexiconService
 vi.mock('./LexiconService', () => ({
     LexiconService: {
         getInstance: vi.fn().mockReturnValue({
@@ -73,24 +106,21 @@ vi.mock('./LexiconService', () => ({
 
 describe('AudioPlayerService - Smart Resume', () => {
     let service: AudioPlayerService;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mockStore: any;
 
     beforeEach(async () => {
         vi.clearAllMocks();
+
+        // Reset mockBook state
+        mockBook.lastPauseTime = undefined;
+        mockBook.lastPlayedCfi = undefined;
 
         // Reset singleton logic
         service = AudioPlayerService.getInstance();
         service.stop();
 
-        mockStore = {
-            lastPauseTime: null,
-            setLastPauseTime: vi.fn((time) => { mockStore.lastPauseTime = time; }),
-        };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (useTTSStore.getState as any).mockImplementation(() => mockStore);
+        // IMPORTANT: Set Book ID to enable DB logic
+        service.setBookId('test-book-id');
 
-        // Setup queue
         service.setQueue([
             { text: 'Sentence 1', cfi: 'cfi1' },
             { text: 'Sentence 2', cfi: 'cfi2' },
@@ -104,19 +134,28 @@ describe('AudioPlayerService - Smart Resume', () => {
         vi.useRealTimers();
     });
 
-    it('should set lastPauseTime on pause', () => {
+    it('should set lastPauseTime on pause', async () => {
         vi.useFakeTimers();
         const now = 1000000;
         vi.setSystemTime(now);
 
         service.pause();
 
-        expect(mockStore.setLastPauseTime).toHaveBeenCalledWith(now);
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(mockBook.lastPauseTime).toBe(now);
     });
 
-    it('should clear lastPauseTime on stop', () => {
+    it('should set lastPauseTime on stop', async () => {
+        vi.useFakeTimers();
+        const now = 2000000;
+        vi.setSystemTime(now);
+
         service.stop();
-        expect(mockStore.setLastPauseTime).toHaveBeenCalledWith(null);
+
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(mockBook.lastPauseTime).toBe(now);
     });
 
     describe('WebSpeechProvider (Local)', () => {
@@ -131,12 +170,15 @@ describe('AudioPlayerService - Smart Resume', () => {
 
             // Simulate paused state
             service['status'] = 'paused';
-            mockStore.lastPauseTime = now - (4 * 60 * 1000); // 4 mins ago
+            mockBook.lastPauseTime = now - (4 * 60 * 1000); // 4 mins ago
 
             await service.resume();
+            await vi.advanceTimersByTimeAsync(100);
 
             expect(mockResume).toHaveBeenCalled();
             expect(service['currentIndex']).toBe(3);
+
+            expect(mockBook.lastPauseTime).toBeUndefined();
         });
 
         it('should rewind 2 sentences if paused for > 5 minutes', async () => {
@@ -144,11 +186,11 @@ describe('AudioPlayerService - Smart Resume', () => {
             const now = 1000000;
             vi.setSystemTime(now);
 
-            // Simulate paused state
             service['status'] = 'paused';
-            mockStore.lastPauseTime = now - (6 * 60 * 1000); // 6 mins ago
+            mockBook.lastPauseTime = now - (6 * 60 * 1000); // 6 mins ago
 
             await service.resume();
+            await vi.advanceTimersByTimeAsync(100);
 
             expect(service['currentIndex']).toBe(1);
             expect(mockSynthesize).toHaveBeenCalled();
@@ -160,9 +202,10 @@ describe('AudioPlayerService - Smart Resume', () => {
             vi.setSystemTime(now);
 
             service['status'] = 'paused';
-            mockStore.lastPauseTime = 1000000;
+            mockBook.lastPauseTime = 1000000;
 
             await service.resume();
+            await vi.advanceTimersByTimeAsync(100);
 
             expect(service['currentIndex']).toBe(0);
             expect(mockSynthesize).toHaveBeenCalled();
@@ -187,9 +230,10 @@ describe('AudioPlayerService - Smart Resume', () => {
             vi.setSystemTime(now);
 
             service['status'] = 'paused';
-            mockStore.lastPauseTime = now - (4 * 60 * 1000);
+            mockBook.lastPauseTime = now - (4 * 60 * 1000);
 
             await service.resume();
+            await vi.advanceTimersByTimeAsync(100);
 
             expect(mockSeek).not.toHaveBeenCalled();
             expect(mockPlayerResume).toHaveBeenCalled();
@@ -201,9 +245,10 @@ describe('AudioPlayerService - Smart Resume', () => {
             vi.setSystemTime(now);
 
             service['status'] = 'paused';
-            mockStore.lastPauseTime = now - (6 * 60 * 1000);
+            mockBook.lastPauseTime = now - (6 * 60 * 1000);
 
             await service.resume();
+            await vi.advanceTimersByTimeAsync(100);
 
             expect(mockSeek).toHaveBeenCalledWith(90);
             expect(mockPlayerResume).toHaveBeenCalled();
@@ -215,9 +260,10 @@ describe('AudioPlayerService - Smart Resume', () => {
             vi.setSystemTime(now);
 
             service['status'] = 'paused';
-            mockStore.lastPauseTime = 1000000;
+            mockBook.lastPauseTime = 1000000;
 
             await service.resume();
+            await vi.advanceTimersByTimeAsync(100);
 
             expect(mockSeek).toHaveBeenCalledWith(40);
             expect(mockPlayerResume).toHaveBeenCalled();
