@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AudioPlayerService } from './AudioPlayerService';
-import { AudioElementPlayer } from './AudioElementPlayer';
 // Import the mocked class so we can use it for instanceof checks
 import { WebSpeechProvider } from './providers/WebSpeechProvider';
 
@@ -80,6 +79,7 @@ vi.mock('./AudioElementPlayer', () => {
 });
 
 // Mock Audio globally using stubGlobal
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockAudioInstances: any[] = [];
 class MockAudio {
     play = vi.fn().mockImplementation(() => {
@@ -163,6 +163,7 @@ describe('AudioPlayerService MediaSession Integration', () => {
     it('should play silent audio when WebSpeech starts', async () => {
          // Create a provider that is an instance of WebSpeechProvider
          const mockProvider = new WebSpeechProvider();
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
          const handlers: any = {};
 
          // Override methods manually
@@ -172,7 +173,9 @@ describe('AudioPlayerService MediaSession Integration', () => {
              if (handlers['start']) handlers['start']({ type: 'start' });
              return Promise.resolve({ audio: null, alignment: [] });
          });
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
          mockProvider.on = vi.fn().mockImplementation((cb: any) => {
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
              handlers['start'] = (e: any) => cb(e);
          });
 
@@ -216,7 +219,7 @@ describe('AudioPlayerService MediaSession Integration', () => {
             getVoices: vi.fn().mockResolvedValue([]),
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             synthesize: vi.fn().mockResolvedValue({ audio: blob, alignment: [] } as any),
-        } as any;
+        } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
         service.setProvider(mockCloudProvider);
 
