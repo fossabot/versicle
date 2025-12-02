@@ -199,7 +199,7 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
                                <div className="flex items-center gap-2 w-full">
                                     <input
                                         data-testid="lexicon-input-original"
-                                        className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        className="border p-1 rounded flex-1 min-w-0 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         value={editingRule.original}
                                         onChange={e => setEditingRule({...editingRule, original: e.target.value})}
                                         placeholder="Original"
@@ -207,7 +207,7 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
                                     <span className="text-gray-500">→</span>
                                     <input
                                         data-testid="lexicon-input-replacement"
-                                        className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        className="border p-1 rounded flex-1 min-w-0 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         value={editingRule.replacement}
                                         onChange={e => setEditingRule({...editingRule, replacement: e.target.value})}
                                         placeholder="Replacement"
@@ -262,7 +262,7 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
                    <div className="flex items-center gap-2">
                         <input
                             data-testid="lexicon-input-original"
-                            className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="border p-1 rounded flex-1 min-w-0 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             value={editingRule?.original || ''}
                             onChange={e => setEditingRule({...editingRule, original: e.target.value})}
                             placeholder="Original"
@@ -271,7 +271,7 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
                         <span className="text-gray-500">→</span>
                         <input
                             data-testid="lexicon-input-replacement"
-                            className="border p-1 rounded flex-1 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="border p-1 rounded flex-1 min-w-0 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             value={editingRule?.replacement || ''}
                             onChange={e => setEditingRule({...editingRule, replacement: e.target.value})}
                             placeholder="Replacement"
@@ -306,7 +306,7 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
               <div className="flex gap-2">
                   <input
                       data-testid="lexicon-test-input"
-                      className="flex-1 border p-2 rounded text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      className="flex-1 min-w-0 border p-2 rounded text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                       placeholder="Type a sentence containing your words..."
                       value={testInput}
                       onChange={e => setTestInput(e.target.value)}
