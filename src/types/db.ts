@@ -34,6 +34,10 @@ export interface BookMetadata {
   lastPlayedCfi?: string;
   /** Timestamp when TTS playback was last paused, for smart resume. */
   lastPauseTime?: number;
+  /** SHA-256 hash of the original EPUB file, used for verification during restore. */
+  fileHash?: string;
+  /** Whether the binary file content has been deleted to save space. */
+  isOffloaded?: boolean;
 }
 
 /**
