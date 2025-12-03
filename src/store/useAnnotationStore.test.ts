@@ -22,6 +22,14 @@ describe('useAnnotationStore', () => {
 
   beforeEach(() => {
     useAnnotationStore.setState({ annotations: [], popover: { visible: false, x: 0, y: 0, cfiRange: '', text: '' } });
+
+    // Ensure all DB methods return promises
+    mockDB.getAllFromIndex.mockResolvedValue([]);
+    mockDB.add.mockResolvedValue(undefined);
+    mockDB.delete.mockResolvedValue(undefined);
+    mockDB.get.mockResolvedValue(undefined);
+    mockDB.put.mockResolvedValue(undefined);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (getDB as any).mockResolvedValue(mockDB);
     vi.clearAllMocks();

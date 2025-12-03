@@ -19,12 +19,14 @@ interface DialogProps {
  * A reusable modal dialog component using Radix Primitives via Modal.
  */
 export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, description, children, footer }) => {
+  const descriptionId = React.useId();
+
   return (
     <Modal open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <ModalContent className="max-w-md">
+      <ModalContent className="max-w-md" aria-describedby={description ? descriptionId : undefined}>
         <ModalHeader>
           <ModalTitle>{title}</ModalTitle>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          {description && <p id={descriptionId} className="text-sm text-muted-foreground">{description}</p>}
         </ModalHeader>
         <div className="mb-6 text-foreground min-w-0">{children}</div>
         {footer && <div className="flex justify-end gap-2">{footer}</div>}

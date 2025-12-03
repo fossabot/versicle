@@ -30,7 +30,7 @@ describe('Dialog', () => {
 
   it('renders children content', () => {
     render(
-      <Dialog isOpen={true} onClose={() => {}} title="Test Title">
+      <Dialog isOpen={true} onClose={() => {}} title="Test Title" description="Test Description">
         <div data-testid="dialog-content">Content</div>
       </Dialog>
     );
@@ -40,7 +40,7 @@ describe('Dialog', () => {
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn();
     render(
-      <Dialog isOpen={true} onClose={onClose} title="Test Title" />
+      <Dialog isOpen={true} onClose={onClose} title="Test Title" description="Test Description" />
     );
     const closeButton = screen.getByRole('button', { name: 'Close' });
     fireEvent.click(closeButton);
@@ -53,6 +53,7 @@ describe('Dialog', () => {
         isOpen={true}
         onClose={() => {}}
         title="Test Title"
+        description="Test Description"
         footer={<button>Action</button>}
       />
     );

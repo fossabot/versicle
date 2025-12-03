@@ -38,6 +38,20 @@ Object.defineProperty(window, 'speechSynthesis', {
 global.URL.createObjectURL = vi.fn(() => 'blob:url');
 global.URL.revokeObjectURL = vi.fn();
 
+// Mock HTMLMediaElement methods
+Object.defineProperty(global.window.HTMLMediaElement.prototype, 'play', {
+  configurable: true,
+  value: vi.fn().mockResolvedValue(undefined),
+});
+Object.defineProperty(global.window.HTMLMediaElement.prototype, 'pause', {
+  configurable: true,
+  value: vi.fn(),
+});
+Object.defineProperty(global.window.HTMLMediaElement.prototype, 'load', {
+  configurable: true,
+  value: vi.fn(),
+});
+
 // Mock ResizeObserver
 global.ResizeObserver = class {
   observe = vi.fn();
