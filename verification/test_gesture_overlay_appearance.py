@@ -26,14 +26,14 @@ def verify_gesture_overlay():
             page.get_by_text("Load Demo Book").click()
 
             # Wait for the book to appear
-            page.wait_for_selector('[data-testid^="book-card-"]', timeout=10000)
+            page.wait_for_selector('[data-testid^="book-card-"]', timeout=5000)
             print("Demo book loaded.")
 
         # 3. Open the book
         page.locator("[data-testid^='book-card-']").first.first.click()
 
         # 4. Wait for Reader to load
-        expect(page.get_by_test_id("reader-iframe-container")).to_be_visible(timeout=10000)
+        expect(page.get_by_test_id("reader-iframe-container")).to_be_visible(timeout=5000)
 
         # 5. Enable Gesture Mode
         # The switch was found in GlobalSettingsDialog.tsx but NOT UnifiedAudioPanel.tsx in my memory,
