@@ -73,6 +73,12 @@ describe('ReaderView', () => {
         getContents: vi.fn(() => []),
         spread: vi.fn(),
         resize: vi.fn(),
+        hooks: {
+          content: {
+            register: vi.fn(),
+            deregister: vi.fn()
+          }
+        }
       }),
       ready: Promise.resolve(),
       loaded: {

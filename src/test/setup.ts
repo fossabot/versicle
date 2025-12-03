@@ -6,7 +6,11 @@ import { afterEach, vi } from 'vitest';
 // Mock window.speechSynthesis
 Object.defineProperty(window, 'speechSynthesis', {
   value: {
-    getVoices: vi.fn().mockReturnValue([]),
+    getVoices: vi.fn().mockReturnValue([
+      { name: 'Google US English', lang: 'en-US', default: true },
+      { name: 'Google UK English Female', lang: 'en-GB', default: false },
+      { name: 'Google Español', lang: 'es-ES', default: false }
+    ]),
     speak: vi.fn(),
     cancel: vi.fn(),
     pause: vi.fn(),
