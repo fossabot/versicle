@@ -19,17 +19,35 @@ export class SearchEngine {
     private indexes = new Map<string, any>();
 
     /**
-     * Indexes a book's sections for searching.
+     * Initializes an empty index for a book, clearing any previous index.
      *
      * @param bookId - The unique identifier of the book.
-     * @param sections - An array of sections containing text and location data to be indexed.
      */
-    indexBook(bookId: string, sections: { id: string; href: string; text: string }[]) {
+    initIndex(bookId: string) {
         const index = new FlexSearch.Document({
             id: "id",
             index: ["text"],
             store: ["href", "text"]
         });
+        this.indexes.set(bookId, index);
+    }
+
+    /**
+     * Adds documents to the index for a book. Creates the index if it doesn't exist.
+     *
+     * @param bookId - The unique identifier of the book.
+     * @param sections - An array of sections to add.
+     */
+    addDocuments(bookId: string, sections: { id: string; href: string; text: string }[]) {
+        let index = this.indexes.get(bookId);
+        if (!index) {
+             index = new FlexSearch.Document({
+                id: "id",
+                index: ["text"],
+                store: ["href", "text"]
+            });
+            this.indexes.set(bookId, index);
+        }
 
         sections.forEach(section => {
             index.add({
@@ -38,8 +56,18 @@ export class SearchEngine {
                 href: section.href
             });
         });
+    }
 
-        this.indexes.set(bookId, index);
+    /**
+     * Indexes a book's sections for searching.
+     * Replace existing index.
+     *
+     * @param bookId - The unique identifier of the book.
+     * @param sections - An array of sections containing text and location data to be indexed.
+     */
+    indexBook(bookId: string, sections: { id: string; href: string; text: string }[]) {
+        this.initIndex(bookId);
+        this.addDocuments(bookId, sections);
     }
 
     /**

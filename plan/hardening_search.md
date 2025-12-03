@@ -15,16 +15,16 @@
 
 ## 2. Hardening Strategy
 
-### 2.1. Batch Processing & Incremental Indexing
-Instead of "all-at-once", we will stream data to the worker.
+### 2.1. Batch Processing & Incremental Indexing (Implemented)
+Instead of "all-at-once", data is streamed to the worker.
 
-- **Action:** Refactor `indexBook` to be a generator or use a chunked loop.
-  - Process chapters in batches of 5 (or based on size).
-  - After each batch, send an `ADD_TO_INDEX` message to the worker.
-  - Allow the UI to breathe between batches (via `setTimeout(..., 0)` or `requestIdleCallback`).
+- **Action:** Refactored `indexBook` to use a chunked loop.
+  - Process chapters in batches of 5.
+  - After each batch, sends an `ADD_TO_INDEX` message to the worker.
+  - Yields to the main thread via `setTimeout(..., 0)` between batches.
 - **Worker Update:**
-  - Handle `ADD_TO_INDEX` by calling `index.add()` (FlexSearch supports incremental addition).
-  - Send a `PROGRESS` message back to the main thread (e.g., "Indexed 5/20 chapters").
+  - Handles `ADD_TO_INDEX` by calling `index.add()` (FlexSearch supports incremental addition).
+  - Handles `INIT_INDEX` to start a fresh index.
 
 ### 2.2. Optimized Text Extraction
 - **Action:** Avoid full `book.load()` (rendering) if possible.
@@ -43,12 +43,10 @@ Instead of "all-at-once", we will stream data to the worker.
 
 ## 3. Implementation Plan
 
-1.  **Modify `search.worker.ts`**:
-    - Add `ADD_DOCUMENT` message type.
-    - Add `INDEX_ERROR` and `INDEX_PROGRESS` message types.
-2.  **Refactor `SearchClient.ts`**:
-    - Change `indexBook` to iterate and dispatch batches.
-    - Add logic to handle progress updates (optional UI bar).
-    - Add global error handler for the worker.
+1.  **Modify `search.worker.ts`** (Done):
+    - Added `ADD_TO_INDEX` and `INIT_INDEX` message types.
+2.  **Refactor `SearchClient.ts`** (Done):
+    - Changed `indexBook` to iterate and dispatch batches.
+    - Added logic to handle progress updates via callback.
 3.  **Update `ReaderView.tsx`**:
     - Listen for "Indexing..." status to show a spinner or non-intrusive indicator.

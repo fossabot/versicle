@@ -7,12 +7,11 @@ class MockWorker {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   postMessage(data: any) {
     if (data.type === 'INDEX_BOOK') {
-       setTimeout(() => {
-           // Simulate indexing
-           if (this.onmessage) {
-             // We don't really use INDEX_COMPLETE in client yet but good for completeness
-           }
-       }, 10);
+       // Legacy path, should not be called by new implementation
+    } else if (data.type === 'INIT_INDEX') {
+        // Init
+    } else if (data.type === 'ADD_TO_INDEX') {
+        // Add
     } else if (data.type === 'SEARCH') {
         const id = data.id;
         setTimeout(() => {
@@ -57,12 +56,38 @@ const mockBook = {
 
 describe('SearchClient', () => {
 
-    it('should index a book', async () => {
-        // Just verify it doesn't throw and calls postMessage (via mock)
-        // Since logic is mainly in worker, we are testing the bridge here.
+    it('should index a book using batch messages', async () => {
+        const postMessageSpy = vi.spyOn(MockWorker.prototype, 'postMessage');
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await searchClient.indexBook(mockBook as any, 'book-1');
+
+        // Should initialize
+        expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'INIT_INDEX',
+            payload: { bookId: 'book-1' }
+        }));
+
+        // Should load chapter
         expect(mockBook.load).toHaveBeenCalledWith('chap1.html');
+
+        // Should send add message
+        expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'ADD_TO_INDEX',
+            payload: {
+                bookId: 'book-1',
+                sections: expect.arrayContaining([
+                    expect.objectContaining({ href: 'chap1.html' })
+                ])
+            }
+        }));
+    });
+
+    it('should report progress', async () => {
+        const onProgress = vi.fn();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await searchClient.indexBook(mockBook as any, 'book-1', onProgress);
+        expect(onProgress).toHaveBeenCalledWith(1.0);
     });
 
     it('should search and return results', async () => {

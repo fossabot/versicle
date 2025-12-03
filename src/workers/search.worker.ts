@@ -5,6 +5,8 @@ import { SearchEngine } from '../lib/search-engine';
  */
 export type SearchMessage =
   | { type: 'INDEX_BOOK'; payload: { bookId: string; sections: { id: string; href: string; text: string }[] } }
+  | { type: 'INIT_INDEX'; payload: { bookId: string } }
+  | { type: 'ADD_TO_INDEX'; payload: { bookId: string; sections: { id: string; href: string; text: string }[] } }
   | { type: 'SEARCH'; id: string; payload: { query: string; bookId: string } };
 
 const engine = new SearchEngine();
@@ -22,6 +24,19 @@ self.onmessage = async (e: MessageEvent<SearchMessage>) => {
     const { bookId, sections } = payload;
     engine.indexBook(bookId, sections);
     self.postMessage({ type: 'INDEX_COMPLETE', bookId });
+  }
+
+  else if (type === 'INIT_INDEX') {
+    const { bookId } = payload;
+    engine.initIndex(bookId);
+    // No response needed, but could acknowledge
+  }
+
+  else if (type === 'ADD_TO_INDEX') {
+    const { bookId, sections } = payload;
+    engine.addDocuments(bookId, sections);
+    // Send progress or just acknowledge if needed?
+    // Client manages progress for now.
   }
 
   else if (type === 'SEARCH') {
