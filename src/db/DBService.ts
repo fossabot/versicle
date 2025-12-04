@@ -44,7 +44,7 @@ class DBService {
     }
   }
 
-  async getBook(id: string): Promise<{ metadata: BookMetadata | undefined; file: ArrayBuffer | undefined }> {
+  async getBook(id: string): Promise<{ metadata: BookMetadata | undefined; file: Blob | ArrayBuffer | undefined }> {
     try {
       const db = await this.getDB();
       const metadata = await db.get('books', id);
@@ -64,7 +64,7 @@ class DBService {
       }
   }
 
-  async getBookFile(id: string): Promise<ArrayBuffer | undefined> {
+  async getBookFile(id: string): Promise<Blob | ArrayBuffer | undefined> {
       try {
           const db = await this.getDB();
           return await db.get('files', id);
@@ -128,8 +128,15 @@ class DBService {
       // If missing hash, calculate it from existing file before deleting
       if (!book.fileHash) {
         const fileStore = tx.objectStore('files');
-        const arrayBuffer = await fileStore.get(id);
-        if (arrayBuffer) {
+        const fileData = await fileStore.get(id);
+        if (fileData) {
+          let arrayBuffer: ArrayBuffer;
+          if (fileData instanceof Blob) {
+             arrayBuffer = await fileData.arrayBuffer();
+          } else {
+             arrayBuffer = fileData;
+          }
+
           const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
           const hashArray = Array.from(new Uint8Array(hashBuffer));
           book.fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -163,7 +170,8 @@ class DBService {
       }
 
       const tx = db.transaction(['books', 'files'], 'readwrite');
-      await tx.objectStore('files').put(arrayBuffer, id);
+      // Store File (Blob) instead of ArrayBuffer
+      await tx.objectStore('files').put(file, id);
 
       book.isOffloaded = false;
       await tx.objectStore('books').put(book);
