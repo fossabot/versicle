@@ -7,6 +7,7 @@ export type SearchMessage =
   | { type: 'INDEX_BOOK'; payload: { bookId: string; sections: { id: string; href: string; text: string }[] } }
   | { type: 'INIT_INDEX'; payload: { bookId: string } }
   | { type: 'ADD_TO_INDEX'; payload: { bookId: string; sections: { id: string; href: string; text: string }[] } }
+  | { type: 'FINISH_INDEXING'; payload: { bookId: string } }
   | { type: 'SEARCH'; id: string; payload: { query: string; bookId: string } };
 
 const engine = new SearchEngine();
@@ -37,6 +38,12 @@ self.onmessage = async (e: MessageEvent<SearchMessage>) => {
     engine.addDocuments(bookId, sections);
     // Send progress or just acknowledge if needed?
     // Client manages progress for now.
+  }
+
+  else if (type === 'FINISH_INDEXING') {
+    const { bookId } = payload;
+    // Potentially optimize index here if needed in future
+    self.postMessage({ type: 'INDEX_COMPLETE', bookId });
   }
 
   else if (type === 'SEARCH') {

@@ -101,10 +101,10 @@ class SearchClient {
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
-        // Send a final complete message locally or rely on worker?
-        // Worker sends INDEX_COMPLETE for INDEX_BOOK, but for incremental we might want to signal "done".
-        // But the previous implementation just returned void.
-        // We can just rely on the promise resolving here.
+        this.getWorker().postMessage({
+            type: 'FINISH_INDEXING',
+            payload: { bookId }
+        });
     }
 
     /**

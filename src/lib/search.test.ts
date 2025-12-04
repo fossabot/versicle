@@ -12,6 +12,8 @@ class MockWorker {
         // Init
     } else if (data.type === 'ADD_TO_INDEX') {
         // Add
+    } else if (data.type === 'FINISH_INDEXING') {
+        // Finish
     } else if (data.type === 'SEARCH') {
         const id = data.id;
         setTimeout(() => {
@@ -56,7 +58,7 @@ const mockBook = {
 
 describe('SearchClient', () => {
 
-    it('should index a book using batch messages', async () => {
+    it('should index a book using batch messages and send completion signal', async () => {
         const postMessageSpy = vi.spyOn(MockWorker.prototype, 'postMessage');
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,6 +82,12 @@ describe('SearchClient', () => {
                     expect.objectContaining({ href: 'chap1.html' })
                 ])
             }
+        }));
+
+        // Should send completion signal
+        expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'FINISH_INDEXING',
+            payload: { bookId: 'book-1' }
         }));
     });
 
