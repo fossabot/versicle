@@ -7,6 +7,7 @@ import { WebSpeechProvider } from './providers/WebSpeechProvider';
 vi.mock('./providers/WebSpeechProvider', () => {
   return {
     WebSpeechProvider: class {
+      id = 'local'; // Added id='local'
       init = vi.fn().mockResolvedValue(undefined);
       getVoices = vi.fn().mockResolvedValue([]);
       synthesize = vi.fn().mockResolvedValue({ audio: null, alignment: [] });
@@ -48,6 +49,14 @@ vi.mock('../../store/useTTSStore', () => ({
             setLastPauseTime: vi.fn(),
         }))
     }
+}));
+
+// Mock DBService
+vi.mock('../../db/DBService', () => ({
+  dbService: {
+    getBookMetadata: vi.fn().mockResolvedValue({}),
+    updatePlaybackState: vi.fn().mockResolvedValue(undefined),
+  }
 }));
 
 // Mock AudioElementPlayer with shared spies
@@ -170,6 +179,7 @@ describe('AudioPlayerService MediaSession Integration', () => {
          mockProvider.init = vi.fn().mockResolvedValue(undefined);
          mockProvider.getVoices = vi.fn().mockResolvedValue([]);
          mockProvider.synthesize = vi.fn().mockImplementation(() => {
+             // Simulate immediate start
              if (handlers['start']) handlers['start']({ type: 'start' });
              return Promise.resolve({ audio: null, alignment: [] });
          });
@@ -179,10 +189,13 @@ describe('AudioPlayerService MediaSession Integration', () => {
              handlers['start'] = (e: any) => cb(e);
          });
 
-         service.setProvider(mockProvider);
-         service.setQueue([{ text: "Hello", cfi: "cfi1" }]);
+         await service.setProvider(mockProvider);
+         await service.setQueue([{ text: "Hello", cfi: "cfi1" }]);
 
          await service.play();
+
+         // Wait for event loop to handle start event callback inside executeWithLock
+         await new Promise(resolve => setTimeout(resolve, 0));
 
          expect(mockAudioInstances.length).toBeGreaterThan(0);
          const silentAudio = mockAudioInstances[0];
@@ -195,12 +208,12 @@ describe('AudioPlayerService MediaSession Integration', () => {
          mockProvider.pause = vi.fn();
          mockProvider.on = vi.fn();
 
-         service.setProvider(mockProvider);
+         await service.setProvider(mockProvider);
 
          expect(mockAudioInstances.length).toBeGreaterThan(0);
          const silentAudio = mockAudioInstances[0];
 
-         service.pause();
+         await service.pause();
 
          expect(silentAudio.pause).toHaveBeenCalled();
          expect(mockProvider.pause).toHaveBeenCalled();
@@ -221,10 +234,10 @@ describe('AudioPlayerService MediaSession Integration', () => {
             synthesize: vi.fn().mockResolvedValue({ audio: blob, alignment: [] } as any),
         } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-        service.setProvider(mockCloudProvider);
+        await service.setProvider(mockCloudProvider);
 
         // Setup queue and play
-        service.setQueue([{ text: "Text", cfi: "cfi" }]);
+        await service.setQueue([{ text: "Text", cfi: "cfi" }]);
         await service.play();
 
         // Verify setOnTimeUpdate called

@@ -23,7 +23,11 @@ export class MockCloudProvider extends BaseCloudProvider {
   /**
    * Simulates synthesis by returning a dummy WAV blob and sentence alignment.
    */
-  async synthesize(): Promise<SpeechSegment> {
+  async synthesize(_text: string, _voiceId: string, _speed: number, signal?: AbortSignal): Promise<SpeechSegment> {
+    if (signal?.aborted) {
+      throw new Error('Aborted');
+    }
+
     // Create a dummy audio blob (1 second of silence or just valid header)
     // For testing without actual audio files, we can try to fetch a known small file
     // or construct a minimal WAV.

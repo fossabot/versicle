@@ -24,15 +24,19 @@ Object.defineProperty(window, 'speechSynthesis', {
 });
 
 // Mock SpeechSynthesisUtterance
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(global as any).SpeechSynthesisUtterance = vi.fn().mockImplementation(() => ({
-  text: '',
-  voice: null,
-  rate: 1,
-  onstart: null,
-  onend: null,
-  onerror: null,
-}));
+class MockSpeechSynthesisUtterance {
+  text: string;
+  voice: SpeechSynthesisVoice | null = null;
+  rate: number = 1;
+  onstart: (() => void) | null = null;
+  onend: (() => void) | null = null;
+  onerror: ((event: any) => void) | null = null;
+
+  constructor(text: string) {
+    this.text = text;
+  }
+}
+(global as any).SpeechSynthesisUtterance = MockSpeechSynthesisUtterance;
 
 // Mock URL.createObjectURL/revokeObjectURL
 global.URL.createObjectURL = vi.fn(() => 'blob:url');
@@ -83,9 +87,24 @@ if (!Blob.prototype.text) {
   };
 }
 
+// Polyfill Blob.prototype.arrayBuffer
+if (!Blob.prototype.arrayBuffer) {
+  Blob.prototype.arrayBuffer = function() {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
+
 // Polyfill File.prototype.text (File inherits from Blob but sometimes needs explicit help in JSDOM)
 if (typeof File !== 'undefined' && !File.prototype.text) {
   File.prototype.text = Blob.prototype.text;
+}
+if (typeof File !== 'undefined' && !File.prototype.arrayBuffer) {
+  File.prototype.arrayBuffer = Blob.prototype.arrayBuffer;
 }
 
 afterEach(() => {
