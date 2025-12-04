@@ -37,6 +37,8 @@ class SearchClient {
                 if (type === 'SEARCH_RESULTS' && id) {
                     const listener = this.listeners.get(id);
                     if (listener) listener(results);
+                } else if (type === 'INDEX_COMPLETE') {
+                    // Handle completion if needed
                 }
             };
         }
@@ -45,57 +47,63 @@ class SearchClient {
 
     /**
      * Extracts text content from a book's spine items and sends it to the worker for indexing.
+     * Uses batch processing to avoid blocking the main thread.
      *
      * @param book - The epubjs Book object to be indexed.
      * @param bookId - The unique identifier of the book.
+     * @param onProgress - Optional callback for indexing progress (0.0 to 1.0).
      * @returns A Promise that resolves when the indexing command is sent to the worker.
      */
-    async indexBook(book: Book, bookId: string) {
-        // Extract text from all spine items
-        // This can be slow, so we should do it carefully.
-        // book.spine.each() iterates.
-
-        const sections: { id: string; href: string; text: string }[] = [];
-
-        // We need to wait for all sections to load
-        // Note: loading all sections might be memory intensive for large books.
-        // For production, maybe do this incrementally or only on demand.
-        // For now, we load all.
+    async indexBook(book: Book, bookId: string, onProgress?: (percent: number) => void) {
+        // Init/Clear index
+        this.getWorker().postMessage({ type: 'INIT_INDEX', payload: { bookId } });
 
         const spineItems = (book.spine as unknown as { items: unknown[] }).items;
+        const total = spineItems.length;
+        const BATCH_SIZE = 5;
 
-        // Parallelize loading? Limit concurrency?
-        // Let's do sequential for safety first.
+        for (let i = 0; i < total; i += BATCH_SIZE) {
+            const batch = spineItems.slice(i, i + BATCH_SIZE);
+            const sections: { id: string; href: string; text: string }[] = [];
 
-        for (const item of spineItems) {
-            try {
-                // We use item.load(book.load) or similar.
-                // Actually item.load returns a document?
-                // item.url might be needed.
-
-                // book.load(item.href) returns a document
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const doc = await (book as any).load((item as any).href);
-                if (doc) {
-                    // Extract text
-                    const text = doc.body.innerText; // or textContent
-                    sections.push({
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        id: (item as any).id,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        href: (item as any).href,
-                        text: text
-                    });
+            for (const item of batch) {
+                try {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const doc = await (book as any).load((item as any).href);
+                    if (doc) {
+                        const text = doc.body.innerText;
+                        sections.push({
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            id: (item as any).id,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            href: (item as any).href,
+                            text: text
+                        });
+                    }
+                } catch (e) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    console.warn(`Failed to index section ${(item as any).href}`, e);
                 }
-            } catch (e) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                console.warn(`Failed to index section ${(item as any).href}`, e);
             }
+
+            if (sections.length > 0) {
+                this.getWorker().postMessage({
+                    type: 'ADD_TO_INDEX',
+                    payload: { bookId, sections }
+                });
+            }
+
+            if (onProgress) {
+                onProgress(Math.min(1.0, (i + batch.length) / total));
+            }
+
+            // Yield to main thread
+            await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         this.getWorker().postMessage({
-            type: 'INDEX_BOOK',
-            payload: { bookId, sections }
+            type: 'FINISH_INDEXING',
+            payload: { bookId }
         });
     }
 
