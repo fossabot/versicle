@@ -22,16 +22,6 @@ import { searchClient, type SearchResult } from '../../lib/search';
 import { ChevronLeft, ChevronRight, List, Settings, ArrowLeft, X, Search, Highlighter, Maximize, Minimize, Type, Headphones } from 'lucide-react';
 import { AudioPlayerService } from '../../lib/tts/AudioPlayerService';
 
-// Helper to convert Blob to text using FileReader (for compatibility)
-const blobToText = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsText(blob);
-  });
-};
-
 /**
  * The main reader interface component.
  * Renders the EPUB content using epub.js and provides controls for navigation,
