@@ -1,5 +1,7 @@
 # **Technical Design Document: Deterministic Mock TTS System**
 
+**Status: Implemented**
+
 Validation Test Suite for versicle
 
 ## **1\. Problem Statement**
@@ -16,15 +18,15 @@ To implement a full-featured, deterministic polyfill for the Web Speech API (Spe
 
 * Runs "headless" (no audio output required).  
 * Emits textual representations of spoken content for verification.  
-* Adheres to a configurable, deterministic cadence (default: 150 WPM).  
+* Adheres to a configurable, deterministic cadence.
 * Maintains the asynchronous, event-driven nature of the native API using a background worker thread.
 
 ## **3\. Architecture**
 
 The solution implements a **Client-Server model** entirely within the browser context.
 
-* **The Client (Main Thread):** A Polyfill replacing window.speechSynthesis. It handles the API surface area, manages SpeechSynthesisUtterance instances, and bridges communication to the worker.  
-* **The Server (Service Worker):** A mock-tts-sw.js script running in a background thread. It acts as the "Audio Engine," managing the playback queue, calculating word durations, and emitting timing events.
+* **The Client (Main Thread):** A Polyfill replacing `window.speechSynthesis`. It handles the API surface area, manages `SpeechSynthesisUtterance` instances, and bridges communication to the worker.
+* **The Server (Service Worker):** A `mock-tts-sw.js` script running in a background thread. It acts as the "Audio Engine," managing the playback queue, calculating word durations, and emitting timing events.
 
 ### **3.1 Component Diagram**
 
@@ -52,14 +54,13 @@ The solution implements a **Client-Server model** entirely within the browser co
 
 ## **4\. Implementation Details**
 
-### **4.1 The Service Worker (mock-tts-sw.js)**
+### **4.1 The Service Worker (`public/mock-tts-sw.js`)**
 
 The Service Worker acts as the source of truth for timing. It replaces the opaque "black box" of the OS TTS engine.
 
 * **Cadence Logic:**  
-  * Standard WPM: 150\.  
-  * Formula: Duration\_ms \= ((60 / WPM) \* 1000\) \* (1 / Rate).  
-  * Wait time is calculated per word to simulate natural processing.  
+  * Standard WPM: 150.
+  * Formula: Duration\_ms \= ((60 / WPM) * 1000) * (1 / Rate).
 * **Tokenization:**  
   * Input text is split by whitespace to determine "boundaries."  
   * Punctuation is included in the preceding word token.  
@@ -68,33 +69,37 @@ The Service Worker acts as the source of truth for timing. It replaces the opaqu
   * SPEAKING: Processing queue.  
   * PAUSED: Queue preserved, timers cleared.
 
-### **4.2 The Polyfill (tts-polyfill.ts)**
+### **4.2 The Polyfill (`verification/tts-polyfill.js`)**
 
-This component must strictly adhere to the IDL definitions of the Web Speech API to ensure the WebSpeechProvider in the application interacts with it transparently.
+This component strictly adheres to the IDL definitions of the Web Speech API.
 
 * **Voice Masquerading:**  
-  * Must expose getVoices() returning at least one SpeechSynthesisVoice object.  
-  * Crucially, it must trigger the voiceschanged event shortly after load to unblock the application's initialization logic.  
+  * Exposes `getVoices()` returning mock voices.
+  * Triggers the `voiceschanged` event shortly after load.
 * **Event Dispatch:**  
-  * Maps messages from the SW (boundary, end) to CustomEvent or direct callback invocations on the specific Utterance object triggering them.
+  * Maps messages from the SW (boundary, end) to `SpeechSynthesisEvent`.
+* **Debug DOM:**
+  * Creates and updates a `<div id="tts-debug">` element with `data-status`, `data-last-event`, and `textContent` for Playwright verification.
 
 ### **4.3 Integration & Verification**
 
 To verify the system visually and programmatically:
 
-1. **Console Emission:** The SW logs %c 🗣️ \[MockTTS\]: "word" to the console with styling, allowing visual confirmation in traces.  
-2. **DOM Emission:** The Polyfill appends the currently spoken word to a hidden DOM element (e.g., \#tts-debug-output). Playwright asserts against the text content of this element.
+1. **Console Emission:** The SW logs `%c 🗣️ [MockTTS]: "word"` to the console.
+2. **DOM Emission:** The Polyfill updates `#tts-debug`. Playwright asserts against this element.
+3. **Verification Suite:** A dedicated test `verification/test_mock_tts.py` validates the mock implementation itself.
 
-## **5\. Risk Assessment & Mitigation**
+## **5\. Completed Actions**
 
-| Risk | Impact | Mitigation |
-| :---- | :---- | :---- |
-| **Race Conditions** | Tests flake if SW registration is slow. | The test setup (conftest.py) must await the serviceworker.ready promise before triggering app logic. |
-| **Event Mismatch** | App logic (e.g., highlighting) breaks if charIndex is wrong. | The SW tokenizer must replicate the naive whitespace splitting used by most browser engines for English. |
-| **Silent Audio** | The app's WebSpeechProvider plays a silent WAV loop to keep sessions alive. | The Polyfill must verify it strictly mocks the *Synthesis* API, not HTMLAudioElement. The native Audio class remains untouched. |
+1.  **Created `public/mock-tts-sw.js`:** Implements the timing loop and messaging.
+2.  **Created `verification/tts-polyfill.js`:** Implements `SpeechSynthesis` polyfill and SW registration.
+3.  **Updated `verification/conftest.py`:** Automatically injects the polyfill into every Playwright test session.
+4.  **Created `verification/test_mock_tts.py`:** Verified Sanity, Pause/Resume, and Cancel functionality of the mock system.
+5.  **Fixed `verification/test_maintenance.py`:** Resolved a pre-existing flake/bug in dialog handling.
+6.  **Verified Suite:** All tests passed locally. `npm test` passed.
 
-## **6\. Deployment Strategy**
+## **6\. Usage**
 
-1. Place mock-tts-sw.js in public/ (served at root).  
-2. Inject tts-polyfill.ts (compiled to JS) via Playwright's add\_init\_script.  
-3. Tests run with no changes to the application code (zero-intrusion testing).
+Tests running in the verification suite automatically use the Mock TTS. No changes are needed to application code.
+
+To debug, look at the `#tts-debug` element in the browser during test execution (or screenshots).
