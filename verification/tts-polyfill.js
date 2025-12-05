@@ -114,6 +114,7 @@
         }
 
         speak(utterance) {
+            console.log('🗣️ [MockTTS] speak called:', utterance.text.substring(0, 50));
             this.speaking = true;
             this._utteranceMap.set(utterance._id, utterance);
 
@@ -128,6 +129,7 @@
 
             // Send to SW
             if (navigator.serviceWorker.controller) {
+                 console.log('🗣️ [MockTTS] sending SPEAK to SW');
                  navigator.serviceWorker.controller.postMessage(msg);
             } else {
                 console.log('🗣️ [MockTTS] No SW controller, queueing SPEAK');
@@ -136,6 +138,7 @@
         }
 
         cancel() {
+            console.log('🗣️ [MockTTS] cancel called');
             this.speaking = false;
             this.paused = false;
             this.pending = false;
@@ -154,6 +157,7 @@
         }
 
         pause() {
+            console.log('🗣️ [MockTTS] pause called');
             this.paused = true;
             const msg = { type: 'PAUSE' };
             if (navigator.serviceWorker.controller) {
@@ -169,6 +173,7 @@
         }
 
         resume() {
+             console.log('🗣️ [MockTTS] resume called');
              if (this.paused) {
                  this.paused = false;
                  const msg = { type: 'RESUME' };
@@ -186,6 +191,7 @@
         }
 
         _handleMessage(data) {
+            console.log('🗣️ [MockTTS] _handleMessage received:', data.type, data);
             const { type, id, charIndex, name, text } = data;
             const utterance = this._utteranceMap.get(id);
             if (!utterance) return;
