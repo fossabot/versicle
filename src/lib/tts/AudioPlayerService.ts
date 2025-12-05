@@ -136,13 +136,46 @@ export class AudioPlayerService {
   }
 
   /**
-   * Sets the current book ID to allow loading book-specific lexicon rules.
+   * Sets the current book ID to allow loading book-specific lexicon rules and restoring queue.
    */
   setBookId(bookId: string | null) {
       if (this.currentBookId !== bookId) {
           this.currentBookId = bookId;
           this.sessionRestored = false; // Reset restoration flag for new book
+          if (bookId) {
+              this.restoreQueue(bookId);
+          } else {
+              this.queue = [];
+              this.currentIndex = 0;
+              this.setStatus('stopped');
+          }
       }
+  }
+
+  private async restoreQueue(bookId: string) {
+      // Execute with lock to prevent race conditions with setQueue from useTTS
+      this.executeWithLock(async (signal) => {
+          try {
+              const state = await dbService.getTTSState(bookId);
+              if (signal.aborted) return;
+              // Check if bookId still matches (async race)
+              if (this.currentBookId !== bookId) return;
+
+              if (state && state.queue && state.queue.length > 0) {
+                  console.log("Restoring TTS queue from persistence", state.queue.length, "items");
+
+                  // Stop any current playback if we are switching queue
+                  await this.stopInternal();
+
+                  this.queue = state.queue;
+                  this.currentIndex = state.currentIndex || 0;
+                  this.updateMediaSessionMetadata();
+                  this.notifyListeners(this.queue[this.currentIndex]?.cfi || null);
+              }
+          } catch (e) {
+              console.error("Failed to restore TTS queue", e);
+          }
+      });
   }
 
   private setupWebSpeech() {
@@ -255,13 +288,18 @@ export class AudioPlayerService {
     return this.provider.getVoices();
   }
 
+  public getQueue(): TTSQueueItem[] {
+      return this.queue;
+  }
+
   private isQueueEqual(newItems: TTSQueueItem[]): boolean {
       if (this.queue.length !== newItems.length) return false;
       for (let i = 0; i < this.queue.length; i++) {
           if (this.queue[i].text !== newItems[i].text) return false;
+          // CFI Comparison: Allow nulls to match nulls
           if (this.queue[i].cfi !== newItems[i].cfi) return false;
-          // Check title for preroll or other metadata changes that might be relevant
-          if (this.queue[i].title !== newItems[i].title) return false;
+          // Ignore title/author for equality check to prevent reload on minor metadata updates
+          // unless we really need it.
       }
       return true;
   }
@@ -271,7 +309,13 @@ export class AudioPlayerService {
         // If the queue is effectively the same, we should update it (to catch metadata changes)
         // but NOT stop playback or reset the index, allowing for seamless continuation.
         if (this.isQueueEqual(items)) {
+            // Queue text matches.
+            // But maybe metadata (title) changed?
+            // We update the queue object but KEEP currentIndex.
             this.queue = items;
+            this.updateMediaSessionMetadata();
+            this.notifyListeners(this.queue[this.currentIndex]?.cfi || null);
+            this.persistQueue(); // Persist update
             return;
         }
 
@@ -281,7 +325,14 @@ export class AudioPlayerService {
 
         this.updateMediaSessionMetadata();
         this.notifyListeners(this.queue[this.currentIndex]?.cfi || null);
+        this.persistQueue();
     });
+  }
+
+  private persistQueue() {
+      if (this.currentBookId) {
+          dbService.saveTTSState(this.currentBookId, this.queue, this.currentIndex);
+      }
   }
 
   /**
@@ -301,6 +352,7 @@ export class AudioPlayerService {
           if (index >= 0 && index < this.queue.length) {
               await this.stopInternal();
               this.currentIndex = index;
+              this.persistQueue();
               await this.playInternal(signal);
           }
       });
@@ -371,6 +423,8 @@ export class AudioPlayerService {
             if (book) {
                 // Restore Playback Position (lastPlayedCfi)
                 if (book.lastPlayedCfi && this.currentIndex === 0) {
+                     // If we have a queue, find the index.
+                     // Queue should have been restored by now via setBookId -> restoreQueue
                      const index = this.queue.findIndex(item => item.cfi === book.lastPlayedCfi);
                      if (index >= 0) {
                          this.currentIndex = index;
@@ -400,6 +454,7 @@ export class AudioPlayerService {
 
     this.notifyListeners(item.cfi);
     this.updateMediaSessionMetadata();
+    this.persistQueue(); // Update index in DB
 
     try {
         const voiceId = this.voiceId || '';
@@ -521,6 +576,7 @@ export class AudioPlayerService {
 
               if (newIndex !== this.currentIndex) {
                   this.currentIndex = newIndex;
+                  this.persistQueue();
                   this.setStatus('stopped');
                   return this.playInternal(signal);
               }
@@ -605,6 +661,7 @@ export class AudioPlayerService {
       return this.executeWithLock(async (signal) => {
         if (this.currentIndex < this.queue.length - 1) {
             this.currentIndex++;
+            this.persistQueue();
             await this.playInternal(signal);
         } else {
             await this.stopInternal();
@@ -616,6 +673,7 @@ export class AudioPlayerService {
       return this.executeWithLock(async (signal) => {
         if (this.currentIndex > 0) {
             this.currentIndex--;
+            this.persistQueue();
             await this.playInternal(signal);
         }
       });
@@ -643,11 +701,13 @@ export class AudioPlayerService {
               if (offset > 0) {
                   if (this.currentIndex < this.queue.length - 1) {
                       this.currentIndex++;
+                      this.persistQueue();
                       await this.playInternal(signal);
                   }
               } else {
                   if (this.currentIndex > 0) {
                       this.currentIndex--;
+                      this.persistQueue();
                       await this.playInternal(signal);
                   }
               }
@@ -671,6 +731,7 @@ export class AudioPlayerService {
           if (this.status !== 'stopped') {
               if (this.currentIndex < this.queue.length - 1) {
                   this.currentIndex++;
+                  this.persistQueue();
                   await this.playInternal(signal);
               } else {
                   this.setStatus('completed');
