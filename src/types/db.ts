@@ -1,4 +1,5 @@
 import type { Timepoint } from '../lib/tts/providers/types';
+import type { NavigationItem } from 'epubjs';
 
 /**
  * Metadata for a book stored in the library.
@@ -40,6 +41,8 @@ export interface BookMetadata {
   isOffloaded?: boolean;
   /** The size of the file in bytes. */
   fileSize?: number;
+  /** Synthetic Table of Contents generated during ingestion. */
+  syntheticToc?: NavigationItem[];
 }
 
 /**

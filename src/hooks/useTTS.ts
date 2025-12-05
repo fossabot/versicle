@@ -5,6 +5,19 @@ import { extractSentences, type SentenceNode } from '../lib/tts';
 import type { Rendition } from 'epubjs';
 import { AudioPlayerService, type TTSQueueItem } from '../lib/tts/AudioPlayerService';
 
+const NO_TEXT_MESSAGES = [
+    "This chapter appears to be empty.",
+    "There is no text to read here.",
+    "This page contains only images or formatting.",
+    "Silence fills this chapter.",
+    "Moving on, as this section has no content.",
+    "No words found on this page.",
+    "This section is blank.",
+    "Skipping this empty section.",
+    "Nothing to read here.",
+    "This part of the book is silent."
+];
+
 /**
  * Custom hook to manage Text-to-Speech (TTS) functionality.
  * Handles extracting sentences from the current rendition and synchronizing with AudioPlayerService.
@@ -56,14 +69,26 @@ export const useTTS = (rendition: Rendition | null) => {
            const extracted = extractSentences(rendition);
            setSentences(extracted);
 
-           // Update player queue
-           // We map SentenceNode to the format expected by AudioPlayerService
-           const queue: TTSQueueItem[] = extracted.map(s => ({
-               text: s.text,
-               cfi: s.cfi
-           }));
+           let queue: TTSQueueItem[] = [];
 
-           if (prerollEnabled && queue.length > 0) {
+           if (extracted.length === 0) {
+               // Handle empty chapter
+               const randomMessage = NO_TEXT_MESSAGES[Math.floor(Math.random() * NO_TEXT_MESSAGES.length)];
+               queue.push({
+                   text: randomMessage,
+                   cfi: null,
+                   title: currentChapterTitle || "Empty Chapter",
+                   isPreroll: true // Treat as system message
+               });
+           } else {
+               // Map extracted sentences
+               queue = extracted.map(s => ({
+                   text: s.text,
+                   cfi: s.cfi
+               }));
+           }
+
+           if (prerollEnabled && extracted.length > 0) {
                // Calculate word count
                const wordCount = extracted.reduce((acc, s) => acc + s.text.split(/\s+/).length, 0);
                const title = currentChapterTitle || "Chapter";
