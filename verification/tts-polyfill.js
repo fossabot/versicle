@@ -34,6 +34,24 @@
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
+        const originalRegister = navigator.serviceWorker.register;
+
+        // Hijack register to block App's PWA SW
+        navigator.serviceWorker.register = function(scriptURL, options) {
+            if (scriptURL.includes('mock-tts-sw.js')) {
+                console.log('🗣️ [MockTTS] Allowing SW registration:', scriptURL);
+                return originalRegister.call(navigator.serviceWorker, scriptURL, options);
+            }
+            console.log('🗣️ [MockTTS] Blocking App SW registration:', scriptURL);
+            return Promise.resolve({
+                scope: options?.scope || '/',
+                active: null,
+                waiting: null,
+                installing: null,
+                unregister: () => Promise.resolve(true)
+            });
+        };
+
         navigator.serviceWorker.register('/mock-tts-sw.js')
             .then(reg => {
                 console.log('🗣️ [MockTTS] SW Registered', reg);
