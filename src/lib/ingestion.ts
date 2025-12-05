@@ -98,6 +98,7 @@ export async function processEpub(file: File): Promise<string> {
     coverBlob: coverBlob,
     fileHash,
     isOffloaded: false,
+    fileSize: file.size,
   };
 
   const db = await getDB();
