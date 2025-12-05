@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { Book, Rendition, NavigationItem } from 'epubjs';
+import type { NavigationItem } from 'epubjs';
 import { useReaderStore } from '../../store/useReaderStore';
 import { useTTSStore } from '../../store/useTTSStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -94,7 +94,7 @@ export const ReaderView: React.FC = () => {
          }
     },
     onTocLoaded: (newToc) => setToc(newToc),
-    onSelection: (cfiRange, range, contents) => {
+    onSelection: (cfiRange, range, _contents) => {
          const rect = range.getBoundingClientRect();
          const iframe = viewerRef.current?.querySelector('iframe');
          if (iframe) {
@@ -135,7 +135,6 @@ export const ReaderView: React.FC = () => {
   ]);
 
   const {
-      book,
       rendition,
       isReady: isRenditionReady,
       isLoading: hookLoading,

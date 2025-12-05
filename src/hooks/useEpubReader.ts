@@ -70,7 +70,7 @@ export function useEpubReader(
           throw new Error('Book file not found');
         }
 
-        setMetadata(meta);
+        setMetadata(meta || null);
 
         // Cleanup previous instance
         if (bookRef.current) {
