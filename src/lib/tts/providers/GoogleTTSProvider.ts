@@ -75,8 +75,9 @@ export class GoogleTTSProvider implements ITTSProvider {
    * @param text - The text to synthesize.
    * @param voiceId - The voice name.
    * @param speed - Speaking rate.
+   * @param signal - Optional AbortSignal.
    */
-  async synthesize(text: string, voiceId: string, speed: number): Promise<SpeechSegment> {
+  async synthesize(text: string, voiceId: string, speed: number, signal?: AbortSignal): Promise<SpeechSegment> {
     if (!this.apiKey) {
       throw new Error('Google Cloud API Key is missing');
     }
@@ -97,6 +98,7 @@ export class GoogleTTSProvider implements ITTSProvider {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
+      signal
     });
 
     if (!response.ok) {

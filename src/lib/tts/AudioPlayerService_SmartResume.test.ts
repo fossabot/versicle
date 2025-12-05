@@ -67,6 +67,7 @@ const mockGetVoices = vi.fn().mockResolvedValue([]);
 vi.mock('./providers/WebSpeechProvider', () => {
     return {
         WebSpeechProvider: class {
+            id = 'local'; // Added id='local'
             init = vi.fn().mockResolvedValue(undefined);
             synthesize = mockSynthesize;
             resume = mockResume;
@@ -125,8 +126,12 @@ describe('AudioPlayerService - Smart Resume', () => {
         mockBook.lastPlayedCfi = undefined;
 
         // Reset singleton logic
+        // @ts-expect-error Resetting singleton
+        AudioPlayerService.instance = undefined;
         service = AudioPlayerService.getInstance();
-        service.stop();
+
+        // Wait for setup
+        await service.stop();
         service.setBookId('test-book-id');
 
         // Mock DBService responses
@@ -138,7 +143,8 @@ describe('AudioPlayerService - Smart Resume', () => {
         // IMPORTANT: Set Book ID to enable DB logic
         service.setBookId('test-book-id');
 
-        service.setQueue([
+        // Must await queue setting if it becomes async (though it is executeWithLock)
+        await service.setQueue([
             { text: 'Sentence 1', cfi: 'cfi1' },
             { text: 'Sentence 2', cfi: 'cfi2' },
             { text: 'Sentence 3', cfi: 'cfi3' },
@@ -156,7 +162,7 @@ describe('AudioPlayerService - Smart Resume', () => {
         const now = 1000000;
         vi.setSystemTime(now);
 
-        service.pause();
+        await service.pause();
 
         // Now we expect DBService to be called
         expect(dbService.updatePlaybackState).toHaveBeenCalledWith(
@@ -171,7 +177,7 @@ describe('AudioPlayerService - Smart Resume', () => {
         const now = 2000000;
         vi.setSystemTime(now);
 
-        service.stop();
+        await service.stop();
         expect(dbService.updatePlaybackState).toHaveBeenCalledWith(
             'test-book-id',
             'cfi4',
@@ -180,8 +186,8 @@ describe('AudioPlayerService - Smart Resume', () => {
     });
 
     describe('WebSpeechProvider (Local)', () => {
-        beforeEach(() => {
-            service.setProvider(new WebSpeechProvider());
+        beforeEach(async () => {
+            await service.setProvider(new WebSpeechProvider());
         });
 
         it('should NOT rewind if paused for < 5 minutes', async () => {
@@ -196,12 +202,15 @@ describe('AudioPlayerService - Smart Resume', () => {
             });
 
             // Need to mock that resume finds the time
+            // We set status directly, but service logic might overwrite it if not careful
+            // @ts-expect-error Access private property
             service['status'] = 'paused';
 
             await service.resume();
             await vi.advanceTimersByTimeAsync(100);
 
             expect(mockResume).toHaveBeenCalled();
+            // @ts-expect-error Access private property
             expect(service['currentIndex']).toBe(3);
 
             expect(mockBook.lastPauseTime).toBeUndefined();
@@ -218,12 +227,15 @@ describe('AudioPlayerService - Smart Resume', () => {
             });
 
             // Set current index before "pausing" logic simulation
+            // @ts-expect-error Access private property
             service['currentIndex'] = 3;
+            // @ts-expect-error Access private property
             service['status'] = 'paused';
 
             await service.resume();
             await vi.advanceTimersByTimeAsync(100);
 
+            // @ts-expect-error Access private property
             expect(service['currentIndex']).toBe(1);
             expect(mockSynthesize).toHaveBeenCalled();
         });
@@ -238,25 +250,29 @@ describe('AudioPlayerService - Smart Resume', () => {
                 lastPauseTime: 1000000
             });
 
+            // @ts-expect-error Access private property
             service['status'] = 'paused';
 
             await service.resume();
             await vi.advanceTimersByTimeAsync(100);
 
+            // @ts-expect-error Access private property
             expect(service['currentIndex']).toBe(0);
             expect(mockSynthesize).toHaveBeenCalled();
         });
     });
 
     describe('Cloud Provider (AudioElementPlayer)', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             const mockCloudProvider = {
+                id: 'cloud', // Already correct here, but for completeness
                 init: vi.fn(),
                 synthesize: vi.fn(),
                 getVoices: vi.fn(),
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any;
-            service.setProvider(mockCloudProvider);
+            await service.setProvider(mockCloudProvider);
+            // @ts-expect-error Access private property
             service['audioPlayer'] = new AudioElementPlayer();
         });
 
@@ -270,6 +286,7 @@ describe('AudioPlayerService - Smart Resume', () => {
                 lastPauseTime: now - (4 * 60 * 1000)
             });
 
+            // @ts-expect-error Access private property
             service['status'] = 'paused';
 
             await service.resume();
@@ -289,6 +306,7 @@ describe('AudioPlayerService - Smart Resume', () => {
                 lastPauseTime: now - (6 * 60 * 1000)
             });
 
+            // @ts-expect-error Access private property
             service['status'] = 'paused';
 
             await service.resume();
@@ -308,6 +326,7 @@ describe('AudioPlayerService - Smart Resume', () => {
                 lastPauseTime: 1000000
             });
 
+            // @ts-expect-error Access private property
             service['status'] = 'paused';
 
             await service.resume();

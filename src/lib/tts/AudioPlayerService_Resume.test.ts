@@ -55,6 +55,14 @@ vi.mock('../../store/useTTSStore', () => ({
     }
 }));
 
+// Mock DBService
+vi.mock('../../db/DBService', () => ({
+  dbService: {
+    getBookMetadata: vi.fn().mockResolvedValue({}),
+    updatePlaybackState: vi.fn().mockResolvedValue(undefined),
+  }
+}));
+
 describe('AudioPlayerService - Resume Speed Bug', () => {
     let service: AudioPlayerService;
 
@@ -75,21 +83,21 @@ describe('AudioPlayerService - Resume Speed Bug', () => {
 
     it('restarts the sentence with new speed if speed changes while paused', async () => {
         // 1. Setup queue and play
-        service.setQueue([{ text: "Sentence 1", cfi: "cfi1" }]);
+        await service.setQueue([{ text: "Sentence 1", cfi: "cfi1" }]);
 
         await service.play();
         expect(synthesizeSpy).toHaveBeenCalledTimes(1);
         // Default speed is 1.0
-        expect(synthesizeSpy).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1.0);
+        expect(synthesizeSpy).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1.0, expect.anything());
 
         // 2. Pause
-        service.pause();
+        await service.pause();
         expect(pauseSpy).toHaveBeenCalled();
         // @ts-expect-error Check status
         expect(service.status).toBe('paused');
 
         // 3. Change speed while paused
-        service.setSpeed(2.0);
+        await service.setSpeed(2.0);
 
         // 4. Resume
         await service.resume();
@@ -108,7 +116,6 @@ describe('AudioPlayerService - Resume Speed Bug', () => {
             expect(resumeSpy).toHaveBeenCalled();
         }
 
-        // Use standard expect to fail the test until fixed
         expect(synthesizeSpy).toHaveBeenCalledTimes(2);
         expect(synthesizeSpy.mock.calls[1][2]).toBe(2.0);
     });

@@ -42,8 +42,9 @@ We will address these issues in three distinct phases.
 
 ### Phase 1: Concurrency Safety & State Machine
 **Goal:** Prevent invalid states and race conditions.
-*   Implement a robust **Mutex/Lock** pattern for the `play()` action.
-*   Formalize the `status` transitions into a strict State Machine (e.g., cannot go from `loading` to `playing` if `stop` was requested).
+*   **[COMPLETED]** Implement a robust **Mutex/Lock** pattern for the `play()` action.
+*   **[COMPLETED]** Implement **AbortController** for cancelling in-flight operations ("Last Writer Wins").
+*   **[COMPLETED]** Formalize the `status` transitions into a strict State Machine.
 *   Centralize state ownership to reduce sync overhead.
 
 ### Phase 2: Session Snapshots & Persistence
@@ -62,4 +63,4 @@ We will address these issues in three distinct phases.
 
 ## Next Steps
 
-We will proceed by implementing **Phase 1**, followed by **Phase 2** and **Phase 3**. Detailed implementation plans for each phase follow.
+We will proceed by implementing **Phase 2** (Snapshots), followed by **Phase 3**.
