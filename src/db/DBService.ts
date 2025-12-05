@@ -3,6 +3,7 @@ import type { BookMetadata, Annotation, CachedSegment, BookLocations } from '../
 import { DatabaseError, StorageFullError } from '../types/errors';
 import { processEpub } from '../lib/ingestion';
 import { validateBookMetadata } from './validators';
+import { Logger } from '../lib/logger';
 
 class DBService {
   private async getDB() {
@@ -10,6 +11,8 @@ class DBService {
   }
 
   private handleError(error: unknown): never {
+    Logger.error('DBService', 'Database operation failed', error);
+
     if (error instanceof Error) {
         if (error.name === 'QuotaExceededError') {
              throw new StorageFullError(error);
@@ -33,7 +36,7 @@ class DBService {
       const validBooks = books.filter((book) => {
         const isValid = validateBookMetadata(book);
         if (!isValid) {
-          console.error('DB Integrity: Found corrupted book record', book);
+          Logger.error('DBService', 'DB Integrity: Found corrupted book record', book);
         }
         return isValid;
       });
@@ -215,7 +218,7 @@ class DBService {
               }
               await tx.done;
           } catch (error) {
-              console.error('Failed to save progress', error);
+              Logger.error('DBService', 'Failed to save progress', error);
               // We don't throw here to avoid interrupting the user flow,
               // but we might want to surface this via a global error handler eventually.
           }
@@ -278,7 +281,7 @@ class DBService {
           if (segment) {
               // Fire and forget update to lastAccessed
               // We don't await this to keep read fast
-              db.put('tts_cache', { ...segment, lastAccessed: Date.now() }).catch(console.error);
+              db.put('tts_cache', { ...segment, lastAccessed: Date.now() }).catch((err) => Logger.error('DBService', 'Failed to update TTS cache lastAccessed', err));
           }
           return segment;
       } catch (error) {

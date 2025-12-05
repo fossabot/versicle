@@ -34,7 +34,8 @@
   - Log the error.
   - If it's a critical known error (e.g. `StorageFull`), trigger a global Toast.
 
-### 2.4. Error Reporting Service (Logger)
+### 2.4. Error Reporting Service (Logger) (Implemented)
+- **Status:** Complete
 - **Action:** Create `src/lib/logger.ts`.
   - `Logger.error(context, message, error)`
   - `Logger.info(...)`
@@ -50,4 +51,4 @@
     - Add window error listeners (Complete).
 4.  **Refactor Components**:
     - `ReaderView` to use `useToastStore` (Complete).
-    - `DBService` to use `Logger`.
+    - `DBService` to use `Logger` (Complete).

@@ -33,7 +33,8 @@ vi.mock('../../../db/db', () => ({
 vi.mock('../../../lib/search', () => ({
     searchClient: {
         indexBook: vi.fn().mockResolvedValue(undefined),
-        search: vi.fn().mockResolvedValue([])
+        search: vi.fn().mockResolvedValue([]),
+        terminate: vi.fn(),
     }
 }));
 
