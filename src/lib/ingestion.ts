@@ -2,6 +2,59 @@ import ePub from 'epubjs';
 import { v4 as uuidv4 } from 'uuid';
 import { getDB } from '../db/db';
 import type { BookMetadata } from '../types/db';
+import CryptoJS from 'crypto-js';
+
+// Chunk size for hashing (e.g., 2MB)
+const HASH_CHUNK_SIZE = 2 * 1024 * 1024;
+
+/**
+ * Computes the SHA-256 hash of a file incrementally using chunks.
+ * This avoids loading the entire file into memory.
+ *
+ * @param file - The file to hash.
+ * @returns The hex string representation of the hash.
+ */
+export async function computeFileHash(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // CryptoJS.algo.SHA256.create() gives us an incremental hasher
+    const algo = CryptoJS.algo.SHA256.create();
+    let offset = 0;
+
+    const readNextChunk = () => {
+      if (offset >= file.size) {
+        // Finalize hash
+        const hash = algo.finalize();
+        resolve(hash.toString(CryptoJS.enc.Hex));
+        return;
+      }
+
+      const chunk = file.slice(offset, offset + HASH_CHUNK_SIZE);
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          const arrayBuffer = e.target.result as ArrayBuffer;
+          // Convert ArrayBuffer to crypto-js WordArray
+          const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+          algo.update(wordArray);
+          offset += HASH_CHUNK_SIZE;
+          readNextChunk();
+        } else {
+          reject(new Error('Failed to read chunk'));
+        }
+      };
+
+      reader.onerror = (e) => {
+        reject(e.target?.error || new Error('FileReader error'));
+      };
+
+      reader.readAsArrayBuffer(chunk);
+    };
+
+    readNextChunk();
+  });
+}
+
 
 /**
  * Processes an EPUB file, extracting metadata and cover image, and storing it in the database.
@@ -11,9 +64,9 @@ import type { BookMetadata } from '../types/db';
  * @throws Will throw an error if the file cannot be parsed or database operations fail.
  */
 export async function processEpub(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
+  // Pass File directly to ePub.js (it supports Blob/File/ArrayBuffer/Url)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const book = (ePub as any)(arrayBuffer);
+  const book = (ePub as any)(file);
 
   await book.ready;
 
@@ -31,10 +84,8 @@ export async function processEpub(file: File): Promise<string> {
     }
   }
 
-  // Calculate SHA-256 hash
-  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  // Calculate SHA-256 hash incrementally
+  const fileHash = await computeFileHash(file);
 
   const bookId = uuidv4();
 
@@ -53,7 +104,9 @@ export async function processEpub(file: File): Promise<string> {
 
   const tx = db.transaction(['books', 'files'], 'readwrite');
   await tx.objectStore('books').add(newBook);
-  await tx.objectStore('files').add(arrayBuffer, bookId);
+
+  // Store the File (Blob) directly instead of ArrayBuffer
+  await tx.objectStore('files').add(file, bookId);
   await tx.done;
 
   return bookId;

@@ -77,14 +77,19 @@ if (!Element.prototype.releasePointerCapture) {
 
 // Polyfill Blob.prototype.text for JSDOM 20+ which might still lack it or if env issues
 if (!Blob.prototype.text) {
-  Blob.prototype.text = function() {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsText(this);
-    });
-  };
+  Object.defineProperty(Blob.prototype, 'text', {
+    value: function() {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsText(this);
+      });
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false // Important for IDB cloning
+  });
 }
 
 // Polyfill Blob.prototype.arrayBuffer
@@ -101,11 +106,35 @@ if (!Blob.prototype.arrayBuffer) {
 
 // Polyfill File.prototype.text (File inherits from Blob but sometimes needs explicit help in JSDOM)
 if (typeof File !== 'undefined' && !File.prototype.text) {
-  File.prototype.text = Blob.prototype.text;
+  // Use Blob.prototype.text directly if available, or define similarly
+  Object.defineProperty(File.prototype, 'text', {
+    value: Blob.prototype.text,
+    writable: true,
+    configurable: true,
+    enumerable: false // Important for IDB cloning
+  });
 }
 if (typeof File !== 'undefined' && !File.prototype.arrayBuffer) {
   File.prototype.arrayBuffer = Blob.prototype.arrayBuffer;
 }
+
+// Also check for arrayBuffer on File prototype in JSDOM
+if (typeof File !== 'undefined' && !File.prototype.arrayBuffer) {
+    Object.defineProperty(File.prototype, 'arrayBuffer', {
+        value: function() {
+             return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as ArrayBuffer);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(this);
+             });
+        },
+        writable: true,
+        configurable: true,
+        enumerable: false
+    });
+}
+
 
 afterEach(() => {
   cleanup();
