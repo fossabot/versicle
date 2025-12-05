@@ -42,8 +42,9 @@ self.addEventListener('message', (event) => {
     }
 });
 
-function handleSpeak(payload, client) {
+async function handleSpeak(payload, client) {
     const { text, rate, id } = payload;
+    // If client is null (e.g. from controller.postMessage in some envs), we might need to find it later
     const item = { text, rate: rate || 1, client, id };
 
     queue.push(item);
@@ -61,8 +62,6 @@ function handlePause() {
             timer = null;
         }
         console.log('🗣️ [MockTTS] Paused');
-        // Notify client? Native API doesn't emit 'pause' event on utterance,
-        // but the synth has a paused state. The polyfill handles that state.
     }
 }
 
@@ -81,19 +80,6 @@ function handleCancel() {
         timer = null;
     }
 
-    // Notify error/end for current?
-    // Usually cancel just stops everything.
-    // We should probably emit an error or just stop?
-    // Native behavior: cancel() fires error event on current utterance?
-    // MDN: "The cancel() method ... removes all utterances from the utterance queue. If an utterance is currently being spoken, the error event is fired on that SpeechSynthesisUtterance object."
-
-    if (currentItem) {
-       // We don't necessarily fire error in all browsers, but let's be consistent.
-       // Actually often it fires 'end' or nothing?
-       // Let's fire 'error' with error: 'canceled' just in case, or just nothing and clear queue.
-       // The polyfill might handle the event firing if we tell it we are clearing.
-    }
-
     queue = [];
     currentItem = null;
     words = [];
@@ -109,10 +95,6 @@ function processNext() {
 
     state = 'SPEAKING';
     currentItem = queue.shift();
-    // Tokenize
-    // Split by whitespace, keeping punctuation attached to previous word
-    // Actually simple split is fine as long as charIndex is correct.
-    // We need accurate charIndex for highlighting.
 
     const text = currentItem.text;
     const tokens = text.match(/\S+/g) || [];
@@ -148,7 +130,7 @@ function scheduleNextWord() {
 
     timer = setTimeout(() => {
         // Emit boundary
-        console.log(`%c 🗣️ [MockTTS]: "${wordObj.word}"`, 'color: #4ade80; font-weight: bold;');
+        // console.log(`%c 🗣️ [MockTTS]: "${wordObj.word}"`, 'color: #4ade80; font-weight: bold;');
 
         notifyClient(currentItem.client, 'boundary', {
             id: currentItem.id,
@@ -164,7 +146,15 @@ function scheduleNextWord() {
 }
 
 function notifyClient(client, type, data) {
+    const msg = { type, ...data };
     if (client) {
-        client.postMessage({ type, ...data });
+        client.postMessage(msg);
+    } else {
+        // Broadcast to all clients if source client is missing
+        self.clients.matchAll().then(clients => {
+            for (const c of clients) {
+                c.postMessage(msg);
+            }
+        });
     }
 }

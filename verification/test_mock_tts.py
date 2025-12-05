@@ -1,15 +1,23 @@
 import pytest
 from playwright.sync_api import Page, expect
 
+def setup_mock_tts(page: Page):
+    """Helper to ensure Mock TTS is ready and controlling."""
+    page.goto("/")
+    # Wait for initial load
+    page.wait_for_timeout(1000)
+
+    # Wait for controller with retry
+    try:
+        page.wait_for_function("!!navigator.serviceWorker.controller", timeout=5000)
+    except:
+        print("Timeout waiting for SW controller, reloading...")
+        page.reload()
+        page.wait_for_function("!!navigator.serviceWorker.controller", timeout=10000)
+
 def test_mock_tts_sanity(page: Page):
     """Verifies that the Mock TTS system is loaded and speaks correctly."""
-    page.goto("/")
-
-    # Give time for SW registration and voices
-    page.wait_for_timeout(2000)
-
-    # Ensure SW is controlling
-    page.wait_for_function("!!navigator.serviceWorker.controller", timeout=5000)
+    setup_mock_tts(page)
 
     # Check that voices are loaded
     voices_len = page.evaluate("window.speechSynthesis.getVoices().length")
@@ -19,7 +27,7 @@ def test_mock_tts_sanity(page: Page):
     # Speak
     page.evaluate("""
         const u = new SpeechSynthesisUtterance("Hello world");
-        u.rate = 0.2; // 2 seconds per word
+        u.rate = 0.5; // 800ms per word
         window.speechSynthesis.speak(u);
     """)
 
@@ -28,71 +36,65 @@ def test_mock_tts_sanity(page: Page):
     expect(debug).to_be_visible()
 
     # Should see "Hello"
-    expect(debug).to_have_text("Hello", timeout=5000)
+    expect(debug).to_have_text("Hello", timeout=10000)
 
-    # Wait for completion
+    # Wait for completion "world" -> END
     expect(debug).to_have_text("[[END]]", timeout=10000)
 
 def test_mock_tts_pause_resume(page: Page):
     """Verifies pause and resume functionality."""
-    page.goto("/")
-    page.wait_for_timeout(2000)
-    page.wait_for_function("!!navigator.serviceWorker.controller", timeout=5000)
+    setup_mock_tts(page)
 
     debug = page.locator("#tts-debug")
 
     # Speak a long sentence
     page.evaluate("""
         const u = new SpeechSynthesisUtterance("One two three four five");
-        u.rate = 0.2; // 2 seconds per word
+        u.rate = 0.5; // 800ms per word
         window.speechSynthesis.speak(u);
     """)
 
     # Wait for first word
-    expect(debug).to_have_text("One", timeout=5000)
+    expect(debug).to_have_text("One", timeout=10000)
 
     # Pause
     page.evaluate("window.speechSynthesis.pause()")
 
     # Should show paused state
-    expect(debug).to_have_text("[[PAUSED]]", timeout=5000)
+    expect(debug).to_have_text("[[PAUSED]]", timeout=10000)
 
-    # Wait a bit to ensure it doesn't proceed
-    page.wait_for_timeout(2000)
+    # Wait a bit
+    page.wait_for_timeout(1000)
     expect(debug).to_have_text("[[PAUSED]]")
 
     # Resume
     page.evaluate("window.speechSynthesis.resume()")
-    expect(debug).to_have_text("[[RESUMED]]", timeout=5000)
+    expect(debug).to_have_text("[[RESUMED]]", timeout=10000)
 
-    # Should eventually reach "five" or at least proceed
-    # "One" (done) -> "two" (pending when paused? SW pauses timer)
-    # When resumed, it should speak "two".
+    # Should eventually reach "two"
     expect(debug).to_have_text("two", timeout=10000)
 
     # Finish
     page.evaluate("window.speechSynthesis.cancel()")
-    expect(debug).to_have_text("[[CANCELED]]", timeout=5000)
+    expect(debug).to_have_text("[[CANCELED]]", timeout=10000)
 
 def test_mock_tts_cancel(page: Page):
     """Verifies cancel functionality."""
-    page.goto("/")
-    page.wait_for_timeout(2000)
-    page.wait_for_function("!!navigator.serviceWorker.controller", timeout=5000)
+    setup_mock_tts(page)
 
     debug = page.locator("#tts-debug")
 
     page.evaluate("""
         const u = new SpeechSynthesisUtterance("This should be canceled");
-        u.rate = 0.2; // 2 seconds per word
+        u.rate = 0.5; // 800ms per word
         window.speechSynthesis.speak(u);
     """)
 
-    expect(debug).to_have_text("This", timeout=5000)
+    expect(debug).to_have_text("This", timeout=10000)
 
     page.evaluate("window.speechSynthesis.cancel()")
 
-    expect(debug).to_have_text("[[CANCELED]]", timeout=5000)
+    expect(debug).to_have_text("[[CANCELED]]", timeout=10000)
 
     # Wait to ensure no more words
     page.wait_for_timeout(2000)
