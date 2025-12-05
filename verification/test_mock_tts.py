@@ -12,6 +12,24 @@ def setup_mock_tts(page: Page):
         page.wait_for_function("!!navigator.serviceWorker.controller", timeout=5000)
     except:
         print("Timeout waiting for SW controller, reloading...")
+
+        # Print debug info
+        debug_info = page.evaluate("""async () => {
+            const reg = await navigator.serviceWorker.getRegistration();
+            return {
+                supported: 'serviceWorker' in navigator,
+                controller: !!navigator.serviceWorker.controller,
+                registration: reg ? {
+                    scope: reg.scope,
+                    active: !!reg.active,
+                    waiting: !!reg.waiting,
+                    installing: !!reg.installing
+                } : null,
+                error: window.__swRegistrationError || null
+            };
+        }""")
+        print(f"SW Debug Info: {debug_info}")
+
         page.reload()
         page.wait_for_function("!!navigator.serviceWorker.controller", timeout=10000)
 
