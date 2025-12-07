@@ -58,7 +58,21 @@ def capture_screenshot(page: Page, name: str, hide_tts_status: bool = False):
     os.makedirs('verification/screenshots', exist_ok=True)
 
     if hide_tts_status:
-        page.evaluate("const el = document.getElementById('tts-debug'); if (el) el.style.visibility = 'hidden';")
+        # Hide the element and wait for the style to be applied
+        page.evaluate("""
+            const el = document.getElementById('tts-debug');
+            if (el) {
+                el.style.visibility = 'hidden';
+                // Force a reflow/repaint check if possible, or just rely on the synchronous evaluation
+            }
+        """)
+        # Explicitly wait for the element to be hidden from the playwright perspective
+        # This ensures the rendering engine has caught up before we take the screenshot
+        try:
+            page.locator("#tts-debug").wait_for(state="hidden", timeout=1000)
+        except:
+            # Proceed even if timeout (maybe element doesn't exist)
+            pass
 
     viewport = page.viewport_size
     width = viewport['width'] if viewport else 1280
