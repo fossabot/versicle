@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTTSStore } from '../store/useTTSStore';
 import { useReaderStore } from '../store/useReaderStore';
 import { getDB } from '../db/db';
-import type { SectionMetadata } from '../types/db';
 
 const CHARS_PER_MINUTE_BASE = 180 * 5; // 180 words/min * 5 chars/word
 
@@ -13,7 +12,7 @@ interface DurationEstimates {
 }
 
 export const useChapterDuration = (): DurationEstimates => {
-  const { queue, currentIndex, settings } = useTTSStore();
+  const { queue, currentIndex, rate } = useTTSStore();
   const { currentBookId, currentSectionId } = useReaderStore();
 
   const [estimates, setEstimates] = useState<DurationEstimates>({
@@ -54,12 +53,11 @@ export const useChapterDuration = (): DurationEstimates => {
       // Sort by playOrder to ensure correct sequence
       sections.sort((a, b) => a.playOrder - b.playOrder);
 
-      const effectiveRate = Math.max(0.1, settings.rate); // Clamp rate to avoid division by zero
+      const effectiveRate = Math.max(0.1, rate); // Clamp rate to avoid division by zero
       const charsPerMinute = CHARS_PER_MINUTE_BASE * effectiveRate;
 
       // 1. Calculate Chapter Remaining
       let chapterRemainingChars = 0;
-      let isQueueActiveForCurrentChapter = false;
 
       // Check if queue is valid and active for the current book/chapter context
       // Note: Since queue doesn't explicitly store bookId/sectionId in the store root (it's in items),
@@ -78,7 +76,6 @@ export const useChapterDuration = (): DurationEstimates => {
          for (let i = currentIndex; i < queue.length; i++) {
              chapterRemainingChars += queue[i].text.length;
          }
-         isQueueActiveForCurrentChapter = true;
       } else {
          // Fallback to section metadata
          const currentSection = sections.find(s => s.sectionId === currentSectionId);
@@ -132,7 +129,7 @@ export const useChapterDuration = (): DurationEstimates => {
     return () => {
       isMounted = false;
     };
-  }, [currentBookId, currentSectionId, queue, currentIndex, settings.rate]);
+  }, [currentBookId, currentSectionId, queue, currentIndex, rate]);
 
   return estimates;
 };

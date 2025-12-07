@@ -24,7 +24,7 @@ describe('useChapterDuration', () => {
     (useTTSStore as any).mockReturnValue({
         queue: [],
         currentIndex: 0,
-        settings: { rate: 1.0 }
+        rate: 1.0
     });
     (useReaderStore as any).mockReturnValue({
         currentBookId: 'book-1',
@@ -109,7 +109,7 @@ describe('useChapterDuration', () => {
             { text: 'C' }  // length 1
         ],
         currentIndex: 1, // 'B' is current
-        settings: { rate: 1.0 }
+        rate: 1.0
      });
 
      // Queue remaining: 'B' + 'C' = 2 chars
@@ -136,7 +136,7 @@ describe('useChapterDuration', () => {
       (useTTSStore as any).mockReturnValue({
         queue: [],
         currentIndex: 0,
-        settings: { rate: 2.0 } // 2x speed -> 1800 chars/min
+        rate: 2.0 // 2x speed -> 1800 chars/min
       });
 
      mockDB.get.mockResolvedValue({
