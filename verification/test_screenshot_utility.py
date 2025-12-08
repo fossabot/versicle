@@ -1,7 +1,7 @@
 import os
 import pytest
 from playwright.sync_api import Page, expect
-from utils import capture_screenshot
+from verification.utils import capture_screenshot
 
 def test_screenshot_hides_debug_overlay(page: Page):
     """
