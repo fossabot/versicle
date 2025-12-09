@@ -15,6 +15,7 @@ vi.mock('@jofr/capacitor-media-session', () => ({
     setActionHandler: vi.fn(),
     setMetadata: vi.fn(),
     setPlaybackState: vi.fn(),
+    setPositionState: vi.fn(),
   },
 }));
 
@@ -53,8 +54,12 @@ describe('MediaSessionManager', () => {
         constructor(public init: any) {}
     });
 
-    // Reset mocks
+    // Reset mocks and setup default implementations
     vi.clearAllMocks();
+    (MediaSession.setActionHandler as any).mockResolvedValue(undefined);
+    (MediaSession.setMetadata as any).mockResolvedValue(undefined);
+    (MediaSession.setPlaybackState as any).mockResolvedValue(undefined);
+    (MediaSession.setPositionState as any).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -152,13 +157,13 @@ describe('MediaSessionManager', () => {
           // However, the calls are dispatched. We might need to wait a tick.
           await new Promise(resolve => setTimeout(resolve, 0));
 
-          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'play', handler: callbacks.onPlay });
-          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'pause', handler: callbacks.onPause });
-          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'stop', handler: callbacks.onStop });
-          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'next', handler: callbacks.onNext });
-          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'previous', handler: callbacks.onPrev });
-          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'seekbackward', handler: callbacks.onSeekBackward });
-          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'seekforward', handler: callbacks.onSeekForward });
+          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'play' }, callbacks.onPlay);
+          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'pause' }, callbacks.onPause);
+          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'stop' }, callbacks.onStop);
+          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'next' }, callbacks.onNext);
+          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'previous' }, callbacks.onPrev);
+          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'seekbackward' }, callbacks.onSeekBackward);
+          expect(MediaSession.setActionHandler).toHaveBeenCalledWith({ action: 'seekforward' }, callbacks.onSeekForward);
       });
 
       it('updates native metadata correctly', async () => {
@@ -186,7 +191,9 @@ describe('MediaSessionManager', () => {
           await manager.setPlaybackState('playing');
           expect(MediaSession.setPlaybackState).toHaveBeenCalledWith({
               playbackState: 'playing',
-              playbackSpeed: 1.0,
+          });
+          expect(MediaSession.setPositionState).toHaveBeenCalledWith({
+              playbackRate: 1.0,
           });
       });
 
@@ -196,7 +203,22 @@ describe('MediaSessionManager', () => {
           await manager.setPlaybackState({ playbackState: 'paused', playbackSpeed: 1.2 });
           expect(MediaSession.setPlaybackState).toHaveBeenCalledWith({
               playbackState: 'paused',
-              playbackSpeed: 1.2,
+          });
+          expect(MediaSession.setPositionState).toHaveBeenCalledWith({
+              playbackRate: 1.2,
+          });
+      });
+
+      it('updates native position state correctly', async () => {
+          const manager = new MediaSessionManager(callbacks);
+          const state = { duration: 60, playbackRate: 1, position: 30 };
+
+          manager.setPositionState(state);
+
+          expect(MediaSession.setPositionState).toHaveBeenCalledWith({
+              duration: 60,
+              playbackRate: 1,
+              position: 30
           });
       });
   });

@@ -100,7 +100,8 @@ export class MediaSessionManager {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async setNativeActionHandler(action: string, handler?: (...args: any[]) => void) {
       if (handler) {
-          await MediaSession.setActionHandler({ action, handler });
+          // @ts-ignore - The types for MediaSessionAction might not perfectly align with string but it works at runtime or needs explicit casting
+          await MediaSession.setActionHandler({ action: action as any }, handler);
       }
   }
 
@@ -142,8 +143,14 @@ export class MediaSessionManager {
     if (this.isNative) {
         await MediaSession.setPlaybackState({
             playbackState,
-            playbackSpeed: playbackSpeed || 1.0,
         });
+        if (playbackSpeed !== undefined || position !== undefined || duration !== undefined) {
+             await MediaSession.setPositionState({
+                 playbackRate: playbackSpeed || 1.0,
+                 position: position,
+                 duration: duration
+             });
+        }
     } else if (this.hasWebMediaSession) {
         navigator.mediaSession.playbackState = playbackState;
         if (position !== undefined && duration !== undefined && 'setPositionState' in navigator.mediaSession) {
@@ -164,17 +171,11 @@ export class MediaSessionManager {
    */
   setPositionState(state: MediaPositionState) {
     if (this.isNative) {
-        // Native position update is handled via setPlaybackState usually,
-        // or we might ignore if not explicitly supported separately by the plugin wrapper in this context.
-        // But for completeness, we can try to update playback state if we have the info,
-        // but setPositionState only gives position/duration/rate.
-        // We'll rely on setPlaybackState being called for native updates mostly.
-
-        // Use default 'playing' if we don't know, or we'd need to store current playback state.
-        // Since this method is only called in AudioPlayerService when time updates,
-        // it's better to update via setPlaybackState if possible or ignore for native if handled elsewhere.
-        // However, looking at AudioPlayerService, it calls this specifically for web.
-        // For Native, we might need to throttle this call if we were to forward it.
+        MediaSession.setPositionState({
+            duration: state.duration,
+            playbackRate: state.playbackRate,
+            position: state.position
+        }).catch(e => console.warn("Failed to set native position state", e));
     } else if (this.hasWebMediaSession && 'setPositionState' in navigator.mediaSession) {
         try {
             navigator.mediaSession.setPositionState(state);
