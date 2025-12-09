@@ -204,8 +204,7 @@ export class AudioPlayerService {
               id: 'versicle_tts_channel',
               name: 'Versicle Playback',
               description: 'Controls for background reading',
-              importance: 3,
-              visibility: 1
+              importance: 3
           });
 
           // Step A: Start Foreground Service (The Shield)
