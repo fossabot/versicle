@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { MediaSessionManager } from './MediaSessionManager';
 import { Capacitor } from '@capacitor/core';
 import { MediaSession } from '@jofr/capacitor-media-session';
@@ -56,10 +56,10 @@ describe('MediaSessionManager', () => {
 
     // Reset mocks and setup default implementations
     vi.clearAllMocks();
-    (MediaSession.setActionHandler as any).mockResolvedValue(undefined);
-    (MediaSession.setMetadata as any).mockResolvedValue(undefined);
-    (MediaSession.setPlaybackState as any).mockResolvedValue(undefined);
-    (MediaSession.setPositionState as any).mockResolvedValue(undefined);
+    (MediaSession.setActionHandler as Mock).mockResolvedValue(undefined);
+    (MediaSession.setMetadata as Mock).mockResolvedValue(undefined);
+    (MediaSession.setPlaybackState as Mock).mockResolvedValue(undefined);
+    (MediaSession.setPositionState as Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -68,7 +68,7 @@ describe('MediaSessionManager', () => {
 
   describe('Web Environment', () => {
       beforeEach(() => {
-          (Capacitor.isNativePlatform as any).mockReturnValue(false);
+          (Capacitor.isNativePlatform as Mock).mockReturnValue(false);
       });
 
       it('sets up action handlers on initialization', () => {
@@ -148,7 +148,7 @@ describe('MediaSessionManager', () => {
 
   describe('Native Environment', () => {
       beforeEach(() => {
-          (Capacitor.isNativePlatform as any).mockReturnValue(true);
+          (Capacitor.isNativePlatform as Mock).mockReturnValue(true);
       });
 
       it('sets up native action handlers on initialization', async () => {
