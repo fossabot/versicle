@@ -684,11 +684,17 @@ export class AudioPlayerService {
             const errorMessage = e instanceof Error ? e.message : "Cloud TTS error";
             this.notifyError(`Cloud voice failed (${errorMessage}). Switching to local backup.`);
 
-            console.warn("Falling back to WebSpeechProvider...");
+            console.warn("Falling back to local provider...");
             // We can't call setProvider() because it uses executeWithLock which waits for us!
             // Direct switch internal
             await this.stopInternal();
-            this.provider = new WebSpeechProvider(this.localProviderConfig);
+
+            if (Capacitor.isNativePlatform()) {
+                this.provider = new CapacitorTTSProvider();
+            } else {
+                this.provider = new WebSpeechProvider(this.localProviderConfig);
+            }
+
             this.setupWebSpeech();
             await this.init();
 
