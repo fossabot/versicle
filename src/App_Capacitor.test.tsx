@@ -4,7 +4,7 @@ import { render } from '@testing-library/react';
 import App from './App';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Capacitor } from '@capacitor/core';
-import { ForegroundService, Importance } from '@capawesome-team/capacitor-android-foreground-service';
+import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service';
 import { AudioPlayerService } from './lib/tts/AudioPlayerService';
 
 // Mock dependencies
