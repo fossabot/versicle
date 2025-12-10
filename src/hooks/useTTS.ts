@@ -136,7 +136,7 @@ export const useTTS = (rendition: Rendition | null) => {
     if (contents.length > 0 && contents[0].document && contents[0].document.body) {
         loadSentences();
     } else {
-        // Retry after a small delay in case we missed the event but contents are appearing (common in Capacitor/Android)
+        // Retry after a small delay in case we missed the event but contents are appearing
         initTimeout = setTimeout(() => {
              if (rendition) {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
