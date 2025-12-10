@@ -27,6 +27,34 @@ describe('CapacitorTTSProvider', () => {
     expect(typeof provider.on).toBe('function');
   });
 
+  it('should use queueStrategy 0 (Flush) for synthesize', async () => {
+    // Setup voices
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TextToSpeech.getSupportedVoices as any).mockResolvedValue({
+      voices: [{ voiceURI: 'voice1', name: 'Voice 1', lang: 'en-US' }]
+    });
+    // Setup speak success
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TextToSpeech.speak as any).mockResolvedValue(undefined);
+
+    await provider.init();
+
+    await provider.synthesize('hello', 'voice1', 1.0);
+
+    expect(TextToSpeech.speak).toHaveBeenCalledWith(expect.objectContaining({
+      text: 'hello',
+      lang: 'en-US',
+      rate: 1.0,
+      queueStrategy: 0 // Assert interruption strategy
+    }));
+  });
+
+  it('should not support resume method', () => {
+    // Resume is removed to force AudioPlayerService to restart playback
+    // @ts-expect-error - Accessing property that should not exist
+    expect(provider.resume).toBeUndefined();
+  });
+
   it('should emit start and end events during synthesis', async () => {
     // Setup voices
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,13 +72,6 @@ describe('CapacitorTTSProvider', () => {
 
     await provider.synthesize('hello', 'voice1', 1.0);
 
-    expect(TextToSpeech.speak).toHaveBeenCalledWith(expect.objectContaining({
-      text: 'hello',
-      lang: 'en-US',
-      rate: 1.0,
-    }));
-
-    // Expect callback to have been called with start then end
     expect(callback).toHaveBeenCalledTimes(2);
     expect(callback).toHaveBeenNthCalledWith(1, { type: 'start' });
     expect(callback).toHaveBeenNthCalledWith(2, { type: 'end' });

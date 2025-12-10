@@ -65,7 +65,7 @@ export class CapacitorTTSProvider implements ITTSProvider {
         lang,
         rate: speed,
         category: 'playback', // Important iOS hint, good practice for Android
-        queueStrategy: 1 // 1 = Add to queue (smoother), 0 = Flush (interrupt)
+        queueStrategy: 0 // 0 = Flush (interrupt). Necessary for responsive controls (Next/Prev/Seek).
       });
       this.emit('end');
     } catch (e) {
@@ -89,9 +89,10 @@ export class CapacitorTTSProvider implements ITTSProvider {
     await TextToSpeech.stop();
   }
 
-  async resume(): Promise<void> {
-    // Not reliably supported by the native bridge.
-  }
+  // NOTE: resume() is intentionally omitted.
+  // Native Android TTS does not reliably support resuming from the middle of a sentence.
+  // By omitting this method, AudioPlayerService will fall back to restarting the current sentence
+  // (via playInternal) which is the correct behavior for this provider.
 
   on(callback: TTSCallback) {
     this.callback = callback;
