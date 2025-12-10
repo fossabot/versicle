@@ -119,7 +119,8 @@ export const useTTS = (rendition: Rendition | null) => {
 
     // Also try immediately if already rendered
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((rendition as any).getContents().length > 0) {
+    const contents = (rendition as any).getContents();
+    if (contents.length > 0 && contents[0].document && contents[0].document.body) {
         loadSentences();
     }
 
