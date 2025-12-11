@@ -38,70 +38,10 @@ The goal of this design is to unify the interface and behavior of Local (WebSpee
 
 We will standardize on a **"Synthesize then Play"** pattern for all providers.
 
-### 3.1 Unified Interface (`ITTSProvider`)
-
-```typescript
-interface ITTSProvider {
-    // ... init, getVoices ...
-
-    /**
-     * Prepares the audio or utterance.
-     * Does NOT start playback.
-     * Returns a segment containing metadata and potentially audio data.
-     */
-    synthesize(text: string, voiceId: string, speed: number, signal?: AbortSignal): Promise<SpeechSegment>;
-
-    /**
-     * Plays the given segment.
-     */
-    play(segment: SpeechSegment): Promise<void>;
-
-    /**
-     * Pauses playback.
-     */
-    pause(): void;
-
-    /**
-     * Resumes playback.
-     */
-    resume(): void;
-
-    /**
-     * Stops playback.
-     */
-    stop(): void;
-
-    /**
-     * Subscribes to playback events (start, end, error, timeupdate, boundary).
-     */
-    on(callback: (event: TTSEvent) => void): void;
-}
-```
-
-### 3.2 Logic Updates
-
-#### **Local Providers (WebSpeech, Capacitor)**
-*   **`synthesize`**: Will no longer call `speak`. Instead, it will capture the parameters (text, voice, rate) and return a `SpeechSegment` containing them (and potentially a prepared `SpeechSynthesisUtterance` for WebSpeech).
-*   **`play`**: Will take the segment and execute the actual `speak` command.
-
-#### **Cloud Providers (BaseCloudProvider)**
-*   **`synthesize`**: Remains largely the same (fetches Blob), but returns it in the `SpeechSegment`.
-*   **`play`**: Will contain the logic currently in `AudioPlayerService`'s cloud branch. It will use an internal `AudioElementPlayer` (or future `WebAudioPlayer`) to play the Blob.
-*   **Events**: The provider will listen to its internal player's events (`timeupdate`, `ended`, `error`) and re-emit them as standard `TTSEvent`s.
-
-#### **AudioPlayerService**
-*   The logic simplifies to:
-    ```typescript
-    // 1. Synthesize (or get from cache)
-    let segment = await cache.get(...) || await provider.synthesize(...);
-
-    // 2. Cache if new and has audio
-    if (segment.audio && !cached) cache.put(segment);
-
-    // 3. Play
-    await provider.play(segment);
-    ```
-*   It subscribes to `provider.on(...)` for ALL providers to handle state changes (`playing`, `stopped`) and synchronization (`timeupdate` for cloud, `boundary` for local).
+### 3.1 Unified Strategy
+*   **Decouple Execution:** Separate the "preparation" of speech (API call or object creation) from the "playback" (speaking).
+*   **Provider Responsibilities:** Providers become responsible for the entire audio lifecycle, including playing the audio they generate (or delegate to the OS).
+*   **Service Responsibilities:** The `AudioPlayerService` focuses on queue management, caching, and state tracking, treating the actual playback mechanism as a black box.
 
 ## 4. Implementation Steps
 
@@ -135,3 +75,149 @@ interface ITTSProvider {
 *   **Polymorphism:** `AudioPlayerService` treats all providers uniformly.
 *   **Encapsulation:** Playback complexity (AudioContext, HTMLAudioElement, etc.) is hidden within the Cloud Provider.
 *   **Scalability:** Easier to add new providers or change the audio backend (e.g., to Web Audio API for effects) without touching the main service.
+
+## 6. End State Interface Specification
+
+### 6.1 `ITTSProvider`
+
+```typescript
+export interface ITTSProvider {
+  /**
+   * Unique identifier for the provider (e.g., 'local', 'google').
+   */
+  id: string;
+
+  /**
+   * Initializes the provider (loads voices, sets up audio context).
+   * @returns Promise that resolves when ready.
+   */
+  init(): Promise<void>;
+
+  /**
+   * Retrieves available voices.
+   */
+  getVoices(): Promise<TTSVoice[]>;
+
+  /**
+   * Prepares the audio content for playback.
+   *
+   * **Blocking Behavior:**
+   * - **Cloud:** Blocks (awaits) until the audio Blob is fully downloaded from the API.
+   * - **Local:** Resolves immediately (or after minimal setup) returning the synthesis parameters.
+   *
+   * @param text The text to synthesize.
+   * @param voiceId The ID of the voice to use.
+   * @param speed The playback rate (1.0 = normal).
+   * @param signal AbortSignal to cancel the operation (e.g. cancel download).
+   * @returns Promise resolving to a SpeechSegment.
+   */
+  synthesize(text: string, voiceId: string, speed: number, signal?: AbortSignal): Promise<SpeechSegment>;
+
+  /**
+   * Initiates playback of a segment.
+   *
+   * **Blocking Behavior:**
+   * - **Non-Blocking:** Resolves as soon as playback *starts* (or is successfully scheduled).
+   * - Does NOT wait for playback to finish. Completion is signaled via the `ended` event.
+   *
+   * @param segment The segment returned by synthesize().
+   * @returns Promise resolving when playback begins.
+   */
+  play(segment: SpeechSegment): Promise<void>;
+
+  /**
+   * Pauses the current playback.
+   * **Blocking Behavior:** Resolves immediately.
+   */
+  pause(): void;
+
+  /**
+   * Resumes paused playback.
+   * **Blocking Behavior:** Resolves immediately.
+   */
+  resume(): void;
+
+  /**
+   * Stops playback and cancels any pending operations.
+   * **Blocking Behavior:** Resolves immediately.
+   */
+  stop(): void;
+
+  /**
+   * Subscribes to playback lifecycle events.
+   */
+  on(callback: (event: TTSEvent) => void): void;
+}
+```
+
+### 6.2 Data Types
+
+```typescript
+/**
+ * Represents the result of a synthesis operation, ready for playback.
+ */
+export interface SpeechSegment {
+  /**
+   * True if the provider uses the device's native TTS engine.
+   * False if it uses a custom audio pipeline (Blob).
+   */
+  isNative: boolean;
+
+  /**
+   * The audio data (for Cloud providers).
+   * Undefined for Local providers.
+   */
+  audio?: Blob;
+
+  /**
+   * The server-provided alignment data (for Cloud providers).
+   */
+  alignment?: Timepoint[];
+
+  /**
+   * The original text (required for Local replay).
+   */
+  text: string;
+
+  /**
+   * The voice ID used (required for Local replay).
+   */
+  voiceId: string;
+
+  /**
+   * The speed used (required for Local replay).
+   */
+  speed: number;
+
+  /**
+   * Optional pre-constructed utterance (optimization for WebSpeech).
+   */
+  nativeUtterance?: SpeechSynthesisUtterance;
+}
+
+/**
+ * Events emitted by the provider during playback.
+ */
+export type TTSEvent =
+  | { type: 'start' }
+  | { type: 'end' }
+  | { type: 'error'; error: any }
+  | { type: 'timeupdate'; currentTime: number } // Continuous updates (Cloud)
+  | { type: 'boundary'; charIndex: number };    // Discrete updates (Local)
+```
+
+### 6.3 Lifecycle & Assumptions
+
+1.  **Synthesize -> Play Handoff**:
+    *   The `AudioPlayerService` **MUST** call `synthesize()` before `play()`.
+    *   `synthesize()` is the expensive operation for Cloud (network I/O). It is safe and expected to cache the result (the `SpeechSegment`) if it contains a Blob.
+    *   `play()` is computationally cheap and safe to call multiple times on the same segment (e.g., for replay or after seeking).
+
+2.  **Concurrency & Locking**:
+    *   The Provider is single-channel. Calling `play()` while another segment is playing **MUST** interrupt the previous segment (implicit stop).
+    *   The `AudioPlayerService` maintains the queue and lock; it should ensure it doesn't call `play()` on two different providers simultaneously without managing the transition.
+
+3.  **Event Guarantees**:
+    *   **Start:** `play()` will always trigger a `start` event shortly after resolving.
+    *   **End:** The `end` event is guaranteed to fire when audio finishes naturally.
+    *   **Stop:** Calling `stop()` causes audio to cease immediately. It **SHOULD NOT** fire an `end` event (to distinguish from natural completion), but typically `AudioPlayerService` handles the state change explicitly when it calls stop.
