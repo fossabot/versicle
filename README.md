@@ -1,26 +1,27 @@
 # Versicle
 
-> **Note:** This repository was almost entirely built using Google Jules and is an exploration of that tool.
+**Versicle** is a sophisticated, local-first web-based EPUB reader designed for advanced reading capabilities, privacy, and performance. It runs entirely in the browser, utilizing IndexedDB for persistent storage, React for the UI, and `epub.js` for rendering.
 
-**Versicle** is a sophisticated, local-first web-based EPUB reader designed for advanced reading capabilities. It runs entirely in the browser, utilizing IndexedDB for persistent storage, React for the UI, and `epub.js` for rendering. The system is designed for privacy and performance, featuring advanced Text-to-Speech (TTS) capabilities, full-text search, and annotation management without relying on external servers for core functionality.
+The system is designed for privacy and performance, featuring advanced Text-to-Speech (TTS) capabilities, full-text search, and annotation management without relying on external servers for core functionality.
 
 ## Features
 
-*   **Local-First Library**: Books are stored persistently in IndexedDB. No server upload required.
+*   **Local-First Library**: Books, annotations, and reading progress are stored persistently in IndexedDB. No server upload required.
 *   **Advanced Reader**:
     *   **Customizable**: Light/Dark/Sepia themes, custom fonts, line height, and font size.
     *   **Modes**: Paginated and Scrolled view modes.
-    *   **Immersive Mode**: Distraction-free reading.
     *   **Touch Controls**: Swipe gestures for navigation and audio control.
 *   **Text-to-Speech (TTS)**:
+    *   **Hybrid Engine**: Supports both local Web Speech API (Free, Offline) and Cloud Neural voices (Google, OpenAI).
     *   **Sentence Highlighting**: Visual karaoke-style synchronization.
-    *   **Multiple Providers**: Web Speech API (Free), Google Cloud TTS, OpenAI TTS.
     *   **Smart Resume**: Intelligently rewinds context (2 sentences or 10-60s) after pauses to reorient the listener.
-    *   **Pronunciation Lexicon**: Custom replacement rules with Regex support.
+    *   **Pronunciation Lexicon**: Custom replacement rules (Regex support) to fix mispronounced words.
     *   **Caching**: Cloud-generated audio is cached locally to save costs and bandwidth.
+    *   **Background Playback**: (Android) Native integration with Foreground Services and Media Session controls.
 *   **Full-Text Search**: Fast, off-main-thread search using Web Workers.
-*   **Annotations**: Highlight text (multiple colors) and add notes.
-*   **Data Management**: Backup and restore your entire library (or just metadata) to JSON/ZIP.
+*   **Data Management**:
+    *   **Backup/Restore**: Export library to JSON (metadata) or ZIP (full archive).
+    *   **Offloading**: Remove book files to save space while keeping metadata and notes.
 *   **PWA Support**: Installable as a standalone app on desktop and mobile.
 
 ## Tech Stack
@@ -38,6 +39,7 @@
 *   **Node.js**: v18 or higher
 *   **npm**: v9 or higher
 *   **Python**: v3.10+ (Required for running Playwright verification scripts)
+*   **Docker**: (Optional but recommended) For running the verification suite in a consistent environment.
 
 ## Getting Started
 
@@ -57,35 +59,6 @@
     npm run dev
     ```
     The application will be available at `http://localhost:5173`.
-
-## Mobile App (Android)
-
-Versicle can be built as a native Android application using Capacitor.
-
-**Prerequisites:**
-*   **Android Studio**: Required for building and running the Android app.
-*   **Java/JDK**: Compatible version (JDK 17 recommended).
-
-**Setup & Run:**
-
-1.  **Sync Web Assets:**
-    Build the web app and copy assets to the Android project:
-    ```bash
-    npm run build
-    npx cap sync
-    ```
-
-2.  **Open in Android Studio:**
-    ```bash
-    npx cap open android
-    ```
-    From Android Studio, you can run the app on an emulator or physical device.
-
-3.  **Run directly (CLI):**
-    To run on a connected device or emulator via command line:
-    ```bash
-    npx cap run android
-    ```
 
 ## Usage Guide
 
@@ -111,13 +84,32 @@ Access Global Settings via the gear icon in the Library header.
 *   **API Keys**: Enter keys for Google Cloud or OpenAI.
 *   **Data Management**: Create backups (Light/Full) or prune orphaned data.
 
-## Scripts
+## Mobile App (Android)
 
-*   `npm run dev`: Starts the Vite development server.
-*   `npm run build`: Type-checks and builds the application for production.
-*   `npm run preview`: Previews the production build locally.
-*   `npm test`: Runs unit tests via Vitest.
-*   `npm run lint`: Runs ESLint.
+Versicle can be built as a native Android application using Capacitor.
+
+**Prerequisites:**
+*   **Android Studio**: Required for building and running the Android app.
+*   **Java/JDK**: Compatible version (JDK 17 recommended).
+
+**Setup & Run:**
+
+1.  **Sync Web Assets:**
+    Build the web app and copy assets to the Android project:
+    ```bash
+    npm run build
+    npx cap sync
+    ```
+
+2.  **Open in Android Studio:**
+    ```bash
+    npx cap open android
+    ```
+
+3.  **Run directly (CLI):**
+    ```bash
+    npx cap run android
+    ```
 
 ## Verification & Testing
 
@@ -132,44 +124,36 @@ npm test
 ### Visual Verification (Playwright)
 We use Python-based Playwright scripts to verify user journeys and prevent visual regressions.
 
-**Setup:**
+**Running with Docker (Recommended):**
+The most reliable way to run tests is via the Docker container to ensure consistent rendering.
+
+```bash
+# Build the container
+docker build -t versicle-verify -f Dockerfile.verification .
+
+# Run tests
+mkdir -p verification/screenshots
+docker run --rm -v $(pwd)/verification/screenshots:/app/verification/screenshots versicle-verify
+```
+
+**Running Locally:**
 1.  Install Python dependencies:
     ```bash
     pip install pytest pytest-playwright
-    ```
-2.  Install Playwright browsers:
-    ```bash
     playwright install chromium
     ```
-
-**Running Tests:**
-To run all verification tests:
-```bash
-python verification/run_all.py
-```
-Or run a specific test:
-```bash
-pytest verification/test_journey_reading.py
-```
+2.  Run tests:
+    ```bash
+    python verification/run_all.py
+    ```
 
 *Note: Verification tests generate screenshots in `verification/screenshots/`. Validated "golden" screenshots are stored in `verification/goldens/`.*
 
-## Architecture & Documentation
-
-The codebase is fully documented with JSDoc (TypeScript) and Google Style Docstrings (Python).
-For a detailed deep-dive into the codebase, including comprehensive module references and diagrams, please refer to [architecture.md](architecture.md).
-
-### Directory Structure
-
-*   `src/components`: React UI components (Reader, Library, UI kit).
-*   `src/lib`: Core business logic (TTS, Search, Ingestion).
-*   `src/store`: Global state management (Zustand).
-*   `src/db`: IndexedDB schema and connection logic.
-*   `verification`: Playwright visual verification suite.
-*   `plan`: Implementation plans and design docs.
+**Updating Goldens:**
+If you make UI changes, run the tests, verify the new screenshots in `verification/screenshots/` are correct, and then copy them to `verification/goldens/`.
 
 ## Contributing
 
-1.  **AGENTS.md**: If you are an AI agent or a developer, please read `AGENTS.md` for specific instructions regarding testing and build hygiene.
+1.  **Read `AGENTS.md`**: Specific instructions for AI agents and developers regarding testing and build hygiene.
 2.  **Build Hygiene**: Ensure `npm run build` and `npm run lint` pass before submitting changes.
-3.  **Visual Verification**: Always run the Playwright verification suite to ensure no regressions.
+3.  **Architecture**: Refer to [architecture.md](architecture.md) for a detailed deep-dive into the codebase, module references, and diagrams.
