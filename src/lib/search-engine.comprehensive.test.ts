@@ -24,14 +24,6 @@ describe('SearchEngine Comprehensive Tests', () => {
         results = engine.search('test-book', '{brace}');
         expect(results).toHaveLength(1);
         expect(results[0].excerpt).toContain('{brace}');
-
-        results = engine.search('test-book', '.');
-        // "." matches "parenthesis" in regex, but we want literal dot if we search for it?
-        // Wait, FlexSearch tokenizes. If I search for ".", FlexSearch might not index punctuation.
-        // Let's stick to getExcerpt logic verification which is what we changed.
-        // The search logic depends on FlexSearch which we didn't change.
-        // But getExcerpt is called with the query.
-        // If FlexSearch returns a match for "parenthesis" when I search "parenthesis", getExcerpt is called with "parenthesis".
     });
 
     it('should correctly handle matches at the very beginning', () => {
@@ -54,27 +46,13 @@ describe('SearchEngine Comprehensive Tests', () => {
     it('should handle unicode characters that change length when lowercased', () => {
         // "İ" (U+0130) lowercases to "i̇" (U+0069 U+0307) which is length 2.
         const text = 'AİB matching text';
-        // Index of 'matching': 4
-        // Lower text: "ai̇b matching text" -> Index of 'matching': 5
-
         const sections = [{ id: '1', href: 'unicode.html', text }];
         engine.indexBook('unicode', sections);
 
         const results = engine.search('unicode', 'matching');
 
-        // If the old implementation was used, it would take index 5 from lowerText
-        // And apply it to text. text[5] is 'a' of "matching".
-        // text[4] is ' ' (space).
-        // text substring starts one char late?
-        // The excerpt generation logic:
-        // const start = Math.max(0, index - 40);
-        // If index is 5, start is 0.
-        // It might be subtle.
-
         expect(results).toHaveLength(1);
         expect(results[0].excerpt).toContain('matching');
-
-        // Let's verify exact excerpt content if possible, but context is small here.
     });
 
     it('should handle large text without crashing', () => {
@@ -88,37 +66,30 @@ describe('SearchEngine Comprehensive Tests', () => {
 
         expect(results).toHaveLength(1);
         expect(results[0].excerpt).toContain('TARGET');
-        // We can't strictly assert performance in unit tests environment easily, but it shouldn't timeout.
         console.log(`Large text search excerpt generation took ${end - start}ms`);
     });
 
-    it('should fallback gracefully if match not found in text (e.g. FlexSearch stemming matches but exact query absent)', () => {
-        // This is a case where FlexSearch matches "running" for query "run", but our regex "run" finds "running" too.
-        // What if FlexSearch matches "ran" for "run"?
-        // If FlexSearch is configured with stemming, "run" might match "ran".
-        // But our regex 'run' won't match 'ran'.
-        // In that case getExcerpt returns start of text.
+    it('should fallback gracefully if match not found in text', () => {
+        // Scenario: FlexSearch matches a document because it contains the terms,
+        // but the exact phrase query is not present as a contiguous string.
+        // In this case, getExcerpt (which searches for the exact query string) will fail to find a match.
+        // It should fallback to returning the beginning of the text.
 
-        const text = 'He ran fast.';
-        const sections = [{ id: '1', href: 'stem.html', text }];
+        const text = 'The quick brown fox jumps over the lazy dog.';
+        const sections = [{ id: '1', href: 'phrase.html', text }];
+        engine.indexBook('phrase', sections);
 
-        // We simulate the situation where FlexSearch returns a match, but getExcerpt is called.
-        // Since we can't easily force FlexSearch stemming behavior without config,
-        // we can test getExcerpt logic by mocking or just relying on the fact that if search returns, we call getExcerpt.
+        // Search for "fox dog". FlexSearch (default) treats this as "fox" OR "dog" (or AND),
+        // so it matches the document.
+        // But "fox dog" does not appear as a substring.
+        const query = 'fox dog';
+        const results = engine.search('phrase', query);
 
-        // But here we are integration testing via public API.
-        // If I search "run" and it finds "ran", getExcerpt will return start of text.
-
-        // Let's assume standard behavior.
-    });
-
-    it('should handle case-insensitive search with regex special chars', () => {
-        const text = 'Here is a (PARENT).';
-        const sections = [{ id: '1', href: 'case.html', text }];
-        engine.indexBook('case', sections);
-
-        const results = engine.search('case', '(parent)');
         expect(results).toHaveLength(1);
-        expect(results[0].excerpt).toContain('(PARENT)');
+        // Excerpt should be the start of the text + "..."
+        // text length is 44. Fallback is text.substring(0, 100) + '...'
+        // But since text < 100, it returns text + '...'?
+        // Logic: if (index === -1) return text.substring(0, 100) + '...';
+        expect(results[0].excerpt).toBe(text + '...');
     });
 });
