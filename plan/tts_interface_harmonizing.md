@@ -8,64 +8,59 @@ The goal of this design is to unify the interface and behavior of Local (WebSpee
 ### 1.2 Scope
 *   Redesign `ITTSProvider` to focus on a `play(text)` action.
 *   Move caching and audio playback logic into a shared `BaseCloudProvider`.
-*   Ensure Local providers implement `play` by invoking their native engines immediately.
+*   **Simplification:** Enforce consistent behavior for Seeking and Speed changes across all providers (removing Cloud-specific optimizations).
 *   Simplification of `AudioPlayerService`.
 
 ## 2. Current Architecture & Problem
 
 ### 2.1 Issues
 *   **Leaky Abstraction:** `AudioPlayerService` handles Blobs for Cloud but ignores them for Local.
-*   **Inconsistent Flow:** "Synthesize" means "Fetch Blob" for Cloud, but "Speak Immediately" for Local (in the user's proposed correction).
-*   **Duplication:** Caching and Playback logic resides in the Service, making it harder to add new Cloud providers or change the playback engine.
+*   **Inconsistent Flow:** "Synthesize" means "Fetch Blob" for Cloud, but "Speak Immediately" for Local.
+*   **Feature Disparity:** Cloud supports intra-sentence seeking and dynamic speed changes; Local does not. This forces branching logic in the Service.
 
 ## 3. Proposed Solution
 
-We will adopt a **"Play-Centric"** interface. The Service tells the Provider to play text. The Provider handles the *how*.
+We will adopt a **"Play-Centric"** interface with **Strict Consistency**.
 
 ### 3.1 Unified Strategy
-*   **Top-Level Interface:** `ITTSProvider` exposes `play(text)`. It does NOT expose `SpeechSegment` or Blobs.
-*   **Local Providers:** Implement `play(text)` by calling `speechSynthesis.speak` or `TextToSpeech.speak`.
-*   **Cloud Providers:** Inherit from `BaseCloudProvider`. This base class handles:
-    1.  Checking `TTSCache`.
-    2.  Calling an abstract `fetchAudio(text)` to get the Blob if missing.
-    3.  Tracking Cost (via `CostEstimator`) on cache miss.
-    4.  Caching the result.
-    5.  Playing the audio via an internal player.
-*   **Optimization:** A `preload(text)` method allows the Service to hint that a sentence is coming up.
+*   **Top-Level Interface:** `ITTSProvider` exposes `play(text)`. It handles the details of how to produce sound.
+*   **Consistency:** We remove the ability to seek *within* a segment and the ability to change speed dynamically without restarting. This aligns Cloud behavior with Local constraints, resulting in a single, robust code path.
+*   **BaseCloudProvider:** Encapsulates the Cache -> Fetch -> Play loop for Cloud providers.
 
 ## 4. Implementation Steps
 
 ### Step 1: Interface Definition
-Define the new `ITTSProvider` interface focusing on `play`, `preload`, `seek`, and `capabilities`.
+Define the new `ITTSProvider` interface focusing on `play` and `preload`. **Remove** `seek`, `setSpeed`, and `capabilities` to enforce uniformity.
 
-### Step 2: `BaseCloudProvider` (The Heavy Lifter)
+### Step 2: `BaseCloudProvider`
 *   Create `abstract class BaseCloudProvider implements ITTSProvider`.
 *   Inject `TTSCache`.
-*   **Method `play(text)`**:
+*   **Method `play(text, options)`**:
     *   Check Cache.
     *   If miss:
-        *   Track Cost: `CostEstimator.getInstance().track(text)`.
+        *   Track Cost.
         *   Fetch: `const { audio, alignment } = await this.fetchAudio(text)`.
         *   Save to Cache.
     *   Emit `meta` event (with alignment).
     *   Load `audio` into internal `AudioElementPlayer`.
     *   Play.
-*   **Method `preload(text)`**:
-    *   Check Cache.
-    *   If miss: Track Cost, Fetch, and Cache.
-*   **Abstract Method `fetchAudio(text)`**: Implemented by Google/OpenAI/etc. to return Blob + Alignment.
-*   **Events**: Forward `timeupdate` (with duration), `ended`, `error` from internal player.
+*   **Method `preload(text)`**: Check Cache -> Fetch -> Cache.
+*   **Events**: Forward `timeupdate`, `ended`, `error`.
 
 ### Step 3: Local Providers
-*   **`WebSpeechProvider`**: `play(text)` calls `speak`. `capabilities` = `{ seek: false, dynamicSpeed: false }`.
-*   **`CapacitorTTSProvider`**: `play(text)` calls `speak`. `capabilities` = `{ seek: false, dynamicSpeed: false }`.
+*   **`WebSpeechProvider`**: `play(text)` calls `speak`.
+*   **`CapacitorTTSProvider`**: `play(text)` calls `speak`.
 
 ### Step 4: `AudioPlayerService` Refactor
-*   Remove direct cache management logic.
-*   Remove direct `AudioElementPlayer` usage.
-*   Update `seek` and `setSpeed` logic to check `provider.capabilities`.
-*   Listen for `meta` event to update `SyncEngine`.
-*   Listen for `timeupdate` to update MediaSession (using duration from event).
+*   **Remove Code:** Delete all direct references to `AudioElementPlayer`.
+*   **Remove Code:** Delete branching logic in `playInternal` (Local vs Cloud).
+*   **Simplify `seek(offset)`**:
+    *   Remove logic that seeks within audio `audioPlayer.seek()`.
+    *   Implement unified logic: Positive offset calls `next()`, Negative offset calls `prev()`.
+*   **Simplify `setSpeed(speed)`**:
+    *   Remove logic that calls `player.setRate()`.
+    *   Implement unified logic: Update state, `stop()`, and `play()` again.
+*   **Events**: Listen for `meta` to update `SyncEngine`, `timeupdate` for MediaSession.
 
 ## 5. End State Interface Specification
 
@@ -78,16 +73,8 @@ export interface TTSOptions {
   volume?: number;
 }
 
-export interface TTSCapabilities {
-  /** Whether the provider supports seeking within the current item. */
-  seek: boolean;
-  /** Whether the provider supports changing speed without restarting. */
-  dynamicSpeed: boolean;
-}
-
 export interface ITTSProvider {
   id: string;
-  capabilities: TTSCapabilities;
 
   init(): Promise<void>;
   getVoices(): Promise<TTSVoice[]>;
@@ -103,7 +90,7 @@ export interface ITTSProvider {
    * - Returns a Promise that resolves when playback *starts*.
    *
    * @param text The text to speak.
-   * @param options Playback options.
+   * @param options Playback options (speed, voice).
    */
   play(text: string, options: TTSOptions): Promise<void>;
 
@@ -116,19 +103,6 @@ export interface ITTSProvider {
   resume(): void;
   stop(): void;
 
-  /**
-   * Seeks to the specified time in seconds.
-   * Only effective if capabilities.seek is true.
-   */
-  seek(time: number): void;
-
-  /**
-   * Sets the playback speed.
-   * If capabilities.dynamicSpeed is true, applies immediately.
-   * Otherwise, may require a restart (managed by Service).
-   */
-  setSpeed(speed: number): void;
-
   on(callback: (event: TTSEvent) => void): void;
 }
 ```
@@ -137,17 +111,12 @@ export interface ITTSProvider {
 
 ```typescript
 abstract class BaseCloudProvider implements ITTSProvider {
-  capabilities = { seek: true, dynamicSpeed: true };
-
   // ...
 
   /**
    * Abstract method for subclasses to implement the API call.
-   * This is NOT part of the public ITTSProvider interface.
    */
   protected abstract fetchAudioData(text: string, options: TTSOptions): Promise<{ audio: Blob, alignment?: Timepoint[] }>;
-
-  // Implements play() by orchestration: Cache -> Fetch -> Play
 }
 ```
 
@@ -158,15 +127,14 @@ export type TTSEvent =
   | { type: 'start' }
   | { type: 'end' }
   | { type: 'error'; error: any }
-  | { type: 'timeupdate'; currentTime: number; duration: number } // Added duration
+  | { type: 'timeupdate'; currentTime: number; duration: number }
   | { type: 'boundary'; charIndex: number }
-  | { type: 'meta'; alignment: Timepoint[] }; // New event to pass alignment data to Service
+  | { type: 'meta'; alignment: Timepoint[] };
 ```
 
 ### 5.4 Assumptions
 
-1.  **Lexicon Application**: The `AudioPlayerService` applies the lexicon (regex replacement) *before* passing the text to `provider.play()`. The provider receives "clean", pronounceable text.
-2.  **Cache Keys**: `BaseCloudProvider` generates cache keys based on text, voice, and speed.
-3.  **Queueing**: `AudioPlayerService` still manages the queue. It waits for the `end` event of the current provider before calling `play` on the next item.
-4.  **Gapless Playback**: `preload()` is critical for Cloud providers to minimize the gap between `play()` calls. `AudioPlayerService` should call `preload()` for the *next* item as soon as the current item starts playing.
-5.  **Cost Tracking**: `BaseCloudProvider` is responsible for calling `CostEstimator.track()` when a cache miss occurs and a fresh download is initiated.
+1.  **Seek Behavior**: Seeking is purely "Structural" (Next/Prev Sentence). Intra-sentence seeking is explicitly unsupported to ensure consistent UX across all providers.
+2.  **Speed Change**: Changing speed always requires re-synthesizing (Local) or re-playing (Cloud) the current segment. The Service handles this by stopping and playing again.
+3.  **Queueing**: `AudioPlayerService` manages the queue and locking.
+4.  **Cost Tracking**: `BaseCloudProvider` handles cost tracking on cache misses.
