@@ -12,9 +12,8 @@ export class CapacitorTTSProvider implements ITTSProvider {
   private voiceMap = new Map<string, TTSVoice>();
   private callback: TTSCallback | null = null;
 
-  // State for tracking active utterance
+  // State for tracking active utterance to handle async callbacks safely
   private activeUtteranceId = 0;
-  private lastRangeEnd = 0;
 
   async init(): Promise<void> {
     // Native plugins generally initialize lazily, but we could check
@@ -22,10 +21,9 @@ export class CapacitorTTSProvider implements ITTSProvider {
     // We can pre-fetch voices here to populate the map early
     await this.getVoices();
 
-    // Register global listener for onRangeStart
+    // Register global listener for onRangeStart (Android only mostly)
     try {
         await TextToSpeech.addListener('onRangeStart', (info) => {
-             this.lastRangeEnd = info.end;
              this.emit('boundary', { charIndex: info.start });
         });
     } catch (e) {
@@ -62,7 +60,6 @@ export class CapacitorTTSProvider implements ITTSProvider {
     if (signal?.aborted) throw new Error('Aborted');
 
     const myId = ++this.activeUtteranceId;
-    this.lastRangeEnd = 0;
 
     let lang = 'en-US';
     const voice = this.voiceMap.get(voiceId);
@@ -85,94 +82,35 @@ export class CapacitorTTSProvider implements ITTSProvider {
       signal.addEventListener('abort', onAbort);
     }
 
-    // Monitor Playback (Async)
-    // We rely on this monitor to emit 'end' if the native plugin behaves asynchronously (doesn't block)
-    // or if we need to detect end via range events.
-    const estimatedDurationMs = Math.max(1000, (text.length * 60) / speed); // min 1s, approx 60ms/char
-    this.monitorPlayback(myId, text.length, estimatedDurationMs);
-
-    try {
-      const start = Date.now();
-
-      // The plugin handles the audio output directly.
-      await TextToSpeech.speak({
+    // Call speak but DO NOT await it.
+    // The Promise resolves when speech finishes (on platforms where it works correctly).
+    TextToSpeech.speak({
         text,
         lang,
         rate: speed,
         category: 'playback', // Important iOS hint, good practice for Android
         queueStrategy: 0 // 0 = Flush (interrupt). Necessary for responsive controls (Next/Prev/Seek).
-      });
-
-      const elapsed = Date.now() - start;
-
-      // Heuristic: If speak() took a significant amount of time (relative to estimated duration),
-      // we assume it blocked until completion (iOS behavior or working Android).
-      // If it returned instantly, we assume it's the broken Android behavior where it returns immediately.
-      // We use a threshold of 50% of estimated duration or 500ms, whichever is larger.
-
-      // If elapsed > 500ms, it probably did something blocking.
-      if (elapsed > 500 && elapsed > estimatedDurationMs * 0.5) {
-           if (this.activeUtteranceId === myId) {
-               this.emit('end');
-               this.activeUtteranceId++; // Stop monitor
-           }
-      }
-      // Else: let the monitor finish the job (waiting for events or timeout)
-
-    } catch (e) {
-      if (!signal?.aborted) {
-        this.emit('error', { error: e });
-      }
-      this.activeUtteranceId++; // Stop monitor
-    } finally {
-      if (signal) {
-        signal.removeEventListener('abort', onAbort);
-      }
-    }
+    }).then(() => {
+        if (this.activeUtteranceId === myId && !signal?.aborted) {
+            this.emit('end');
+        }
+    }).catch((e) => {
+        if (this.activeUtteranceId === myId && !signal?.aborted) {
+            this.emit('error', { error: e });
+        }
+    }).finally(() => {
+        if (signal) {
+            signal.removeEventListener('abort', onAbort);
+        }
+    });
 
     // We return a marker indicating native playback occurred.
     // This tells the Service NOT to try and play an audio blob.
     return { isNative: true };
   }
 
-  private async monitorPlayback(id: number, textLength: number, durationMs: number) {
-      const startTime = Date.now();
-      const maxDuration = durationMs * 1.5 + 2000; // +50% + 2s padding
-
-      const poll = () => {
-          if (this.activeUtteranceId !== id) return; // Cancelled or finished
-
-          // Check if done via range events
-          if (this.lastRangeEnd > 0 && this.lastRangeEnd >= textLength - 5) {
-              // We are at the end. Wait a small buffer and finish.
-              setTimeout(() => {
-                  if (this.activeUtteranceId === id) {
-                      this.emit('end');
-                      this.activeUtteranceId++; // Invalidate to stop this poll loop
-                  }
-              }, 500);
-              return;
-          }
-
-          const elapsed = Date.now() - startTime;
-          if (elapsed > maxDuration) {
-              // Timeout - assume finished
-               if (this.activeUtteranceId === id) {
-                  this.emit('end');
-                  this.activeUtteranceId++;
-               }
-               return;
-          }
-
-          setTimeout(poll, 200);
-      };
-
-      // Delay start of polling to avoid race with immediate return
-      setTimeout(poll, 100);
-  }
-
   async stop(): Promise<void> {
-    this.activeUtteranceId++; // Cancel any active monitor
+    this.activeUtteranceId++; // Cancel active callbacks
     await TextToSpeech.stop();
   }
 

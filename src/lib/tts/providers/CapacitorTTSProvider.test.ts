@@ -60,37 +60,43 @@ describe('CapacitorTTSProvider', () => {
     expect(provider.resume).toBeUndefined();
   });
 
-  it('should emit start and end events via monitor if speak returns immediately', async () => {
-    vi.useFakeTimers();
+  it('should emit end event asynchronously when speak promise resolves', async () => {
     // Setup voices
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (TextToSpeech.getSupportedVoices as any).mockResolvedValue({
       voices: [{ voiceURI: 'voice1', name: 'Voice 1', lang: 'en-US' }]
     });
-    // Setup speak success
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (TextToSpeech.speak as any).mockResolvedValue(undefined);
+
+    // Setup speak to resolve later
+    let resolveSpeak: ((value: void | PromiseLike<void>) => void) | undefined;
+    (TextToSpeech.speak as any).mockReturnValue(new Promise<void>(resolve => {
+        resolveSpeak = resolve;
+    }));
 
     await provider.init();
 
     const callback = vi.fn();
     provider.on(callback);
 
-    // Call synthesize - it will start monitor
-    await provider.synthesize('hello', 'voice1', 1.0);
+    // Call synthesize - returns immediately
+    const result = await provider.synthesize('hello', 'voice1', 1.0);
+
+    expect(result.isNative).toBe(true);
+    expect(TextToSpeech.speak).toHaveBeenCalled();
 
     expect(callback).toHaveBeenCalledWith({ type: 'start' });
-    // Should NOT emit end immediately
     expect(callback).not.toHaveBeenCalledWith({ type: 'end' });
 
-    // Advance time to trigger monitor timeout
-    // Estimated for 'hello' (5 chars) is 1000ms. Max duration ~3.5s.
-    await vi.advanceTimersByTimeAsync(4000);
+    // Resolve speak
+    resolveSpeak!();
+
+    // Wait for promise chain
+    await new Promise(r => setTimeout(r, 0));
 
     expect(callback).toHaveBeenCalledWith({ type: 'end' });
   });
 
-  it('should emit error event if speak fails', async () => {
+  it('should emit error event if speak fails asynchronously', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
      (TextToSpeech.getSupportedVoices as any).mockResolvedValue({
       voices: [{ voiceURI: 'voice1', name: 'Voice 1', lang: 'en-US' }]
@@ -106,6 +112,9 @@ describe('CapacitorTTSProvider', () => {
 
     await provider.synthesize('hello', 'voice1', 1.0);
 
+    // Wait for promise chain
+    await new Promise(r => setTimeout(r, 0));
+
     expect(callback).toHaveBeenCalledWith(expect.objectContaining({
         type: 'start'
     }));
@@ -120,11 +129,9 @@ describe('CapacitorTTSProvider', () => {
     // Mock speak to hang until stopped
     let resolveSpeak: (() => void) | null = null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (TextToSpeech.speak as any).mockImplementation(() => {
-        return new Promise<void>(resolve => {
-            resolveSpeak = resolve;
-        });
-    });
+    (TextToSpeech.speak as any).mockReturnValue(new Promise<void>(resolve => {
+        resolveSpeak = resolve;
+    }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (TextToSpeech.stop as any).mockImplementation(async () => {
         if (resolveSpeak) resolveSpeak();
@@ -143,18 +150,18 @@ describe('CapacitorTTSProvider', () => {
     const controller = new AbortController();
     const synthesizePromise = provider.synthesize('hello', 'voice1', 1.0, controller.signal);
 
-    // Wait a bit to ensure speak is called
-    await new Promise(r => setTimeout(r, 10));
-
+    // synthesizePromise resolves immediately now
+    await synthesizePromise;
     expect(TextToSpeech.speak).toHaveBeenCalled();
 
     // Abort
     controller.abort();
 
-    // Wait for synthesize to return
-    await synthesizePromise;
-
     expect(TextToSpeech.stop).toHaveBeenCalled();
+
+    // Even if speak resolves (due to stop), end should not be emitted because ID changed
+    await new Promise(r => setTimeout(r, 0));
+
     expect(callback).toHaveBeenCalledWith({ type: 'start' });
     expect(callback).not.toHaveBeenCalledWith({ type: 'end' });
   });
