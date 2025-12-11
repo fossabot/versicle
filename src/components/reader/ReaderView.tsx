@@ -20,7 +20,7 @@ import { Label } from '../ui/Label';
 import { UnifiedAudioPanel } from './UnifiedAudioPanel';
 import { dbService } from '../../db/DBService';
 import { searchClient, type SearchResult } from '../../lib/search';
-import { ChevronLeft, ChevronRight, List, Settings, ArrowLeft, X, Search, Highlighter, Maximize, Minimize, Type, Headphones } from 'lucide-react';
+import { List, Settings, ArrowLeft, X, Search, Highlighter, Maximize, Minimize, Type, Headphones } from 'lucide-react';
 import { AudioPlayerService } from '../../lib/tts/AudioPlayerService';
 
 /**
@@ -47,7 +47,6 @@ export const ReaderView: React.FC = () => {
     setIsLoading,
     setCurrentBookId,
     reset,
-    progress,
     currentChapterTitle,
     viewMode,
     shouldForceFont,
@@ -606,7 +605,7 @@ export const ReaderView: React.FC = () => {
 
          {/* Reader Area */}
          <div className="flex-1 relative min-w-0 flex flex-col items-center">
-            <div data-testid="reader-iframe-container" ref={viewerRef} className="w-full max-w-2xl h-full overflow-hidden px-6 md:px-8" />
+            <div data-testid="reader-iframe-container" ref={viewerRef} className="w-full max-w-2xl h-full overflow-hidden px-6 md:px-8 pb-32" />
 
              <AnnotationPopover
                 bookId={id || ''}
@@ -620,30 +619,6 @@ export const ReaderView: React.FC = () => {
          </div>
       </div>
 
-      {/* Footer / Controls */}
-      {!immersiveMode && (
-        <footer className="bg-surface border-t border-border px-6 md:px-8 py-2 flex items-center justify-between z-10">
-            <button data-testid="reader-prev-page" aria-label="Previous Page" onClick={handlePrev} className="p-2 hover:bg-border rounded-full">
-                <ChevronLeft className="w-6 h-6 text-muted-foreground" />
-            </button>
-
-            <div className="flex-1 mx-4">
-                <div className="h-1 bg-border rounded-full overflow-hidden">
-                    <div
-                        className="h-full bg-primary transition-all duration-300"
-                        style={{ width: `${progress * 100}%` }}
-                    />
-                </div>
-                <div className="text-center text-xs text-muted-foreground mt-1">
-                    {Math.round(progress * 100)}%
-                </div>
-            </div>
-
-            <button data-testid="reader-next-page" aria-label="Next Page" onClick={handleNext} className="p-2 hover:bg-border rounded-full">
-                <ChevronRight className="w-6 h-6 text-muted-foreground" />
-            </button>
-        </footer>
-      )}
     </div>
   );
 };
