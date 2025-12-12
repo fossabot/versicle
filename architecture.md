@@ -18,6 +18,7 @@ graph TD
         App[App.tsx]
         Library[LibraryView]
         Reader[ReaderView]
+        TTSController[ReaderTTSController]
         AudioPanel[UnifiedAudioPanel]
         useEpub[useEpubReader Hook]
     end
@@ -64,6 +65,7 @@ graph TD
     App --> Library
     App --> Reader
     Reader --> ReaderStore
+    Reader --> TTSController
     Reader --> AudioPanel
     Reader --> useEpub
 
