@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { BookMetadata, Annotation, CachedSegment, LexiconRule, BookLocations, TTSState, SectionMetadata } from '../types/db';
+import type { BookMetadata, Annotation, CachedSegment, LexiconRule, BookLocations, TTSState, SectionMetadata, ContentAnalysis } from '../types/db';
 
 /**
  * Interface defining the schema for the IndexedDB database.
@@ -79,6 +79,16 @@ export interface EpubLibraryDB extends DBSchema {
       by_bookId: string;
     };
   };
+  /**
+   * Store for AI content analysis results.
+   */
+  content_analysis: {
+    key: string; // id
+    value: ContentAnalysis;
+    indexes: {
+      by_bookId: string;
+    };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<EpubLibraryDB>>;
@@ -91,7 +101,7 @@ let dbPromise: Promise<IDBPDatabase<EpubLibraryDB>>;
  */
 export const initDB = () => {
   if (!dbPromise) {
-    dbPromise = openDB<EpubLibraryDB>('EpubLibraryDB', 6, { // Upgrading to v6
+    dbPromise = openDB<EpubLibraryDB>('EpubLibraryDB', 7, { // Upgrading to v7
       upgrade(db) {
         // Books store
         if (!db.objectStoreNames.contains('books')) {
@@ -139,6 +149,12 @@ export const initDB = () => {
         if (!db.objectStoreNames.contains('sections')) {
           const sectionsStore = db.createObjectStore('sections', { keyPath: 'id' });
           sectionsStore.createIndex('by_bookId', 'bookId', { unique: false });
+        }
+
+        // Content Analysis store (New in v7)
+        if (!db.objectStoreNames.contains('content_analysis')) {
+          const caStore = db.createObjectStore('content_analysis', { keyPath: 'id' });
+          caStore.createIndex('by_bookId', 'bookId', { unique: false });
         }
       },
     });

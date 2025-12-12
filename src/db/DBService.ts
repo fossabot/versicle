@@ -1,5 +1,5 @@
 import { getDB } from './db';
-import type { BookMetadata, Annotation, CachedSegment, BookLocations, TTSState } from '../types/db';
+import type { BookMetadata, Annotation, CachedSegment, BookLocations, TTSState, ContentAnalysis } from '../types/db';
 import { DatabaseError, StorageFullError } from '../types/errors';
 import { processEpub } from '../lib/ingestion';
 import { validateBookMetadata } from './validators';
@@ -123,7 +123,7 @@ class DBService {
   async deleteBook(id: string): Promise<void> {
     try {
       const db = await this.getDB();
-      const tx = db.transaction(['books', 'files', 'annotations', 'locations', 'lexicon', 'tts_queue'], 'readwrite');
+      const tx = db.transaction(['books', 'files', 'annotations', 'locations', 'lexicon', 'tts_queue', 'content_analysis'], 'readwrite');
 
       await Promise.all([
           tx.objectStore('books').delete(id),
@@ -148,6 +148,15 @@ class DBService {
       while (lexiconCursor) {
         await lexiconCursor.delete();
         lexiconCursor = await lexiconCursor.continue();
+      }
+
+      // Delete content analysis
+      const analysisStore = tx.objectStore('content_analysis');
+      const analysisIndex = analysisStore.index('by_bookId');
+      let analysisCursor = await analysisIndex.openCursor(IDBKeyRange.only(id));
+      while (analysisCursor) {
+        await analysisCursor.delete();
+        analysisCursor = await analysisCursor.continue();
       }
 
       await tx.done;
@@ -486,6 +495,54 @@ class DBService {
       try {
           const db = await this.getDB();
           await db.put('locations', { bookId, locations });
+      } catch (error) {
+          this.handleError(error);
+      }
+  }
+
+  // --- Content Analysis ---
+
+  /**
+   * Saves content analysis results.
+   *
+   * @param analysis - The analysis object to save.
+   * @returns A Promise that resolves when the analysis is saved.
+   */
+  async saveContentAnalysis(analysis: ContentAnalysis): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('content_analysis', analysis);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Retrieves content analysis for a specific section.
+   *
+   * @param bookId - The book ID.
+   * @param sectionId - The section ID.
+   * @returns A Promise resolving to the ContentAnalysis or undefined.
+   */
+  async getContentAnalysis(bookId: string, sectionId: string): Promise<ContentAnalysis | undefined> {
+    try {
+      const db = await this.getDB();
+      return await db.get('content_analysis', `${bookId}-${sectionId}`);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Retrieves all content analysis entries for a book.
+   *
+   * @param bookId - The book ID.
+   * @returns A Promise resolving to an array of ContentAnalysis objects.
+   */
+  async getBookAnalysis(bookId: string): Promise<ContentAnalysis[]> {
+      try {
+          const db = await this.getDB();
+          return await db.getAllFromIndex('content_analysis', 'by_bookId', bookId);
       } catch (error) {
           this.handleError(error);
       }

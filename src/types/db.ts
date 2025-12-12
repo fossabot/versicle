@@ -46,6 +46,29 @@ export interface BookMetadata {
   syntheticToc?: NavigationItem[];
   /** Total number of characters in the book, used for duration estimation. */
   totalChars?: number;
+  /** Status of AI analysis for the book. */
+  aiAnalysisStatus?: 'none' | 'partial' | 'complete';
+}
+
+/**
+ * Result of AI analysis for a section.
+ */
+export interface ContentAnalysis {
+  /** Composite key (bookId-sectionId). */
+  id: string;
+  /** The ID of the book. */
+  bookId: string;
+  /** The section ID. */
+  sectionId: string;
+  /** Extracted structure information. */
+  structure: {
+    title?: string;
+    footnoteMatches: string[];
+  };
+  /** Summary of the section. */
+  summary?: string;
+  /** Timestamp when the analysis was performed. */
+  lastAnalyzed: number;
 }
 
 /**
