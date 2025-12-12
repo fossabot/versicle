@@ -143,3 +143,33 @@ interface BookMetadata {
 ## 6. Security & Privacy
 *   **User Keys:** Stored locally.
 *   **Data Usage:** Content sent to Google/Provider. Requires user consent/disclaimer.
+
+## 7. Future Ideas (Post-Foundation)
+
+### 7.1 Semantic Search & RAG
+*   **Concept:** Move beyond keyword search (`FlexSearch`) to conceptual search.
+*   **Implementation:**
+    *   Use Gemini's embedding API (or a local model like `transformers.js`) to vectorise book chunks during ingestion.
+    *   Store vectors in a specialized IndexedDB store.
+    *   **"Chat with Book":** Retrieve relevant chunks based on user questions and use the LLM to synthesize an answer (Retrieval Augmented Generation).
+
+### 7.2 Auto-Tagging & Library Organization
+*   **Concept:** Automatically categorize books by genre, tone, and themes.
+*   **Implementation:**
+    *   Analyze the first 5000 characters + metadata.
+    *   Prompt: "Categorize this book into standard genres and provide 5 semantic tags."
+    *   Update `BookMetadata` tags for filtering in the Library view.
+
+### 7.3 Character Maps
+*   **Concept:** Visualize relationships between characters.
+*   **Implementation:**
+    *   Scan the text for proper nouns and relationship verbs.
+    *   Generate a graph data structure (nodes = characters, edges = interactions).
+    *   Render using a graph library (e.g., React Flow) in a new "Analysis" view.
+
+### 7.4 Context-Aware Translation
+*   **Concept:** Translate difficult passages or foreign phrases in context.
+*   **Implementation:**
+    *   User selects text -> "Translate".
+    *   Prompt includes surrounding sentences to resolve ambiguity.
+    *   Display translation in a popover or inline annotation.
