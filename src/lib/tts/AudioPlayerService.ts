@@ -14,20 +14,38 @@ interface OperationState {
     isCritical: boolean;
 }
 
+/**
+ * Defines the possible states of the TTS playback.
+ */
 export type TTSStatus = 'playing' | 'paused' | 'stopped' | 'loading' | 'completed';
 
+/**
+ * Represents a single item in the TTS playback queue.
+ */
 export interface TTSQueueItem {
+    /** The text content to be spoken. */
     text: string;
+    /** The Canonical Fragment Identifier (CFI) for the location in the book. */
     cfi: string | null;
+    /** Optional chapter title. */
     title?: string;
+    /** Optional author name. */
     author?: string;
+    /** Optional book title. */
     bookTitle?: string;
+    /** Optional cover image URL. */
     coverUrl?: string;
+    /** Indicates if this item is a pre-roll announcement. */
     isPreroll?: boolean;
 }
 
 type PlaybackListener = (status: TTSStatus, activeCfi: string | null, currentIndex: number, queue: TTSQueueItem[], error: string | null) => void;
 
+/**
+ * Singleton service that manages Text-to-Speech playback.
+ * Handles queue management, provider switching (Local/Cloud), synchronization,
+ * media session integration, and state persistence.
+ */
 export class AudioPlayerService {
   private static instance: AudioPlayerService;
   private provider: ITTSProvider;
@@ -619,6 +637,10 @@ export class AudioPlayerService {
       this.listeners.forEach(l => l(this.status, this.queue[this.currentIndex]?.cfi || null, this.currentIndex, this.queue, message));
   }
 
+  /**
+   * OPTIONAL: Samsung Mitigation
+   * Checks if the app is restricted and prompts the user.
+   */
   public async checkBatteryOptimization() {
       if (Capacitor.getPlatform() === 'android') {
           const isEnabled = await BatteryOptimization.isBatteryOptimizationEnabled();
