@@ -1,6 +1,6 @@
 import pytest
 from playwright.sync_api import Page, expect
-from utils import reset_app, capture_screenshot
+from verification.utils import reset_app, capture_screenshot
 
 def test_piper_provider_selection(page: Page):
     reset_app(page)

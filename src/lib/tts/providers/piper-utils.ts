@@ -28,9 +28,7 @@ export const piperGenerate = async (
         if (isAlive) {
           resolve(true);
         } else {
-          // If not alive (model not cached), we don't necessarily need to terminate,
-          // but the original code did. Maybe to clear memory?
-          // Let's follow original logic.
+          // If not alive, reset the worker to ensure clean state
           worker?.terminate();
           worker = new Worker(workerUrl);
           resolve(false);
