@@ -89,63 +89,34 @@ interface BookMetadata {
 *   **Problem:** Current TOC is based on naive DOM parsing.
 *   **AI Implementation:**
     *   **Prompt:** "Generate a concise chapter title (max 6 words) based on the text."
-    *   **Schema:**
-        ```json
-        {
-          "type": "object",
-          "properties": {
-            "title": { "type": "string" }
-          },
-          "required": ["title"]
-        }
-        ```
+    *   **Schema:** `{"type": "object", "properties": {"title": {"type": "string"}}, "required": ["title"]}`
     *   **Action:** Update `syntheticToc` in DB with the returned `title`.
+*   **UI Integration:**
+    *   **Location:** `src/components/reader/ReaderView.tsx`.
+    *   **Placement:** In the TOC Sidebar (when `showToc` is true), add an "Enhance Titles with AI" button below the "Generated Titles" switch.
+    *   **Flow:** User clicks button -> Show progress -> Update DB -> Refresh TOC state.
 
 ### 4.2 Structural Annotation (Header, Body, Footer)
 *   **Problem:** LLMs are poor at returning exact character indices.
 *   **AI Implementation:**
     *   **Strategy:** Ask the LLM to identify the *text content* of the title and footnotes. The application then fuzzy-matches these strings in the original text to create robust DOM Ranges/CFIs.
-    *   **Schema:**
-        ```json
-        {
-          "type": "object",
-          "properties": {
-            "titleText": { "type": "string", "description": "The exact text of the chapter title/header" },
-            "hasTitle": { "type": "boolean" },
-            "footnotes": {
-              "type": "array",
-              "items": { "type": "string", "description": "The text content of distinct footnotes" }
-            }
-          },
-          "required": ["hasTitle", "footnotes"]
-        }
-        ```
-    *   **Action:**
-        1.  Receive JSON.
-        2.  Search `chapterText` for `titleText`. Create Range.
-        3.  Search `chapterText` for each `footnote`. Create Ranges.
-        4.  Save ranges to `ContentAnalysis` store.
+    *   **Schema:** `{"type": "object", "properties": {"titleText": {"type": "string"}, "hasTitle": {"type": "boolean"}, "footnotes": {"type": "array", "items": {"type": "string"}}}, "required": ["hasTitle", "footnotes"]}`
+*   **UI Integration:**
+    *   **Logic:** `src/hooks/useEpubReader.ts`.
+    *   **Mechanism:** Use `rendition.hooks.content.register` to access the DOM when a chapter loads.
+    *   **Action:** Query `ContentAnalysis` store. If analysis exists, find the text nodes matching `titleText` and apply a CSS class (e.g., `ai-structure-title`).
+    *   **User Control:** Add a "Distraction Free" toggle in `VisualSettings.tsx` that sets `.ai-structure-title { display: none; }` via `rendition.themes`.
 
 ### 4.3 Pronunciation Guide
 *   **Goal:** Improve TTS quality.
 *   **AI Implementation:**
     *   **Prompt:** "Identify unusual proper nouns or foreign words and provide phonetic replacements."
-    *   **Schema:**
-        ```json
-        {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "original": { "type": "string" },
-              "replacement": { "type": "string", "description": "Phonetic spelling" },
-              "ipa": { "type": "string", "description": "International Phonetic Alphabet representation" }
-            },
-            "required": ["original", "replacement"]
-          }
-        }
-        ```
+    *   **Schema:** `{"type": "array", "items": {"type": "object", "properties": {"original": {"type": "string"}, "replacement": {"type": "string"}, "ipa": {"type": "string"}}, "required": ["original", "replacement"]}}`
     *   **Action:** Convert results to `LexiconRule` objects and save via `LexiconService`.
+*   **UI Integration:**
+    *   **Location:** `src/components/reader/LexiconManager.tsx`.
+    *   **Placement:** Add a "Generate Guide" button in the toolbar (next to Import/Export).
+    *   **Flow:** User clicks button -> Scan current book/chapter -> AI Process -> Populate list with new rules (marked as "New" until saved).
 
 ## 5. Implementation Roadmap
 
@@ -160,9 +131,9 @@ interface BookMetadata {
 2.  Implement text matching utilities (for structural annotation).
 
 ### Phase 3: Feature Implementation
-1.  **Smart TOC:** Implement "Enhance TOC" workflow.
-2.  **Pronunciation:** Implement "Generate Guide" workflow.
-3.  **Structure:** Implement analysis and Reader integration.
+1.  **Smart TOC:** Implement "Enhance TOC" workflow in `ReaderView.tsx`.
+2.  **Pronunciation:** Implement "Generate Guide" workflow in `LexiconManager.tsx`.
+3.  **Structure:** Implement analysis hook in `useEpubReader.ts` and DOM manipulation logic.
 
 ### Phase 4: Verification & Polish
 1.  Add error handling.
