@@ -4,7 +4,7 @@ import { AudioPlayerService } from './AudioPlayerService';
 // --- Mocks ---
 
 const resumeSpy = vi.fn();
-const synthesizeSpy = vi.fn().mockResolvedValue({ isNative: true });
+const synthesizeSpy = vi.fn().mockResolvedValue(undefined);
 const pauseSpy = vi.fn();
 const stopSpy = vi.fn();
 
@@ -14,11 +14,10 @@ vi.mock('./providers/WebSpeechProvider', () => {
       id = 'local';
       init = vi.fn().mockResolvedValue(undefined);
       getVoices = vi.fn().mockResolvedValue([]);
-      synthesize = synthesizeSpy;
+      play = synthesizeSpy;
       stop = stopSpy;
       pause = pauseSpy;
       resume = resumeSpy;
-      setConfig = vi.fn();
       on = vi.fn();
     }
   };
@@ -89,7 +88,7 @@ describe('AudioPlayerService - Resume Speed Bug', () => {
         await service.play();
         expect(synthesizeSpy).toHaveBeenCalledTimes(1);
         // Default speed is 1.0
-        expect(synthesizeSpy).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1.0, expect.anything());
+        expect(synthesizeSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ speed: 1.0 }));
 
         // 2. Pause
         await service.pause();
@@ -106,7 +105,7 @@ describe('AudioPlayerService - Resume Speed Bug', () => {
         // 5. Verify behavior
         // It should call synthesizeSpy() with speed 2.0 because speed changed
         expect(synthesizeSpy).toHaveBeenCalledTimes(2);
-        expect(synthesizeSpy.mock.calls[1][2]).toBe(2.0);
+        expect(synthesizeSpy).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ speed: 2.0 }));
         expect(resumeSpy).not.toHaveBeenCalled();
     });
 });
