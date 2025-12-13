@@ -1,11 +1,4 @@
 import type { ITTSProvider, TTSOptions, TTSEvent, TTSVoice } from './types';
-import silenceUrl from '../../../assets/silence.ogg';
-import whiteNoiseUrl from '../../../assets/white-noise.ogg';
-
-export interface WebSpeechConfig {
-    silentAudioType: 'silence' | 'white-noise';
-    whiteNoiseVolume: number;
-}
 
 /**
  * TTS Provider implementation using the browser's native Web Speech API.
@@ -16,43 +9,14 @@ export class WebSpeechProvider implements ITTSProvider {
   private voices: SpeechSynthesisVoice[] = [];
   private eventListeners: ((event: TTSEvent) => void)[] = [];
   private voicesLoaded = false;
-  private silentAudio: HTMLAudioElement;
-  private config: WebSpeechConfig;
   private lastText: string | null = null;
   private lastOptions: TTSOptions | null = null;
 
-  constructor(config: WebSpeechConfig = { silentAudioType: 'silence', whiteNoiseVolume: 0.1 }) {
-    this.config = config;
+  constructor() {
     this.synth = window.speechSynthesis;
     if (!this.synth) {
       console.warn("WebSpeechProvider: window.speechSynthesis is not available");
     }
-    this.silentAudio = new Audio();
-    this.silentAudio.loop = true;
-    this.updateSilentAudio();
-  }
-
-  setConfig(config: WebSpeechConfig) {
-      this.config = config;
-      this.updateSilentAudio();
-  }
-
-  private updateSilentAudio() {
-      const src = this.config.silentAudioType === 'white-noise' ? whiteNoiseUrl : silenceUrl;
-      const currentSrc = this.silentAudio.getAttribute('src');
-      if (currentSrc !== src) {
-          const wasPlaying = !this.silentAudio.paused;
-          if (wasPlaying) this.silentAudio.pause();
-          this.silentAudio.src = src;
-          if (wasPlaying) {
-              this.silentAudio.play().catch(e => console.warn("Silent audio switch failed", e));
-          }
-      }
-      if (this.config.silentAudioType === 'white-noise') {
-          this.silentAudio.volume = Math.min(Math.max(this.config.whiteNoiseVolume, 0), 1);
-      } else {
-          this.silentAudio.volume = 1.0;
-      }
   }
 
   async init(): Promise<void> {
@@ -129,10 +93,6 @@ export class WebSpeechProvider implements ITTSProvider {
 
     if (this.voices.length === 0) await this.init();
 
-    if (this.silentAudio.paused) {
-        this.silentAudio.play().catch(e => console.warn("Silent audio play failed", e));
-    }
-
     return new Promise((resolve, reject) => {
         const utterance = new SpeechSynthesisUtterance(text);
         const voice = this.voices.find(v => v.name === options.voiceId);
@@ -145,7 +105,6 @@ export class WebSpeechProvider implements ITTSProvider {
         };
         utterance.onend = () => this.emit({ type: 'end' });
         utterance.onerror = (e) => {
-            this.pauseSilentAudio();
             this.emit({ type: 'error', error: e });
             reject(e);
         };
@@ -163,14 +122,12 @@ export class WebSpeechProvider implements ITTSProvider {
 
   stop(): void {
     this.cancel();
-    this.pauseSilentAudio();
   }
 
   pause(): void {
     if (this.synth && this.synth.speaking) {
       this.synth.pause();
     }
-    this.pauseSilentAudio();
   }
 
   resume(): void {
@@ -191,10 +148,5 @@ export class WebSpeechProvider implements ITTSProvider {
     if (this.synth) {
       this.synth.cancel();
     }
-  }
-
-  private pauseSilentAudio() {
-      this.silentAudio.pause();
-      this.silentAudio.currentTime = 0;
   }
 }
