@@ -60,61 +60,24 @@ The system is designed for privacy and performance, featuring advanced Text-to-S
     ```
     The application will be available at `http://localhost:5173`.
 
-## Usage Guide
-
-### Library Management
-*   **Import**: Click "Import Book" or drag-and-drop `.epub` files onto the library view.
-*   **View Modes**: Toggle between Grid and List views using the icon in the header.
-*   **Management**: Click the "..." menu on a book card to Delete, Offload (remove file but keep data), or Restore a book.
-
-### Reading
-*   **Navigation**: Use arrow keys, on-screen buttons, or swipe gestures (if enabled) to turn pages.
-*   **Visual Settings**: Click the 'Aa' icon to change font, size, theme (Light/Dark/Sepia), and line height.
-*   **Annotations**: Select text to open the highlight menu. Click the highlight icon to view all annotations in the sidebar.
-
-### Text-to-Speech (TTS)
-*   **Playback**: Click the Headphones icon to open the Audio Panel. Press Play to start reading from the top of the current page.
-*   **Providers**:
-    *   **Local**: Uses your browser's built-in voices (Free).
-    *   **Cloud**: Configure Google Cloud or OpenAI API keys in Global Settings for high-quality neural voices.
-*   **Lexicon**: Fix mispronounced words by adding rules in Global Settings -> Dictionary, or via the "Fix Pronunciation" button in the selection menu.
-
-### Configuration
-Access Global Settings via the gear icon in the Library header.
-*   **API Keys**: Enter keys for Google Cloud or OpenAI.
-*   **Data Management**: Create backups (Light/Full) or prune orphaned data.
-
-## Mobile App (Android)
-
-Versicle can be built as a native Android application using Capacitor.
-
-**Prerequisites:**
-*   **Android Studio**: Required for building and running the Android app.
-*   **Java/JDK**: Compatible version (JDK 17 recommended).
-
-**Setup & Run:**
-
-1.  **Sync Web Assets:**
-    Build the web app and copy assets to the Android project:
-    ```bash
-    npm run build
-    npx cap sync
-    ```
-
-2.  **Open in Android Studio:**
-    ```bash
-    npx cap open android
-    ```
-
-3.  **Run directly (CLI):**
-    ```bash
-    npx cap run android
-    ```
-
 ## Development Workflow
 
-### Architecture
+### Project Structure
+*   `src/components/`: React UI components (Reader, Library, Audio Panel).
+*   `src/db/`: Database layer (IndexedDB wrapper).
+*   `src/lib/`: Core logic (Ingestion, Search, TTS Engine).
+*   `src/store/`: State management (Zustand).
+*   `src/workers/`: Web Workers for background tasks.
+*   `verification/`: Playwright visual regression tests.
+
 For a deep dive into the code structure, module relationships, and data models, please refer to [architecture.md](architecture.md). It is essential reading for understanding the Core Services (TTS, Search, Database) and State Management.
+
+### Scripts
+*   `npm run dev`: Start local dev server.
+*   `npm run build`: Build for production.
+*   `npm run preview`: Preview the production build locally.
+*   `npm run lint`: Run ESLint.
+*   `npm test`: Run unit tests via Vitest.
 
 ### Testing Strategy
 This project uses a rigorous testing strategy combining unit tests and visual verification tests.
@@ -162,6 +125,57 @@ Ensure your code follows the project's style guidelines before submitting:
 ```bash
 npm run lint
 ```
+
+## Mobile App (Android)
+
+Versicle can be built as a native Android application using Capacitor.
+
+**Prerequisites:**
+*   **Android Studio**: Required for building and running the Android app.
+*   **Java/JDK**: Compatible version (JDK 17 recommended).
+
+**Setup & Run:**
+
+1.  **Sync Web Assets:**
+    Build the web app and copy assets to the Android project:
+    ```bash
+    npm run build
+    npx cap sync
+    ```
+
+2.  **Open in Android Studio:**
+    ```bash
+    npx cap open android
+    ```
+
+3.  **Run directly (CLI):**
+    ```bash
+    npx cap run android
+    ```
+
+## Usage Guide
+
+### Library Management
+*   **Import**: Click "Import Book" or drag-and-drop `.epub` files onto the library view.
+*   **View Modes**: Toggle between Grid and List views using the icon in the header.
+*   **Management**: Click the "..." menu on a book card to Delete, Offload (remove file but keep data), or Restore a book.
+
+### Reading
+*   **Navigation**: Use arrow keys, on-screen buttons, or swipe gestures (if enabled) to turn pages.
+*   **Visual Settings**: Click the 'Aa' icon to change font, size, theme (Light/Dark/Sepia), and line height.
+*   **Annotations**: Select text to open the highlight menu. Click the highlight icon to view all annotations in the sidebar.
+
+### Text-to-Speech (TTS)
+*   **Playback**: Click the Headphones icon to open the Audio Panel. Press Play to start reading from the top of the current page.
+*   **Providers**:
+    *   **Local**: Uses your browser's built-in voices (Free).
+    *   **Cloud**: Configure Google Cloud or OpenAI API keys in Global Settings for high-quality neural voices.
+*   **Lexicon**: Fix mispronounced words by adding rules in Global Settings -> Dictionary, or via the "Fix Pronunciation" button in the selection menu.
+
+### Configuration
+Access Global Settings via the gear icon in the Library header.
+*   **API Keys**: Enter keys for Google Cloud or OpenAI.
+*   **Data Management**: Create backups (Light/Full) or prune orphaned data.
 
 ## Contributing
 
