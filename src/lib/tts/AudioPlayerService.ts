@@ -39,7 +39,13 @@ export interface TTSQueueItem {
     isPreroll?: boolean;
 }
 
-type PlaybackListener = (status: TTSStatus, activeCfi: string | null, currentIndex: number, queue: TTSQueueItem[], error: string | null) => void;
+export interface DownloadInfo {
+    voiceId: string;
+    percent: number;
+    status: string;
+}
+
+type PlaybackListener = (status: TTSStatus, activeCfi: string | null, currentIndex: number, queue: TTSQueueItem[], error: string | null, downloadInfo?: DownloadInfo) => void;
 
 /**
  * Singleton service that manages Text-to-Speech playback.
@@ -89,7 +95,7 @@ export class AudioPlayerService {
         onNext: () => this.next(),
         onSeekBackward: () => this.seek(-10),
         onSeekForward: () => this.seek(10),
-        onSeekTo: (_details) => {
+        onSeekTo: () => {
              // Not supporting seekTo for now to keep consistency
              console.warn("SeekTo not supported");
         },
@@ -244,6 +250,8 @@ export class AudioPlayerService {
                    }));
                    this.syncEngine.loadAlignment(alignmentData);
               }
+          } else if (event.type === 'download-progress') {
+              this.notifyDownloadProgress(event.voiceId, event.percent, event.status);
           }
       });
   }
@@ -285,6 +293,37 @@ export class AudioPlayerService {
 
   async getVoices(): Promise<TTSVoice[]> {
     return this.provider.getVoices();
+  }
+
+  async downloadVoice(voiceId: string): Promise<void> {
+      if (this.provider.id === 'piper') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const piper = this.provider as any;
+          if (typeof piper.downloadVoice === 'function') {
+              await piper.downloadVoice(voiceId);
+          }
+      }
+  }
+
+  async deleteVoice(voiceId: string): Promise<void> {
+      if (this.provider.id === 'piper') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const piper = this.provider as any;
+          if (typeof piper.deleteVoice === 'function') {
+              await piper.deleteVoice(voiceId);
+          }
+      }
+  }
+
+  async isVoiceDownloaded(voiceId: string): Promise<boolean> {
+       if (this.provider.id === 'piper') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const piper = this.provider as any;
+           if (typeof piper.isVoiceDownloaded === 'function') {
+              return await piper.isVoiceDownloaded(voiceId);
+          }
+       }
+       return true;
   }
 
   public getQueue(): TTSQueueItem[] {
@@ -594,17 +633,18 @@ export class AudioPlayerService {
   }
 
   private setStatus(status: TTSStatus) {
-      if (this.status === 'stopped' && status === 'playing') {}
-      else if (this.status === 'stopped' && status === 'loading') {}
-      else if (this.status === 'loading' && status === 'playing') {}
-      else if (this.status === 'loading' && status === 'stopped') {}
-      else if (this.status === 'playing' && status === 'paused') {}
-      else if (this.status === 'paused' && status === 'playing') {}
-      else if (this.status === 'paused' && status === 'loading') {}
-      else if (this.status === 'playing' && status === 'stopped') {}
-      else if (this.status === 'paused' && status === 'stopped') {}
-      else if (status === 'completed') {}
-      else if (this.status === status) {}
+      // State transition validation (placeholder logic for now)
+      if (this.status === 'stopped' && status === 'playing') { /* valid */ }
+      else if (this.status === 'stopped' && status === 'loading') { /* valid */ }
+      else if (this.status === 'loading' && status === 'playing') { /* valid */ }
+      else if (this.status === 'loading' && status === 'stopped') { /* valid */ }
+      else if (this.status === 'playing' && status === 'paused') { /* valid */ }
+      else if (this.status === 'paused' && status === 'playing') { /* valid */ }
+      else if (this.status === 'paused' && status === 'loading') { /* valid */ }
+      else if (this.status === 'playing' && status === 'stopped') { /* valid */ }
+      else if (this.status === 'paused' && status === 'stopped') { /* valid */ }
+      else if (status === 'completed') { /* valid */ }
+      else if (this.status === status) { /* valid */ }
 
       this.status = status;
       this.mediaSessionManager.setPlaybackState(
@@ -637,6 +677,10 @@ export class AudioPlayerService {
       this.listeners.forEach(l => l(this.status, this.queue[this.currentIndex]?.cfi || null, this.currentIndex, this.queue, message));
   }
 
+  private notifyDownloadProgress(voiceId: string, percent: number, status: string) {
+      this.listeners.forEach(l => l(this.status, this.queue[this.currentIndex]?.cfi || null, this.currentIndex, this.queue, null, { voiceId, percent, status }));
+  }
+
   /**
    * OPTIONAL: Samsung Mitigation
    * Checks if the app is restricted and prompts the user.
@@ -645,6 +689,7 @@ export class AudioPlayerService {
       if (Capacitor.getPlatform() === 'android') {
           const isEnabled = await BatteryOptimization.isBatteryOptimizationEnabled();
           if (isEnabled.enabled) {
+              // TODO: Prompt user to disable optimization
           }
       }
   }

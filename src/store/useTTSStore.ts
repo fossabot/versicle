@@ -37,6 +37,12 @@ interface TTSState {
   /** The last error message, if any */
   lastError: string | null;
 
+  /** Download State (for Piper) */
+  downloadProgress: number;
+  downloadStatus: string | null;
+  downloadingVoiceId: string | null;
+  isDownloading: boolean;
+
   /** Provider configuration */
   providerId: 'local' | 'google' | 'openai' | 'lemonfox' | 'piper';
   apiKeys: {
@@ -83,6 +89,9 @@ interface TTSState {
   setPrerollEnabled: (enable: boolean) => void;
   setSanitizationEnabled: (enable: boolean) => void;
   loadVoices: () => Promise<void>;
+  downloadVoice: (voiceId: string) => Promise<void>;
+  deleteVoice: (voiceId: string) => Promise<void>;
+  checkVoiceDownloaded: (voiceId: string) => Promise<boolean>;
   jumpTo: (index: number) => void;
   seek: (seconds: number) => void;
   clearError: () => void;
@@ -108,8 +117,8 @@ export const useTTSStore = create<TTSState>()(
         // For now, lazy init in loadVoices or actions is okay.
 
         // Subscribe to player updates
-        player.subscribe((status, activeCfi, currentIndex, queue, error) => {
-            set({
+        player.subscribe((status, activeCfi, currentIndex, queue, error, downloadInfo) => {
+            set(() => ({
                 status,
                 // Treat 'loading' as playing to prevent UI flicker (play/pause button)
                 // during transitions between sentences or while buffering.
@@ -117,8 +126,14 @@ export const useTTSStore = create<TTSState>()(
                 activeCfi,
                 currentIndex,
                 queue,
-                lastError: error
-            });
+                lastError: error,
+                ...(downloadInfo ? {
+                    downloadProgress: downloadInfo.percent,
+                    downloadStatus: downloadInfo.status,
+                    downloadingVoiceId: downloadInfo.voiceId,
+                    isDownloading: downloadInfo.percent < 100
+                } : {})
+            }));
 
             // If fallback happened (provider mismatch), we should update our providerId state
             // But checking provider type from here is hard without exposing it on player.
@@ -139,6 +154,10 @@ export const useTTSStore = create<TTSState>()(
             currentIndex: 0,
             queue: [],
             lastError: null,
+            downloadProgress: 0,
+            downloadStatus: null,
+            downloadingVoiceId: null,
+            isDownloading: false,
             providerId: 'local',
             apiKeys: {
                 google: '',
@@ -283,6 +302,22 @@ export const useTTSStore = create<TTSState>()(
                     // Re-set voice to ensure player knows about it
                     player.setVoice(currentVoice.id);
                 }
+            },
+            downloadVoice: async (voiceId) => {
+                try {
+                    set({ isDownloading: true, downloadingVoiceId: voiceId, downloadStatus: 'Starting...' });
+                    await player.downloadVoice(voiceId);
+                    set({ isDownloading: false, downloadStatus: 'Ready', downloadProgress: 100 });
+                } catch (e) {
+                    set({ isDownloading: false, downloadStatus: 'Failed', lastError: e instanceof Error ? e.message : 'Download failed' });
+                }
+            },
+            deleteVoice: async (voiceId) => {
+                await player.deleteVoice(voiceId);
+                set({ isDownloading: false, downloadProgress: 0, downloadStatus: 'Not Downloaded', downloadingVoiceId: null });
+            },
+            checkVoiceDownloaded: async (voiceId) => {
+                 return await player.isVoiceDownloaded(voiceId);
             },
             jumpTo: (index) => {
                 player.jumpTo(index);
