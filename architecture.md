@@ -8,7 +8,7 @@ Key architectural characteristics:
 *   **Local-First**: All data (books, annotations, reading progress) is stored locally in IndexedDB using `idb`. No server is required for core functionality.
 *   **Offline-Capable**: The app is a Progressive Web App (PWA) and functions fully offline.
 *   **Heavy Client-Side Logic**: Complex tasks like text ingestion, search indexing, and TTS text segmentation happen in the browser, often offloaded to Web Workers.
-*   **Hybrid TTS**: Supports both local Web Speech API (free, offline) and cloud-based Neural TTS (Google, OpenAI) with local caching.
+*   **Hybrid TTS**: Supports both local Web Speech API (free, offline) and cloud-based Neural TTS (Google, OpenAI, LemonFox, Piper) with local caching.
 
 ## System Architecture
 
@@ -100,7 +100,7 @@ graph TD
 *   **`src/components/`**: React UI components.
     *   **`library/`**: Book list, import, and management views.
     *   **`reader/`**: Reading interface, TOC, and controls.
-    *   **`ui/`**: Reusable design system components.
+    *   **`ui/`**: Reusable design system components (Button, Dialog, etc.).
     *   **`audio/`**: Audio player controls.
 *   **`src/db/`**: Database configuration and abstraction layer (`DBService`).
 *   **`src/hooks/`**: Custom React hooks (e.g., `useEpubReader`, `useTTS`).
@@ -200,6 +200,13 @@ The main database abstraction layer. Handles all read/write operations, transact
     *   **Params**: `bookId: string`, `locations: string` (JSON string).
     *   **Returns**: `Promise<void>`
 
+#### Key Data Models (`src/types/db.ts`)
+
+*   **`BookMetadata`**: `{ id, title, author, coverUrl, addedAt, lastRead, progress, currentCfi, isOffloaded, fileHash, ... }`
+*   **`Annotation`**: `{ id, bookId, cfiRange, text, color, type, note, created }`
+*   **`TTSState`**: `{ bookId, queue, currentIndex, updatedAt }`
+*   **`CachedSegment`**: `{ key, audio, alignment, createdAt, lastAccessed }`
+
 ---
 
 ### 2. Core Logic & Services (`src/lib/`)
@@ -230,6 +237,14 @@ Client-side interface for the Search Worker.
     *   **Returns**: `Promise<SearchResult[]>`
 *   **`terminate()`**
     *   **Purpose**: Terminates the web worker and clears pending requests.
+
+#### Search Engine (`src/lib/search-engine.ts`)
+Internal logic used by the worker to manage FlexSearch indexes.
+
+**Class: `SearchEngine`**
+*   **`initIndex(bookId)`**: Initializes an empty FlexSearch index for a book.
+*   **`addDocuments(bookId, sections)`**: Adds a batch of text sections to the index.
+*   **`search(bookId, query)`**: Executes a search and returns results with excerpts.
 
 #### Backup (`src/lib/BackupService.ts`)
 Handles data export and import (JSON/ZIP).
@@ -322,7 +337,7 @@ Robust sentence splitting logic.
 
 **Class: `TextSegmenter`**
 *   **`segment(text)`**
-    *   **Purpose**: Splits text using `Intl.Segmenter` and applies heuristics to merge abbreviations (e.g., "Mr.", "i.e.").
+    *   **Purpose**: Splits text using `Intl.Segmenter` and applies heuristics to merge abbreviations (e.g., "Mr.", "i.e.") to prevent incorrect breaks.
     *   **Params**: `text: string`.
     *   **Returns**: `TextSegment[]` (text, index, length).
 
@@ -390,6 +405,14 @@ Handles integration with OS media controls.
 *   **`setPlaybackState(state)`**
     *   **Params**: `state: PlaybackState` (playing/paused, position, duration).
 
+#### Providers (`src/lib/tts/providers/`)
+*   **`WebSpeechProvider`**: Uses browser native `speechSynthesis`.
+*   **`GoogleTTSProvider`**: Uses Google Cloud Text-to-Speech API.
+*   **`OpenAIProvider`**: Uses OpenAI Audio API.
+*   **`LemonFoxProvider`**: Uses LemonFox API.
+*   **`PiperProvider`**: (Experimental) Local Wasm-based Neural TTS.
+*   **`CapacitorTTSProvider`**: Uses native mobile TTS via Capacitor.
+
 ---
 
 ### 4. State Management (`src/store/`)
@@ -397,29 +420,43 @@ Handles integration with OS media controls.
 #### `src/store/useReaderStore.ts`
 Manages Reader UI state. Persisted to LocalStorage.
 
-*   **State**: `isLoading`, `currentBookId`, `currentTheme`, `fontSize`, `viewMode`, `gestureMode`, `shouldForceFont`, `toc`.
+*   **State**: `isLoading`, `currentBookId`, `currentTheme`, `fontSize`, `viewMode`, `gestureMode`, `shouldForceFont`, `toc`, `currentCfi`, `progress`.
 *   **Actions**:
     *   `updateLocation(cfi, progress, ...)`: Updates position.
     *   `setTheme(theme)`: Changes theme (light/dark/sepia/custom).
     *   `setFontFamily(font)`, `setFontSize(size)`, `setLineHeight(height)`: Updates typography.
     *   `setViewMode(mode)`: Toggles between 'paginated' and 'scrolled'.
+    *   `setGestureMode(enabled)`: Toggles full-screen gesture controls.
 
 #### `src/store/useTTSStore.ts`
 Manages TTS Settings and connects to `AudioPlayerService`. Persisted.
 
-*   **State**: `isPlaying`, `status`, `voice`, `rate`, `providerId`, `apiKeys`, `queue`, `activeCfi`, `voices`.
+*   **State**: `isPlaying`, `status`, `voice`, `rate`, `providerId`, `apiKeys`, `queue`, `activeCfi`, `voices`, `prerollEnabled`, `sanitizationEnabled`.
 *   **Actions**:
     *   `play()`, `pause()`, `stop()`: Delegates to Player.
     *   `setProviderId(id)`: Switches provider and re-initializes.
     *   `setApiKey(provider, key)`: Updates keys.
     *   `loadVoices()`: Fetches voices from current provider.
     *   `setCustomAbbreviations(...)`, `setAlwaysMerge(...)`: Updates segmentation rules.
+    *   `setSanitizationEnabled(enable)`: Toggles skipping of URLs/references.
+    *   `setPrerollEnabled(enable)`: Toggles chapter announcements.
 
 #### `src/store/useLibraryStore.ts`
 Manages Library view state.
 
+*   **State**: `books`, `isLoading`, `isImporting`, `viewMode`.
+*   **Actions**:
+    *   `fetchBooks()`: Reloads library from DB.
+    *   `addBook(file)`: Imports a file.
+    *   `removeBook(id)`: Deletes a book.
+    *   `offloadBook(id)` / `restoreBook(id, file)`: Manages storage optimization.
+    *   `setViewMode(mode)`: Toggles grid/list.
+
 #### `src/store/useAnnotationStore.ts`
-Manages user annotations.
+Manages user annotations and the selection menu.
+
+*   **State**: `annotations`, `popover` (visibility/position).
+*   **Actions**: `addAnnotation`, `deleteAnnotation`, `showPopover`, `hidePopover`.
 
 ---
 
@@ -435,6 +472,11 @@ Manages `epub.js` lifecycle.
     *   `isReady`: Boolean indicating interaction readiness.
     *   `toc`: Table of Contents.
     *   `metadata`: Book metadata.
+*   **Functionality**:
+    *   Handles loading of the book from IndexedDB.
+    *   Manages resizing via `ResizeObserver`.
+    *   Applies themes and forced styles.
+    *   Generates/Restores locations.
 
 #### `src/hooks/useTTS.ts`
 Bridge between the Reader and the Audio Service.
@@ -457,7 +499,23 @@ Handles full-text indexing and searching using `FlexSearch` to prevent blocking 
 *   **Requests**: `INDEX_BOOK`, `INIT_INDEX`, `ADD_TO_INDEX`, `FINISH_INDEXING`, `SEARCH`.
 *   **Responses**: `ACK`, `SEARCH_RESULTS`, `ERROR`.
 
-#### `src/lib/search-engine.ts` (Worker Internal)
-*   **`initIndex(bookId)`**: Creates a new FlexSearch document.
-*   **`addDocuments(bookId, sections)`**: Adds text sections to the index.
-*   **`search(bookId, query)`**: Executes search and returns `SearchResult[]` with excerpts.
+---
+
+### 7. UI Components (`src/components/`)
+
+#### `src/components/reader/ReaderView.tsx`
+The core reading interface.
+*   Integrates `useEpubReader` for rendering.
+*   Manages sidebars (TOC, Annotations, Search).
+*   Handles keyboard shortcuts and layout.
+
+#### `src/components/library/LibraryView.tsx`
+The bookshelf interface.
+*   Virtualized Grid/List view using `react-window`.
+*   Handles file drop and import.
+
+#### `src/components/reader/UnifiedAudioPanel.tsx`
+The "Audio Deck" control panel.
+*   Provides playback controls (Play/Pause, Seek, Speed).
+*   Visualizes the TTS Queue (`TTSQueue.tsx`).
+*   Configures Voice, Provider, and Lexicon.
