@@ -6,6 +6,8 @@ import { Button } from './ui/Button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 import { Input } from './ui/Input';
 import { Slider } from './ui/Slider';
+import { Switch } from './ui/Switch';
+import { useGenAIStore } from '../store/useGenAIStore';
 import { TTSAbbreviationSettings } from './reader/TTSAbbreviationSettings';
 import { LexiconManager } from './reader/LexiconManager';
 import { getDB } from '../db/db';
@@ -36,6 +38,15 @@ export const GlobalSettingsDialog = () => {
         silentAudioType, setSilentAudioType,
         whiteNoiseVolume, setWhiteNoiseVolume
     } = useTTSStore();
+
+    const {
+        apiKey: genAIApiKey,
+        setApiKey: setGenAIApiKey,
+        model: genAIModel,
+        setModel: setGenAIModel,
+        isEnabled: isGenAIEnabled,
+        setEnabled: setGenAIEnabled
+    } = useGenAIStore();
 
     const handleClearAllData = async () => {
         if (confirm("Are you sure you want to delete ALL data? This includes books, annotations, and settings.")) {
@@ -140,6 +151,9 @@ export const GlobalSettingsDialog = () => {
                     </Button>
                     <Button variant={activeTab === 'tts' ? 'secondary' : 'ghost'} className="w-auto sm:w-full justify-start whitespace-nowrap flex-shrink-0" onClick={() => setActiveTab('tts')}>
                         TTS Engine
+                    </Button>
+                    <Button variant={activeTab === 'genai' ? 'secondary' : 'ghost'} className="w-auto sm:w-full justify-start whitespace-nowrap flex-shrink-0" onClick={() => setActiveTab('genai')}>
+                        Generative AI
                     </Button>
                     <Button variant={activeTab === 'dictionary' ? 'secondary' : 'ghost'} className="w-auto sm:w-full justify-start whitespace-nowrap flex-shrink-0" onClick={() => setActiveTab('dictionary')}>
                         Dictionary
@@ -251,6 +265,63 @@ export const GlobalSettingsDialog = () => {
                                                 onChange={(e) => setApiKey('lemonfox', e.target.value)}
                                             />
                                         </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'genai' && (
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="text-lg font-medium mb-4">Generative AI Configuration</h3>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Enable advanced features powered by Google Gemini (e.g., smart TOC, pronunciation guides).
+                                </p>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <label htmlFor="genai-toggle" className="text-sm font-medium">Enable AI Features</label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Allows the app to send content to the AI provider.
+                                            </p>
+                                        </div>
+                                        <Switch
+                                            id="genai-toggle"
+                                            checked={isGenAIEnabled}
+                                            onCheckedChange={setGenAIEnabled}
+                                        />
+                                    </div>
+
+                                    {isGenAIEnabled && (
+                                        <>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Gemini API Key</label>
+                                                <Input
+                                                    type="password"
+                                                    value={genAIApiKey}
+                                                    onChange={(e) => setGenAIApiKey(e.target.value)}
+                                                    placeholder="Enter your Google Gemini API Key"
+                                                />
+                                                <p className="text-xs text-muted-foreground">
+                                                    Your key is stored locally on this device.
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Model</label>
+                                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                                <Select value={genAIModel} onValueChange={(val: any) => setGenAIModel(val)}>
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (Recommended)</SelectItem>
+                                                        <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
+                                                        <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                                                        <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </div>
