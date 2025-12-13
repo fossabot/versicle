@@ -1,6 +1,6 @@
 import { BaseCloudProvider } from './BaseCloudProvider';
 import type { TTSOptions, TTSVoice, SpeechSegment } from './types';
-import { piperGenerate } from './piper-utils';
+import { piperGenerate, isModelCached } from './piper-utils';
 
 const HF_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/";
 const PIPER_ASSETS_BASE = "/piper/";
@@ -83,6 +83,49 @@ export class PiperProvider extends BaseCloudProvider {
     }
   }
 
+  async isVoiceDownloaded(voiceId: string): Promise<boolean> {
+    const voiceInfo = this.voiceMap.get(voiceId);
+    if (!voiceInfo) return false;
+    const modelUrl = HF_BASE + voiceInfo.modelPath;
+    return isModelCached(modelUrl);
+  }
+
+  async downloadVoice(voiceId: string): Promise<void> {
+    const voiceInfo = this.voiceMap.get(voiceId);
+    if (!voiceInfo) throw new Error(`Voice ${voiceId} not found`);
+
+    if (await this.isVoiceDownloaded(voiceId)) {
+      this.emit({ type: 'download-progress', percent: 100, status: 'Ready', voiceId });
+      return;
+    }
+
+    this.emit({ type: 'download-progress', percent: 0, status: 'Starting download...', voiceId });
+
+    const modelUrl = HF_BASE + voiceInfo.modelPath;
+    const modelConfigUrl = HF_BASE + voiceInfo.configPath;
+
+    try {
+      await piperGenerate(
+        PIPER_ASSETS_BASE + 'piper_phonemize.js',
+        PIPER_ASSETS_BASE + 'piper_phonemize.wasm',
+        PIPER_ASSETS_BASE + 'piper_phonemize.data',
+        PIPER_ASSETS_BASE + 'piper_worker.js',
+        modelUrl,
+        modelConfigUrl,
+        voiceInfo.speakerId,
+        "",
+        (progress) => {
+          this.emit({ type: 'download-progress', percent: progress, status: 'Downloading...', voiceId });
+        }
+      );
+      this.emit({ type: 'download-progress', percent: 100, status: 'Ready', voiceId });
+    } catch (e) {
+      this.emit({ type: 'error', error: e });
+      this.emit({ type: 'download-progress', percent: 0, status: 'Failed', voiceId });
+      throw e;
+    }
+  }
+
   protected async fetchAudioData(text: string, options: TTSOptions): Promise<SpeechSegment> {
     const voiceInfo = this.voiceMap.get(options.voiceId);
     if (!voiceInfo) {
@@ -101,8 +144,8 @@ export class PiperProvider extends BaseCloudProvider {
       modelConfigUrl,
       voiceInfo.speakerId,
       text,
-      () => {
-        // Optional: emit progress
+      (progress) => {
+        this.emit({ type: 'download-progress', percent: progress, status: 'Downloading...', voiceId: options.voiceId });
       }
     );
 
