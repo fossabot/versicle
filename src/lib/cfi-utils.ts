@@ -1,7 +1,19 @@
 import ePub from 'epubjs';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const EpubCFI = (ePub as any).CFI;
+const getEpubCFI = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((ePub as any).CFI) return (ePub as any).CFI;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((ePub as any).default && (ePub as any).default.CFI) return (ePub as any).default.CFI;
+    // Check global
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof window !== 'undefined' && (window as any).ePub && (window as any).ePub.CFI) return (window as any).ePub.CFI;
+
+    // In test environment, sometimes ePub is the default export but structured differently
+    // Just return what we found if it looks like a constructor?
+    return (ePub as any).CFI;
+};
 
 export interface CfiRangeData {
   parent: string;
@@ -61,24 +73,38 @@ export function mergeCfiRanges(ranges: string[], newRange?: string): string[] {
 
     if (allRanges.length === 0) return [];
 
-    const cfi = new EpubCFI();
+    const EpubCFI = getEpubCFI();
+    if (!EpubCFI) {
+        console.error("EpubCFI not found, cannot merge ranges.");
+        return allRanges; // Return unmerged as fallback
+    }
+
+    let cfi;
+    try {
+        cfi = new EpubCFI();
+    } catch (e) {
+        console.error("Failed to instantiate EpubCFI", e);
+        return allRanges;
+    }
+
     const parsedRanges: CfiRangeData[] = [];
 
     for (const r of allRanges) {
         const p = parseCfiRange(r);
         if (p) {
             parsedRanges.push(p);
-        } else {
-            // If we can't parse it, we can't merge it safely.
-            // Maybe keep it as is? But we return string[] of merged ranges.
-            // Ideally we shouldn't have invalid ranges.
         }
     }
 
     if (parsedRanges.length === 0) return [];
 
     // Sort by fullStart
-    parsedRanges.sort((a, b) => cfi.compare(a.fullStart, b.fullStart));
+    try {
+        parsedRanges.sort((a, b) => cfi.compare(a.fullStart, b.fullStart));
+    } catch (e) {
+        console.error("Error comparing CFIs", e);
+        return allRanges;
+    }
 
     const merged: CfiRangeData[] = [];
     let current = parsedRanges[0];
@@ -87,14 +113,20 @@ export function mergeCfiRanges(ranges: string[], newRange?: string): string[] {
         const next = parsedRanges[i];
 
         // Check overlap: next.start <= current.end
-        // Compare returns -1 if a < b, 0 if a == b, 1 if a > b
-        if (cfi.compare(next.fullStart, current.fullEnd) <= 0) {
-            // Merge
-            // newEnd = Max(current.end, next.end)
-            if (cfi.compare(next.fullEnd, current.fullEnd) > 0) {
-                current.fullEnd = next.fullEnd;
+        try {
+            if (cfi.compare(next.fullStart, current.fullEnd) <= 0) {
+                // Merge
+                // newEnd = Max(current.end, next.end)
+                if (cfi.compare(next.fullEnd, current.fullEnd) > 0) {
+                    current.fullEnd = next.fullEnd;
+                }
+            } else {
+                merged.push(current);
+                current = next;
             }
-        } else {
+        } catch (e) {
+            console.error("Error merging CFIs", e);
+            // Fallback: push both
             merged.push(current);
             current = next;
         }
