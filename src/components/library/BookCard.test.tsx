@@ -24,7 +24,7 @@ describe('BookCard', () => {
   // Removed afterEach since clearAllMocks is handled automatically if configured, or not needed if we overwrite mocks in beforeEach
 
   const renderWithRouter = (ui: React.ReactElement) => {
-    return render(<BrowserRouter>{ui}</BrowserRouter>);
+    return render(<BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>{ui}</BrowserRouter>);
   };
 
   it('should render book info', () => {

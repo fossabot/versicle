@@ -119,7 +119,7 @@ describe('ReaderView', () => {
 
   const renderComponent = (id = 'test-book-id') => {
     return render(
-      <MemoryRouter initialEntries={[`/read/${id}`]}>
+      <MemoryRouter initialEntries={[`/read/${id}`]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/read/:id" element={<ReaderView />} />
         </Routes>
