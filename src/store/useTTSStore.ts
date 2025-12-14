@@ -200,27 +200,7 @@ export const useTTSStore = create<TTSState>()(
             },
             setProviderId: (id) => {
                 set({ providerId: id });
-                // Re-init player provider
-                const { apiKeys } = get();
-                let newProvider;
-                if (id === 'google') {
-                    newProvider = new GoogleTTSProvider(apiKeys.google);
-                } else if (id === 'openai') {
-                    newProvider = new OpenAIProvider(apiKeys.openai);
-                } else if (id === 'lemonfox') {
-                    newProvider = new LemonFoxProvider(apiKeys.lemonfox);
-                } else if (id === 'piper') {
-                    newProvider = new PiperProvider();
-                } else {
-                    if (Capacitor.isNativePlatform()) {
-                        newProvider = new CapacitorTTSProvider();
-                    } else {
-                        newProvider = new WebSpeechProvider();
-                    }
-                }
-
-                player.setProvider(newProvider);
-                // Reload voices for new provider
+                // Reload voices for new provider (this will re-init the provider)
                 get().loadVoices();
             },
             setApiKey: (provider, key) => {
@@ -283,7 +263,7 @@ export const useTTSStore = create<TTSState>()(
                         newProvider = new WebSpeechProvider();
                     }
                 }
-                player.setProvider(newProvider);
+                await player.setProvider(newProvider);
 
                 await player.init();
                 const voices = await player.getVoices();
