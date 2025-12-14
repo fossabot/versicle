@@ -161,10 +161,25 @@ describe('WebSpeechProvider', () => {
           expect(mockSynth.pause).toHaveBeenCalled();
       });
 
-      it('resume should resume synthesis if paused', () => {
+      it('resume should restart synthesis if paused (workaround)', async () => {
+          // Ensure voices are loaded so play() doesn't block
+          mockSynth.getVoices.mockReturnValue([{ name: 'Voice 1', lang: 'en-US' }]);
+          await provider.init();
+
+          // Setup state to simulate previous play
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (provider as any).lastText = 'test text';
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (provider as any).lastOptions = { voiceId: 'Voice 1', speed: 1.0 };
+
           mockSynth.paused = true;
           provider.resume();
-          expect(mockSynth.resume).toHaveBeenCalled();
+
+          // resume() triggers play() which is async. We need to wait a tick.
+          await new Promise(resolve => setTimeout(resolve, 10));
+
+          // Current implementation re-calls play(), which calls speak()
+          expect(mockSynth.speak).toHaveBeenCalled();
       });
   });
 });

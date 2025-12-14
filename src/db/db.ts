@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { BookMetadata, Annotation, CachedSegment, LexiconRule, BookLocations, TTSState, SectionMetadata, ContentAnalysis } from '../types/db';
+import type { BookMetadata, Annotation, CachedSegment, LexiconRule, BookLocations, TTSState, SectionMetadata, ContentAnalysis, ReadingHistoryEntry } from '../types/db';
 
 /**
  * Interface defining the schema for the IndexedDB database.
@@ -89,6 +89,13 @@ export interface EpubLibraryDB extends DBSchema {
       by_bookId: string;
     };
   };
+  /**
+   * Store for reading history.
+   */
+  reading_history: {
+    key: string; // bookId
+    value: ReadingHistoryEntry;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<EpubLibraryDB>>;
@@ -101,7 +108,7 @@ let dbPromise: Promise<IDBPDatabase<EpubLibraryDB>>;
  */
 export const initDB = () => {
   if (!dbPromise) {
-    dbPromise = openDB<EpubLibraryDB>('EpubLibraryDB', 7, { // Upgrading to v7
+    dbPromise = openDB<EpubLibraryDB>('EpubLibraryDB', 8, { // Upgrading to v8
       upgrade(db) {
         // Books store
         if (!db.objectStoreNames.contains('books')) {
@@ -155,6 +162,11 @@ export const initDB = () => {
         if (!db.objectStoreNames.contains('content_analysis')) {
           const caStore = db.createObjectStore('content_analysis', { keyPath: 'id' });
           caStore.createIndex('by_bookId', 'bookId', { unique: false });
+        }
+
+        // Reading History store (New in v8)
+        if (!db.objectStoreNames.contains('reading_history')) {
+          db.createObjectStore('reading_history', { keyPath: 'bookId' });
         }
       },
     });

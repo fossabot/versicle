@@ -23,6 +23,7 @@ import { searchClient, type SearchResult } from '../../lib/search';
 import { List, Settings, ArrowLeft, X, Search, Highlighter, Maximize, Minimize, Type, Headphones } from 'lucide-react';
 import { AudioPlayerService } from '../../lib/tts/AudioPlayerService';
 import { ReaderTTSController } from './ReaderTTSController';
+import { generateCfiRange } from '../../lib/cfi-utils';
 
 /**
  * The main reader interface component.
@@ -35,6 +36,7 @@ export const ReaderView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const viewerRef = useRef<HTMLDivElement>(null);
+  const previousLocation = useRef<{ start: string; end: string } | null>(null);
 
   const {
     currentTheme,
@@ -83,6 +85,17 @@ export const ReaderView: React.FC = () => {
     onLocationChange: (location, percentage, title, sectionId) => {
          // Prevent infinite loop if CFI hasn't changed (handled in store usually, but double check)
          if (location.start.cfi === useReaderStore.getState().currentCfi) return;
+
+         // Reading History
+         if (id && previousLocation.current) {
+             const prevStart = previousLocation.current.start;
+             const prevEnd = previousLocation.current.end;
+             if (prevStart && prevEnd) {
+                 const range = generateCfiRange(prevStart, prevEnd);
+                 dbService.updateReadingHistory(id, range).catch((err) => console.error("History update failed", err));
+             }
+         }
+         previousLocation.current = { start: location.start.cfi, end: location.end.cfi };
 
          updateLocation(location.start.cfi, percentage, title, sectionId);
          if (id) {
@@ -161,6 +174,20 @@ export const ReaderView: React.FC = () => {
        setCurrentBookId(id);
     }
   }, [id, setCurrentBookId]);
+
+  // Save reading history on unmount
+  useEffect(() => {
+      return () => {
+          if (id && previousLocation.current) {
+             const prevStart = previousLocation.current.start;
+             const prevEnd = previousLocation.current.end;
+             if (prevStart && prevEnd) {
+                 const range = generateCfiRange(prevStart, prevEnd);
+                 dbService.updateReadingHistory(id, range).catch(console.error);
+             }
+          }
+      };
+  }, [id]);
 
   // Handle Unmount Cleanup
   useEffect(() => {

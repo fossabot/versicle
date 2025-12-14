@@ -622,6 +622,13 @@ export class AudioPlayerService {
   private playNext() {
       this.executeWithLock(async (signal) => {
           if (this.status !== 'stopped') {
+              if (this.currentBookId) {
+                  const item = this.queue[this.currentIndex];
+                  if (item && item.cfi && !item.isPreroll) {
+                      dbService.updateReadingHistory(this.currentBookId, item.cfi).catch(console.error);
+                  }
+              }
+
               if (this.currentIndex < this.queue.length - 1) {
                   this.currentIndex++;
                   this.persistQueue();

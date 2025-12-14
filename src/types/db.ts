@@ -166,3 +166,17 @@ export interface LexiconRule {
   /** Timestamp when the rule was created. */
   created: number;
 }
+
+/**
+ * Represents the reading history of a book.
+ */
+export interface ReadingHistoryEntry {
+  /** The ID of the book. */
+  bookId: string;
+  /**
+   * A list of combined CFI ranges representing read content.
+   */
+  readRanges: string[];
+  /** Timestamp when the history was last updated. */
+  lastUpdated: number;
+}
