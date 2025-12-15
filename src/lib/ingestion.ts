@@ -68,6 +68,28 @@ const blobToText = (blob: Blob): Promise<string> => {
 };
 
 /**
+ * Validates that the file has a ZIP header (PK\x03\x04), which is required for EPUBs.
+ * This prevents uploading random files or potential malware masked as EPUBs.
+ *
+ * @param file - The file to validate.
+ * @returns A Promise resolving to true if valid, false otherwise.
+ */
+export async function validateEpubFile(file: File): Promise<boolean> {
+    try {
+        const buffer = await file.slice(0, 4).arrayBuffer();
+        const view = new DataView(buffer);
+        // PK\x03\x04 => 0x50 0x4B 0x03 0x04
+        return view.getUint8(0) === 0x50 &&
+               view.getUint8(1) === 0x4B &&
+               view.getUint8(2) === 0x03 &&
+               view.getUint8(3) === 0x04;
+    } catch (e) {
+        console.error("File validation failed", e);
+        return false;
+    }
+}
+
+/**
  * Processes an EPUB file, extracting metadata and cover image, and storing it in the database.
  *
  * @param file - The EPUB file object to process.
@@ -75,6 +97,12 @@ const blobToText = (blob: Blob): Promise<string> => {
  * @throws Will throw an error if the file cannot be parsed or database operations fail.
  */
 export async function processEpub(file: File): Promise<string> {
+  // 1. Security Check: Validate File Header
+  const isValid = await validateEpubFile(file);
+  if (!isValid) {
+      throw new Error("Invalid file format. File must be a valid EPUB (ZIP archive).");
+  }
+
   // Pass File directly to ePub.js (it supports Blob/File/ArrayBuffer/Url)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const book = (ePub as any)(file);
@@ -202,10 +230,9 @@ export async function processEpub(file: File): Promise<string> {
   let finalBook = candidateBook;
 
   if (check && check.wasModified) {
-    const msg = `Security Warning: Metadata for book "${candidateBook.title}" is too long.\n${check.modifications.join('\n')}\n\nClick OK to Sanitize (Recommended), or Cancel to Import As-Is (Not Recommended).`;
-    if (confirm(msg)) {
-      finalBook = check.sanitized;
-    }
+    // SECURITY: Enforce sanitization without user bypass to prevent DoS/Storage exhaustion.
+    console.warn(`Security Warning: Metadata for book "${candidateBook.title}" was sanitized.`, check.modifications);
+    finalBook = check.sanitized;
   } else if (check) {
     finalBook = check.sanitized;
   }
