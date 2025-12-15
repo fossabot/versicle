@@ -3,6 +3,7 @@ import type { BookMetadata, Annotation, CachedSegment, BookLocations, TTSState, 
 import { DatabaseError, StorageFullError } from '../types/errors';
 import { processEpub } from '../lib/ingestion';
 import { validateBookMetadata } from './validators';
+import { mergeCfiRanges } from '../lib/cfi-utils';
 import { Logger } from '../lib/logger';
 import type { TTSQueueItem } from '../lib/tts/AudioPlayerService';
 
@@ -495,6 +496,56 @@ class DBService {
       try {
           const db = await this.getDB();
           await db.put('locations', { bookId, locations });
+      } catch (error) {
+          this.handleError(error);
+      }
+  }
+
+  // --- Reading History Operations ---
+
+  /**
+   * Retrieves the reading history for a book.
+   *
+   * @param bookId - The unique identifier of the book.
+   * @returns A Promise resolving to an array of CFI ranges.
+   */
+  async getReadingHistory(bookId: string): Promise<string[]> {
+      try {
+          const db = await this.getDB();
+          const entry = await db.get('reading_history', bookId);
+          return entry ? entry.readRanges : [];
+      } catch (error) {
+          this.handleError(error);
+      }
+  }
+
+  /**
+   * Updates the reading history for a book by merging a new range.
+   *
+   * @param bookId - The unique identifier of the book.
+   * @param newRange - The new CFI range to add.
+   * @returns A Promise that resolves when the history is updated.
+   */
+  async updateReadingHistory(bookId: string, newRange: string): Promise<void> {
+      try {
+          const db = await this.getDB();
+          const tx = db.transaction('reading_history', 'readwrite');
+          const store = tx.objectStore('reading_history');
+          const entry = await store.get(bookId);
+
+          let readRanges: string[] = [];
+          if (entry) {
+              readRanges = entry.readRanges;
+          }
+
+          const updatedRanges = mergeCfiRanges(readRanges, newRange);
+
+          await store.put({
+              bookId,
+              readRanges: updatedRanges,
+              lastUpdated: Date.now()
+          });
+          await tx.done;
       } catch (error) {
           this.handleError(error);
       }

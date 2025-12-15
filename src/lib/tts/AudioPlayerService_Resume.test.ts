@@ -77,7 +77,7 @@ describe('AudioPlayerService - Resume Speed Bug', () => {
 
         // Clear spies
         resumeSpy.mockClear();
-        playSpy.mockClear();
+        synthesizeSpy.mockClear();
         pauseSpy.mockClear();
         stopSpy.mockClear();
     });
@@ -87,7 +87,7 @@ describe('AudioPlayerService - Resume Speed Bug', () => {
         await service.setQueue([{ text: "Sentence 1", cfi: "cfi1" }]);
 
         await service.play();
-        expect(playSpy).toHaveBeenCalledTimes(1);
+        expect(synthesizeSpy).toHaveBeenCalledTimes(1);
         // Default speed is 1.0
         expect(synthesizeSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ speed: 1.0 }));
 

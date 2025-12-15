@@ -620,13 +620,28 @@ export class AudioPlayerService {
   }
 
   private playNext() {
+      // Execute within the operation lock to prevent race conditions with user actions (pause, stop)
       this.executeWithLock(async (signal) => {
           if (this.status !== 'stopped') {
+              // Update Reading History:
+              // The current item (this.queue[this.currentIndex]) has finished playing.
+              // We mark its CFI range as "read" in the database.
+              // This is used to track reading coverage (percent read) and potential sync with visual reader.
+              if (this.currentBookId) {
+                  const item = this.queue[this.currentIndex];
+                  // Only track if it's a valid content item (not a preroll)
+                  if (item && item.cfi && !item.isPreroll) {
+                      dbService.updateReadingHistory(this.currentBookId, item.cfi).catch(console.error);
+                  }
+              }
+
+              // Advance to next item
               if (this.currentIndex < this.queue.length - 1) {
                   this.currentIndex++;
-                  this.persistQueue();
-                  await this.playInternal(signal);
+                  this.persistQueue(); // Persist state so we can resume later
+                  await this.playInternal(signal); // Start playing the next item
               } else {
+                  // End of queue
                   this.setStatus('completed');
                   this.notifyListeners(null);
               }

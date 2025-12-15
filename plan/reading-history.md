@@ -73,3 +73,15 @@ export interface ReadingHistoryEntry {
 *   Run linting.
 *   Run build.
 *   Run verification tests.
+
+## Implementation Status
+*   **Data Model**: Implemented `ReadingHistoryEntry` in `src/types/db.ts`.
+*   **Storage**: Added `reading_history` store (v8) and methods in `DBService.ts`.
+*   **Logic**: Implemented `mergeCfiRanges` in `src/lib/cfi-utils.ts` with unit tests.
+*   **Tracking**:
+    *   `ReaderView`: Tracks visible range on navigation and unmount.
+    *   `AudioPlayerService`: Tracks current item CFI on completion.
+
+## Deviations
+*   **Visualization UI**: The implementation focused on the tracking infrastructure and data model. The "History Panel" UI described in the User Journey was not implemented in this phase.
+*   **Session History vs Coverage**: The implemented data model merges overlapping ranges to track "coverage" (what content has been read) rather than a list of distinct reading sessions sorted by time. This deviation was necessary to follow the "Technical Design" which specified merging ranges. This means the "History Panel" as described (listing sessions like "2 hours ago") would require a different data model (storing unmerged sessions). The current implementation supports a "Percent Read" or "Mark as Read" feature better.
