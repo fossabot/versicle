@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { dbService } from '../db/DBService';
 import type { BookMetadata, Annotation, LexiconRule, BookLocations } from '../types/db';
-import { validateBookMetadata } from '../db/validators';
+import { getSanitizedBookMetadata } from '../db/validators';
 import { getDB } from '../db/db';
 
 /**
@@ -180,8 +180,6 @@ export class BackupService {
       console.warn(`Backup version ${manifest.version} is newer than supported ${this.BACKUP_VERSION}. Proceeding with caution.`);
     }
 
-    // Step 1: Restore Metadata (Books, Annotations, Lexicon, Locations)
-    // We use a single transaction for metadata to ensure consistency
     const db = await getDB();
 
     const totalItems = manifest.books.length + manifest.annotations.length + manifest.lexicon.length + manifest.locations.length;
@@ -193,25 +191,51 @@ export class BackupService {
         onProgress?.(percent, msg);
     };
 
-    // Metadata Transaction
-    const tx = db.transaction(['books', 'annotations', 'locations', 'lexicon'], 'readwrite');
+    // --- PHASE 1: Sanitization Checks (User Interaction) ---
+    // We prepare the list of books to be saved, asking the user if needed, BEFORE starting the transaction.
+    const booksToSave: BookMetadata[] = [];
+    const rawBooks = Array.isArray(manifest.books) ? manifest.books : [];
 
-    // 1.1 Restore Books Metadata
-    const books = Array.isArray(manifest.books) ? manifest.books : [];
-    for (const book of books) {
-      if (!book || typeof book !== 'object') continue;
+    for (const rawBook of rawBooks) {
+      if (!rawBook || typeof rawBook !== 'object') continue;
 
-      // Sanitization / Defaulting
-      if (typeof book.title !== 'string' || !book.title.trim()) book.title = 'Untitled';
-      if (typeof book.author !== 'string') book.author = 'Unknown Author';
-      if (typeof book.addedAt !== 'number') book.addedAt = Date.now();
+      // Sanitization / Defaulting (Pre-validation fixup)
+      // We cast to any to allow modification before type check
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const candidate: any = rawBook;
+      if (typeof candidate.title !== 'string' || !candidate.title.trim()) candidate.title = 'Untitled';
+      if (typeof candidate.author !== 'string') candidate.author = 'Unknown Author';
+      if (typeof candidate.addedAt !== 'number') candidate.addedAt = Date.now();
 
-      if (!validateBookMetadata(book)) {
-        console.warn('Skipping invalid book record in backup', book);
+      const check = getSanitizedBookMetadata(candidate);
+
+      if (!check) {
+        console.warn('Skipping invalid book record in backup', rawBook);
         updateProgress('Skipping invalid record...');
         continue;
       }
 
+      let book = check.sanitized;
+
+      if (check.wasModified) {
+          const msg = `Security Warning: Backup contains book "${candidate.title}" with metadata that is too long.\n${check.modifications.join('\n')}\n\nClick OK to Sanitize (Recommended), or Cancel to Import As-Is (Not Recommended).`;
+          if (!confirm(msg)) {
+              // User chose As-Is. We use the candidate (which has default values but original long strings)
+              book = candidate as BookMetadata;
+          }
+      }
+
+      booksToSave.push(book);
+      // We don't increment "processed" here because we want to track the actual write progress
+    }
+
+    // --- PHASE 2: Database Operations ---
+
+    // Metadata Transaction
+    const tx = db.transaction(['books', 'annotations', 'locations', 'lexicon'], 'readwrite');
+
+    // 1.1 Restore Books Metadata
+    for (const book of booksToSave) {
       const existingBook = await tx.objectStore('books').get(book.id);
 
       if (existingBook) {
@@ -255,13 +279,12 @@ export class BackupService {
 
     await tx.done;
 
-    // Step 2: Restore Files (if ZIP)
+    // Step 3: Restore Files (if ZIP)
     // We do this OUTSIDE the metadata transaction to avoid TransactionInactiveError during async unzip
     if (zip) {
-        const books = Array.isArray(manifest.books) ? manifest.books : [];
-        for (const book of books) {
-            // Validation again, although we skipped invalid ones in step 1, we need to skip here too
-            if (!book || !validateBookMetadata(book)) continue;
+        // We iterate booksToSave because we only want to restore files for valid/accepted books
+        for (const book of booksToSave) {
+            // No need to validate again, booksToSave contains valid BookMetadata objects
 
             const zipFile = zip.file(`files/${book.id}.epub`);
             if (zipFile) {
@@ -279,13 +302,6 @@ export class BackupService {
                     await fileTx.objectStore('books').put(bookRecord);
                 }
                 await fileTx.done;
-            } else {
-                 if (!book.isOffloaded) {
-                     // Check if we already have the file locally?
-                     // If not, it remains offloaded as set in step 1.
-                     // No action needed, as Step 1 set isOffloaded=true for new books.
-                     // For existing books, we kept their state.
-                 }
             }
         }
     }

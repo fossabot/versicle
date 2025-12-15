@@ -46,6 +46,7 @@ vi.mock('uuid', () => ({
 
 describe('ingestion', () => {
   beforeEach(async () => {
+    vi.spyOn(window, 'confirm').mockImplementation(() => true);
     const db = await getDB();
     const tx = db.transaction(['books', 'files', 'sections', 'annotations'], 'readwrite');
     await tx.objectStore('books').clear();
