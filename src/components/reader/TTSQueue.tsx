@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useTTSStore } from '../../store/useTTSStore';
-import { cn } from '../../lib/utils';
+import { TTSQueueItem } from './TTSQueueItem';
 
 /**
  * Displays the current TTS playback queue.
@@ -96,20 +96,14 @@ export const TTSQueue: React.FC = () => {
                 {queue.map((item, index) => {
                     const isActive = index === currentIndex;
                     return (
-                        <button
+                        <TTSQueueItem
                             key={index}
-                            data-testid={`tts-queue-item-${index}`}
+                            item={item}
+                            index={index}
+                            isActive={isActive}
+                            onJump={jumpTo}
                             ref={isActive ? activeRef : null}
-                            onClick={() => jumpTo(index)}
-                            className={cn(
-                                "text-left text-sm p-2 rounded transition-all duration-200 w-full",
-                                isActive
-                                    ? "bg-primary/20 text-foreground border-l-4 border-primary font-medium shadow-sm"
-                                    : "text-muted-foreground opacity-60 hover:opacity-100 hover:bg-muted/10"
-                            )}
-                        >
-                            <p className="line-clamp-2">{item.text}</p>
-                        </button>
+                        />
                     );
                 })}
             </div>
