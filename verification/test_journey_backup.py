@@ -90,10 +90,12 @@ def test_journey_backup_restore(page: Page):
 
     # The menu option text is "Delete Book"
     # We must register the dialog handler BEFORE clicking
-    page.once("dialog", lambda dialog: dialog.accept())
 
     # Use specific testid
     page.click("data-testid=menu-delete")
+
+    # Confirm in custom dialog
+    page.click("data-testid=confirm-delete")
 
     expect(book_card).not_to_be_visible(timeout=5000)
 
@@ -167,8 +169,9 @@ def test_journey_full_backup_restore(page: Page):
     # 3. Delete Book
     book_card.hover()
     page.locator("data-testid=book-menu-trigger").click(force=True)
-    page.once("dialog", lambda dialog: dialog.accept())
     page.click("data-testid=menu-delete")
+    # Confirm in custom dialog
+    page.click("data-testid=confirm-delete")
     expect(book_card).not_to_be_visible(timeout=5000)
 
     # 4. Restore Backup

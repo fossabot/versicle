@@ -1,9 +1,15 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { BookCard } from './BookCard';
 import type { BookMetadata } from '../../types/db';
+import { useLibraryStore } from '../../store/useLibraryStore';
+
+// Mock useLibraryStore
+vi.mock('../../store/useLibraryStore', () => ({
+  useLibraryStore: vi.fn(),
+}));
 
 describe('BookCard', () => {
   const mockBook: BookMetadata = {
@@ -15,10 +21,21 @@ describe('BookCard', () => {
     coverBlob: new Blob(['mock-image'], { type: 'image/jpeg' }),
   };
 
+  const mockRemoveBook = vi.fn();
+  const mockOffloadBook = vi.fn();
+  const mockRestoreBook = vi.fn();
+
   beforeEach(() => {
     // Mock URL.createObjectURL and revokeObjectURL
     global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
     global.URL.revokeObjectURL = vi.fn();
+
+    // Setup store mock
+    (useLibraryStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      removeBook: mockRemoveBook,
+      offloadBook: mockOffloadBook,
+      restoreBook: mockRestoreBook,
+    });
   });
 
   // Removed afterEach since clearAllMocks is handled automatically if configured, or not needed if we overwrite mocks in beforeEach
@@ -95,5 +112,32 @@ describe('BookCard', () => {
 
     const menuButton = screen.getByLabelText('Book actions');
     expect(menuButton).toBeInTheDocument();
+  });
+
+  it('should open delete confirmation dialog and delete book', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    renderWithRouter(<BookCard book={mockBook} />);
+
+    // Open menu
+    const menuButton = screen.getByLabelText('Book actions');
+    fireEvent.pointerDown(menuButton);
+    fireEvent.click(menuButton);
+
+    // Click delete option
+    const deleteOption = await screen.findByTestId('menu-delete');
+    fireEvent.click(deleteOption);
+
+    // Verify dialog is open
+    expect(await screen.findByText('Delete Book')).toBeInTheDocument();
+    expect(screen.getByText('Are you sure you want to delete this book completely? This cannot be undone.')).toBeInTheDocument();
+
+    // Verify confirm was not called
+    expect(confirmSpy).not.toHaveBeenCalled();
+
+    // Click delete in dialog
+    const confirmButton = screen.getByTestId('confirm-delete');
+    fireEvent.click(confirmButton);
+
+    expect(mockRemoveBook).toHaveBeenCalledWith(mockBook.id);
   });
 });

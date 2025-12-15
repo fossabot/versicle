@@ -9,6 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/DropdownMenu';
+import { Dialog } from '../ui/Dialog';
+import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 
 /**
@@ -42,6 +44,7 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
   const navigate = useNavigate();
   const { removeBook, offloadBook, restoreBook } = useLibraryStore();
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -74,11 +77,14 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this book completely? This cannot be undone.')) {
-      await removeBook(book.id);
-    }
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    await removeBook(book.id);
+    setIsDeleteDialogOpen(false);
   };
 
   const handleOffload = async (e: React.MouseEvent) => {
@@ -173,7 +179,7 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
                         Restore File
                     </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive cursor-pointer" data-testid="menu-delete">
+            <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive focus:text-destructive cursor-pointer" data-testid="menu-delete">
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete Book
                 </DropdownMenuItem>
@@ -181,6 +187,28 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
            </DropdownMenu>
         </div>
       </div>
+
+  <Dialog
+    isOpen={isDeleteDialogOpen}
+    onClose={() => setIsDeleteDialogOpen(false)}
+    title="Delete Book"
+    description="Are you sure you want to delete this book completely? This cannot be undone."
+    footer={
+      <>
+        <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>
+          Cancel
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={confirmDelete}
+          data-testid="confirm-delete"
+        >
+          Delete
+        </Button>
+      </>
+    }
+  />
+
       <div className="p-3 flex flex-col flex-1">
         <h3 data-testid="book-title" className="font-semibold text-foreground line-clamp-2 mb-1" title={book.title}>
           {book.title}
