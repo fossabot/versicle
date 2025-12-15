@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { dbService } from '../db/DBService';
 import type { BookMetadata, Annotation, LexiconRule, BookLocations } from '../types/db';
-import { validateBookMetadata, getSanitizedBookMetadata } from '../db/validators';
+import { getSanitizedBookMetadata } from '../db/validators';
 import { getDB } from '../db/db';
 
 /**
