@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeString, sanitizeBookMetadata } from './validators';
+import { sanitizeString, getSanitizedBookMetadata } from './validators';
 import type { BookMetadata } from '../types/db';
 
 describe('validators', () => {
@@ -18,7 +18,7 @@ describe('validators', () => {
     });
   });
 
-  describe('sanitizeBookMetadata', () => {
+  describe('getSanitizedBookMetadata', () => {
       const validBook: BookMetadata = {
           id: '123',
           title: 'Title',
@@ -33,14 +33,25 @@ describe('validators', () => {
               author: '  Author  ',
               description: '  Desc  '
           };
-          const result = sanitizeBookMetadata(input);
+          const result = getSanitizedBookMetadata(input);
           expect(result).not.toBeNull();
-          expect(result?.title).toBe('Title');
-          expect(result?.author).toBe('Author');
-          expect(result?.description).toBe('Desc');
+          expect(result?.wasModified).toBe(true);
+          expect(result?.sanitized.title).toBe('Title');
+          expect(result?.sanitized.author).toBe('Author');
+          expect(result?.sanitized.description).toBe('Desc');
       });
 
-      it('truncates overly long fields', () => {
+      it('detects modifications (trimming)', () => {
+          const input = {
+              ...validBook,
+              title: '  Title  '
+          };
+          const result = getSanitizedBookMetadata(input);
+          expect(result?.wasModified).toBe(true);
+          expect(result?.sanitized.title).toBe('Title');
+      });
+
+      it('truncates overly long fields and reports it', () => {
           const longString = 'a'.repeat(3000);
           const input = {
               ...validBook,
@@ -48,16 +59,21 @@ describe('validators', () => {
               author: longString,
               description: longString
           };
-          const result = sanitizeBookMetadata(input);
+          const result = getSanitizedBookMetadata(input);
           expect(result).not.toBeNull();
-          expect(result?.title.length).toBe(500);
-          expect(result?.author.length).toBe(255);
-          expect(result?.description?.length).toBe(2000);
+          expect(result?.wasModified).toBe(true);
+
+          expect(result?.sanitized.title.length).toBe(500);
+          expect(result?.sanitized.author.length).toBe(255);
+          expect(result?.sanitized.description?.length).toBe(2000);
+
+          expect(result?.modifications).toHaveLength(3);
+          expect(result?.modifications[0]).toContain('Title truncated');
       });
 
       it('returns null for invalid structure', () => {
-          expect(sanitizeBookMetadata(null)).toBeNull();
-          expect(sanitizeBookMetadata({})).toBeNull();
+          expect(getSanitizedBookMetadata(null)).toBeNull();
+          expect(getSanitizedBookMetadata({})).toBeNull();
       });
   });
 });

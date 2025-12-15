@@ -2,7 +2,7 @@ import ePub, { type NavigationItem } from 'epubjs';
 import { v4 as uuidv4 } from 'uuid';
 import { getDB } from '../db/db';
 import type { BookMetadata, SectionMetadata } from '../types/db';
-import { sanitizeString } from '../db/validators';
+import { getSanitizedBookMetadata } from '../db/validators';
 import CryptoJS from 'crypto-js';
 
 // Chunk size for hashing (e.g., 2MB)
@@ -184,11 +184,11 @@ export async function processEpub(file: File): Promise<string> {
   // Calculate SHA-256 hash incrementally
   const fileHash = await computeFileHash(file);
 
-  const newBook: BookMetadata = {
+  const candidateBook: BookMetadata = {
     id: bookId,
-    title: sanitizeString(metadata.title || 'Untitled', 500),
-    author: sanitizeString(metadata.creator || 'Unknown Author', 255),
-    description: sanitizeString(metadata.description || '', 2000),
+    title: metadata.title || 'Untitled',
+    author: metadata.creator || 'Unknown Author',
+    description: metadata.description || '',
     addedAt: Date.now(),
     coverBlob: coverBlob,
     fileHash,
@@ -198,10 +198,22 @@ export async function processEpub(file: File): Promise<string> {
     totalChars, // Store the calculated total characters
   };
 
+  const check = getSanitizedBookMetadata(candidateBook);
+  let finalBook = candidateBook;
+
+  if (check && check.wasModified) {
+    const msg = `Security Warning: Metadata for book "${candidateBook.title}" is too long.\n${check.modifications.join('\n')}\n\nClick OK to Sanitize (Recommended), or Cancel to Import As-Is (Not Recommended).`;
+    if (confirm(msg)) {
+      finalBook = check.sanitized;
+    }
+  } else if (check) {
+    finalBook = check.sanitized;
+  }
+
   const db = await getDB();
 
   const tx = db.transaction(['books', 'files', 'sections'], 'readwrite');
-  await tx.objectStore('books').add(newBook);
+  await tx.objectStore('books').add(finalBook);
   await tx.objectStore('files').add(file, bookId);
 
   // Store section metadata

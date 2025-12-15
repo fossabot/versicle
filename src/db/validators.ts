@@ -49,20 +49,52 @@ export function sanitizeString(input: string, maxLength: number = 255): string {
     return input.trim().slice(0, maxLength);
 }
 
+export interface SanitizationResult {
+    sanitized: BookMetadata;
+    wasModified: boolean;
+    modifications: string[];
+}
+
 /**
- * Sanitizes book metadata.
- * Returns null if invalid, or a new object with sanitized strings.
+ * Checks book metadata for sanitization needs and returns the sanitized version with a report of changes.
+ * Returns null if the input is invalid.
  * @param data - The raw data to sanitize.
- * @returns Sanitized BookMetadata or null.
+ * @returns SanitizationResult or null.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function sanitizeBookMetadata(data: any): BookMetadata | null {
+export function getSanitizedBookMetadata(data: any): SanitizationResult | null {
     if (!validateBookMetadata(data)) return null;
 
-    return {
+    const modifications: string[] = [];
+
+    const titleSanitized = sanitizeString(data.title, 500);
+    if (titleSanitized !== data.title) {
+        modifications.push(`Title truncated by ${data.title.length - titleSanitized.length} characters`);
+    }
+
+    const authorSanitized = sanitizeString(data.author, 255);
+    if (authorSanitized !== data.author) {
+        modifications.push(`Author truncated by ${data.author.length - authorSanitized.length} characters`);
+    }
+
+    let descriptionSanitized = data.description;
+    if (typeof data.description === 'string') {
+        descriptionSanitized = sanitizeString(data.description, 2000);
+        if (descriptionSanitized !== data.description) {
+            modifications.push(`Description truncated by ${data.description.length - descriptionSanitized.length} characters`);
+        }
+    }
+
+    const sanitized: BookMetadata = {
         ...data,
-        title: sanitizeString(data.title, 500),
-        author: sanitizeString(data.author, 255),
-        description: data.description ? sanitizeString(data.description, 2000) : undefined,
+        title: titleSanitized,
+        author: authorSanitized,
+        description: descriptionSanitized,
+    };
+
+    return {
+        sanitized,
+        wasModified: modifications.length > 0,
+        modifications
     };
 }
