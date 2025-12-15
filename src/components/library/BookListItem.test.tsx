@@ -35,7 +35,7 @@ describe('BookListItem', () => {
 
     it('renders book details correctly', () => {
         render(
-            <MemoryRouter>
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <BookListItem book={mockBook} style={{}} />
             </MemoryRouter>
         );
@@ -49,7 +49,7 @@ describe('BookListItem', () => {
     it('handles missing file size gracefully', () => {
         const bookWithoutSize = { ...mockBook, fileSize: undefined };
         render(
-            <MemoryRouter>
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <BookListItem book={bookWithoutSize} style={{}} />
             </MemoryRouter>
         );
@@ -61,7 +61,7 @@ describe('BookListItem', () => {
     it('shows offloaded status', () => {
         const offloadedBook = { ...mockBook, isOffloaded: true };
         render(
-            <MemoryRouter>
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <BookListItem book={offloadedBook} style={{}} />
             </MemoryRouter>
         );
