@@ -1,24 +1,24 @@
 import ePub from 'epubjs';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const getEpubCFI = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((ePub as any).CFI) return (ePub as any).CFI;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((ePub as any).default && (ePub as any).default.CFI) return (ePub as any).default.CFI;
     // Check global
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof window !== 'undefined' && (window as any).ePub && (window as any).ePub.CFI) return (window as any).ePub.CFI;
 
     // In test environment, sometimes ePub is the default export but structured differently
     // Just return what we found if it looks like a constructor?
     return (ePub as any).CFI;
 };
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export interface CfiRangeData {
   parent: string;
   start: string;
   end: string;
+  rawStart: string;
+  rawEnd: string;
   fullStart: string;
   fullEnd: string;
 }
@@ -37,6 +37,8 @@ export function parseCfiRange(range: string): CfiRangeData | null {
             parent,
             start,
             end,
+            rawStart: parent + start,
+            rawEnd: parent + end,
             fullStart: `epubcfi(${parent}${start})`,
             fullEnd: `epubcfi(${parent}${end})`
         };
@@ -119,6 +121,7 @@ export function mergeCfiRanges(ranges: string[], newRange?: string): string[] {
                 // newEnd = Max(current.end, next.end)
                 if (cfi.compare(next.fullEnd, current.fullEnd) > 0) {
                     current.fullEnd = next.fullEnd;
+                    current.rawEnd = next.rawEnd;
                 }
             } else {
                 merged.push(current);
@@ -133,5 +136,5 @@ export function mergeCfiRanges(ranges: string[], newRange?: string): string[] {
     }
     merged.push(current);
 
-    return merged.map(r => generateCfiRange(r.fullStart, r.fullEnd));
+    return merged.map(r => generateCfiRange(r.rawStart, r.rawEnd));
 }
