@@ -20,8 +20,8 @@ def test_tts_queue(page: Page):
 
     # Wait for reader to load
     print("Waiting for reader...")
-    expect(page.get_by_test_id("reader-iframe-container")).to_be_visible(timeout=5000)
-    page.wait_for_timeout(3000)
+    expect(page.get_by_test_id("reader-iframe-container")).to_be_visible(timeout=2000)
+    page.wait_for_timeout(2000)
 
     # Open TTS Controls
     print("Opening TTS controls...")
@@ -29,10 +29,10 @@ def test_tts_queue(page: Page):
 
     # Wait for popup
     try:
-        expect(page.get_by_test_id("tts-panel")).to_be_visible(timeout=5000)
+        expect(page.get_by_test_id("tts-panel")).to_be_visible(timeout=2000)
     except:
         page.get_by_test_id("reader-audio-button").click()
-        expect(page.get_by_test_id("tts-panel")).to_be_visible(timeout=5000)
+        expect(page.get_by_test_id("tts-panel")).to_be_visible(timeout=2000)
 
     # Search for text by paging forward
     found_text = False
@@ -52,15 +52,22 @@ def test_tts_queue(page: Page):
             break
 
         print("Queue empty. Navigating to next page...")
-        # We need to click outside the TTS panel if it overlays the next button,
-        # BUT the TTS panel is a Sheet (Side panel), so it shouldn't block the footer next button completely
-        # depending on screen size. In mobile view it covers.
-        # In desktop (default 1280x720 in playwright?), it might be a sidebar.
-        # Let's check viewport. Playwright default is 1280x720. Sheet is usually right side.
-        # Footer buttons are at bottom.
-        # If blocked, we can use keyboard.
+        # Close TTS panel to allow navigation (avoid focus trap)
+        page.get_by_test_id("reader-audio-button").click()
+        try:
+            expect(page.get_by_test_id("tts-panel")).not_to_be_visible(timeout=2000)
+        except:
+            # Retry if click failed
+            page.get_by_test_id("reader-audio-button").click()
+            expect(page.get_by_test_id("tts-panel")).not_to_be_visible(timeout=2000)
+
+        # Navigate
         page.keyboard.press("ArrowRight")
         page.wait_for_timeout(2000)
+
+        # Re-open TTS panel
+        page.get_by_test_id("reader-audio-button").click()
+        expect(page.get_by_test_id("tts-panel")).to_be_visible(timeout=2000)
 
     if not found_text:
         # One last check
