@@ -145,9 +145,6 @@ export const LibraryView: React.FC = () => {
   // to determine if cells need to re-render.
   const itemData = React.useMemo(() => ({ books, columnCount }), [books, columnCount]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const GridAny = Grid as any;
-
   return (
     <div
       data-testid="library-view"
@@ -232,7 +229,7 @@ export const LibraryView: React.FC = () => {
           {books.length === 0 ? (
              <EmptyLibrary onImport={triggerFileUpload} />
           ) : (
-             <GridAny
+             <Grid
                 columnCount={viewMode === 'list' ? 1 : columnCount}
                 columnWidth={viewMode === 'list' ? dimensions.width : gridColumnWidth}
                 height={dimensions.height || 500}
@@ -242,7 +239,7 @@ export const LibraryView: React.FC = () => {
                 itemData={itemData}
              >
                 {viewMode === 'list' ? ListCell : GridCell}
-             </GridAny>
+             </Grid>
           )}
         </section>
       )}
