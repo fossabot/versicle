@@ -35,33 +35,26 @@ export function useSmartTOC(
 
     setIsEnhancing(true);
     const totalItems = countTocItems(originalToc);
-    // Phase 1: Scanning (0-50%), Phase 2: Generating (50-100%)
     setProgress({ current: 0, total: totalItems });
 
     try {
-      // 1. Collect all chapter texts
       const chaptersToProcess: { id: string; text: string }[] = [];
 
       await collectChapterData(originalToc, book, (count) => {
-         // Update progress for scanning phase
          setProgress((prev) => prev ? { ...prev, current: prev.current + count } : null);
       }, chaptersToProcess);
 
-      // 2. Batch Generate Titles
-      // Reset progress or update message - for now just keep counting but maybe jump?
-      // Since we batched, we can't easily show incremental progress for the API call itself.
-      // We could split into chunks of 10 if we have huge books, but for now single batch.
+      if (chaptersToProcess.length === 0) {
+        throw new Error('No readable content found in chapters.');
+      }
 
       const generatedTitles = await genAIService.generateTOCForBatch(chaptersToProcess);
 
-      // Create a map for easy lookup
       const titleMap = new Map<string, string>();
       generatedTitles.forEach(item => titleMap.set(item.id, item.title));
 
-      // 3. Reconstruct TOC with new titles
       const newToc = reconstructToc(originalToc, titleMap);
 
-      // Update DB
       const metadata = await dbService.getBookMetadata(bookId);
       if (metadata) {
         await dbService.updateBookMetadata(bookId, {
@@ -71,7 +64,6 @@ export function useSmartTOC(
         });
       }
 
-      // Update local state
       setSyntheticToc(newToc);
       showToast('Table of Contents enhanced successfully!', 'success');
 
@@ -106,16 +98,29 @@ async function collectChapterData(
 ): Promise<void> {
     for (const item of items) {
         try {
+            // Strip hash to ensure we load the file correctly
+            const href = item.href.split('#')[0];
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const section = book.spine.get(item.href) as any;
-            if (section) {
-                const doc = await section.load(book.load.bind(book)) as Document;
-                if (doc && doc.body && doc.body.textContent) {
-                    const text = doc.body.textContent.trim().substring(0, 500); // 500 chars limit per request
+            const contentOrDoc = await (book as any).load(href);
+            let doc: Document | null = null;
+
+            if (typeof contentOrDoc === 'string') {
+                doc = new DOMParser().parseFromString(contentOrDoc, 'text/html');
+            } else if (contentOrDoc && typeof contentOrDoc === 'object') {
+                doc = contentOrDoc as Document;
+            }
+
+            if (doc) {
+                 // Try innerText first (browser), then textContent (standard)
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 const content = (doc.body as any)?.innerText || doc.body?.textContent || doc.documentElement?.textContent;
+
+                 if (content) {
+                    const text = content.trim().substring(0, 500);
                     if (text.length > 50) {
                         results.push({ id: item.id, text });
                     }
-                }
+                 }
             }
         } catch (e) {
             console.warn(`Failed to process TOC item: ${item.label}`, e);
