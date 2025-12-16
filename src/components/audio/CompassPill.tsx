@@ -84,14 +84,14 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant }) => {
   // Compact Mode
   if (variant === 'compact') {
       return (
-          <div data-testid="compass-pill-compact" className="relative z-40 flex items-center justify-center gap-6 w-auto h-12 px-6 mx-auto transition-all border shadow-lg rounded-full bg-background/80 backdrop-blur-md border-white/10">
+          <div data-testid="compass-pill-compact" className="relative z-40 flex items-center justify-center gap-3 w-auto h-10 px-4 mx-auto transition-all border shadow-lg rounded-full bg-background/80 backdrop-blur-md border-white/10">
                 {/* Prev Button */}
                 <button
                     className="p-1 text-primary hover:bg-primary/10 rounded-full transition-colors"
                     onClick={() => isPlaying ? handleSkip('prev') : handleChapterNav('prev')}
                     aria-label="Previous"
                 >
-                    {isPlaying ? <SkipBack size={20} /> : <ChevronsLeft size={22} />}
+                    {isPlaying ? <SkipBack size={16} /> : <ChevronsLeft size={18} />}
                 </button>
 
                 {/* Play/Pause Button */}
@@ -100,7 +100,7 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant }) => {
                     onClick={handleTogglePlay}
                     aria-label={isPlaying ? "Pause" : "Play"}
                 >
-                    {isPlaying ? <Pause size={24} className="fill-current" /> : <Play size={24} className="fill-current ml-0.5" />}
+                    {isPlaying ? <Pause size={20} className="fill-current" /> : <Play size={20} className="fill-current ml-0.5" />}
                 </button>
 
                 {/* Next Button */}
@@ -109,7 +109,7 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant }) => {
                     onClick={() => isPlaying ? handleSkip('next') : handleChapterNav('next')}
                     aria-label="Next"
                 >
-                     {isPlaying ? <SkipForward size={20} /> : <ChevronsRight size={22} />}
+                     {isPlaying ? <SkipForward size={16} /> : <ChevronsRight size={18} />}
                 </button>
           </div>
       );
