@@ -13,9 +13,12 @@ def test_immersive_mode(page: Page):
     expect(page).to_have_url(re.compile(r".*/read/.*"))
     page.wait_for_timeout(2000)
 
-    # Verify Header is initially visible (Footer is removed in Sprint 5)
+    # Verify Header is initially visible
     header = page.locator("header")
     expect(header).to_be_visible()
+
+    # Wait for Compass Pill to appear (ensures TTS loaded)
+    expect(page.get_by_test_id("compass-pill-active")).to_be_visible(timeout=15000)
 
     # Enter Immersive Mode
     print("Entering Immersive Mode...")
@@ -29,6 +32,15 @@ def test_immersive_mode(page: Page):
     exit_btn = page.get_by_test_id("reader-immersive-exit-button")
     expect(exit_btn).to_be_visible()
 
+    # Verify Compass Pill is Compact
+    print("Verifying Compact Pill...")
+    expect(page.get_by_test_id("compass-pill-compact")).to_be_visible()
+    expect(page.get_by_test_id("compass-pill-active")).not_to_be_visible()
+
+    # Verify Satellite FAB is hidden
+    print("Verifying FAB is hidden...")
+    expect(page.get_by_test_id("satellite-fab")).not_to_be_visible()
+
     utils.capture_screenshot(page, "immersive_mode_active")
 
     # Exit Immersive Mode
@@ -40,6 +52,15 @@ def test_immersive_mode(page: Page):
 
     # Verify Exit Button is hidden
     expect(exit_btn).not_to_be_visible()
+
+    # Verify Compass Pill is Active again
+    print("Verifying Active Pill...")
+    expect(page.get_by_test_id("compass-pill-active")).to_be_visible()
+    expect(page.get_by_test_id("compass-pill-compact")).not_to_be_visible()
+
+    # Verify Satellite FAB is visible again
+    print("Verifying FAB is visible...")
+    expect(page.get_by_test_id("satellite-fab")).to_be_visible()
 
     utils.capture_screenshot(page, "immersive_mode_exited")
 

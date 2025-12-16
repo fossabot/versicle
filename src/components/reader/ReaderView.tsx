@@ -57,7 +57,9 @@ export const ReaderView: React.FC = () => {
     viewMode,
     shouldForceFont,
     gestureMode,
-    setGestureMode
+    setGestureMode,
+    immersiveMode,
+    setImmersiveMode
   } = useReaderStore(useShallow(state => ({
     currentTheme: state.currentTheme,
     customTheme: state.customTheme,
@@ -74,7 +76,9 @@ export const ReaderView: React.FC = () => {
     viewMode: state.viewMode,
     shouldForceFont: state.shouldForceFont,
     gestureMode: state.gestureMode,
-    setGestureMode: state.setGestureMode
+    setGestureMode: state.setGestureMode,
+    immersiveMode: state.immersiveMode,
+    setImmersiveMode: state.setImmersiveMode
   })));
 
   // Optimization: Select only necessary state to prevent re-renders on every activeCfi/currentIndex change
@@ -310,7 +314,6 @@ export const ReaderView: React.FC = () => {
   const [useSyntheticToc, setUseSyntheticToc] = useState(false);
   const [syntheticToc, setSyntheticToc] = useState<NavigationItem[]>([]);
   const [showAnnotations, setShowAnnotations] = useState(false);
-  const [immersiveMode, setImmersiveMode] = useState(false);
 
   const [lexiconOpen, setLexiconOpen] = useState(false);
   const [lexiconText, setLexiconText] = useState('');
