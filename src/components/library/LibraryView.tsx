@@ -18,8 +18,7 @@ const LIST_ITEM_HEIGHT = 88;
  * Renders a single cell within the virtualized grid of books.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GridCell = ({ columnIndex, rowIndex, style, data }: any) => {
-    const { books, columnCount } = data;
+const GridCell = ({ columnIndex, rowIndex, style, books, columnCount }: any) => {
     const index = rowIndex * columnCount + columnIndex;
     if (index >= books.length) return <div style={style} />;
     const book = books[index];
@@ -36,8 +35,7 @@ const GridCell = ({ columnIndex, rowIndex, style, data }: any) => {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ListCell = ({ rowIndex, style, data }: any) => {
-    const { books } = data;
+const ListCell = ({ rowIndex, style, books }: any) => {
     const index = rowIndex;
     if (index >= books.length) return <div style={style} />;
     const book = books[index];
@@ -140,10 +138,12 @@ export const LibraryView: React.FC = () => {
   const rowCount = Math.ceil(books.length / columnCount);
   const gridColumnWidth = Math.floor(dimensions.width / columnCount);
 
-  // Memoize itemData to prevent unnecessary re-renders of the grid cells.
-  // react-window passes this data to the child component and does a shallow comparison
-  // to determine if cells need to re-render.
+  // Memoize itemData (cellProps) to prevent unnecessary re-renders of the grid cells.
+  // This version of react-window uses cellProps which are spread into the component props.
   const itemData = React.useMemo(() => ({ books, columnCount }), [books, columnCount]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const GridAny = Grid as any;
 
   return (
     <div
@@ -229,17 +229,16 @@ export const LibraryView: React.FC = () => {
           {books.length === 0 ? (
              <EmptyLibrary onImport={triggerFileUpload} />
           ) : (
-             <Grid
+             <GridAny
                 columnCount={viewMode === 'list' ? 1 : columnCount}
                 columnWidth={viewMode === 'list' ? dimensions.width : gridColumnWidth}
                 height={dimensions.height || 500}
                 rowCount={viewMode === 'list' ? books.length : rowCount}
                 rowHeight={viewMode === 'list' ? LIST_ITEM_HEIGHT : CARD_HEIGHT + GAP}
                 width={dimensions.width}
-                itemData={itemData}
-             >
-                {viewMode === 'list' ? ListCell : GridCell}
-             </Grid>
+                cellComponent={viewMode === 'list' ? ListCell : GridCell}
+                cellProps={itemData}
+             />
           )}
         </section>
       )}

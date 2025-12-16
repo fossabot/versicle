@@ -12,7 +12,7 @@ const MockGrid = React.memo((props: any) => {
     // but the Grid itself might re-render if its props change.
     // However, react-window is smart.
     // We log the prop we want to ensure is stable.
-    renderLog(props.itemData);
+    renderLog(props.cellProps);
     return <div data-testid="mock-grid">Grid</div>;
 });
 
@@ -47,7 +47,7 @@ describe('LibraryView Performance', () => {
         Object.defineProperty(window, 'innerHeight', { configurable: true, value: 600 });
     });
 
-    it('re-renders Grid with new itemData on unrelated state changes', async () => {
+    it('re-renders Grid with new cellProps on unrelated state changes', async () => {
         render(<LibraryView />);
 
         // Trigger resize to set initial dimensions and ensure first render is done
@@ -64,7 +64,7 @@ describe('LibraryView Performance', () => {
             useLibraryStore.setState({ isImporting: true });
         });
 
-        // We expect NO renders because itemData is memoized and other props are stable
+        // We expect NO renders because cellProps is memoized and other props are stable
         const callsAfterUpdate = renderLog.mock.calls.length;
         expect(callsAfterUpdate).toBe(0);
 
