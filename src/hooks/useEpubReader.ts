@@ -144,17 +144,17 @@ export function useEpubReader(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const themes = newRendition.themes as any;
         themes.register('light', `
-          body { background: #ffffff !important; color: #000000 !important; padding-bottom: 150px !important; }
+          body { background: #ffffff !important; color: #000000 !important; }
           p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
           a { color: #0000ee !important; }
         `);
         themes.register('dark', `
-          body { background: #1a1a1a !important; color: #f5f5f5 !important; padding-bottom: 150px !important; }
+          body { background: #1a1a1a !important; color: #f5f5f5 !important; }
           p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
           a { color: #6ab0f3 !important; }
         `);
         themes.register('sepia', `
-          body { background: #f4ecd8 !important; color: #5b4636 !important; padding-bottom: 150px !important; }
+          body { background: #f4ecd8 !important; color: #5b4636 !important; }
           p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
           a { color: #0000ee !important; }
         `);
@@ -336,7 +336,7 @@ export function useEpubReader(
       const themes = r.themes as any;
 
       themes.register('custom', `
-        body { background: ${options.customTheme.bg} !important; color: ${options.customTheme.fg} !important; padding-bottom: 150px !important; }
+        body { background: ${options.customTheme.bg} !important; color: ${options.customTheme.fg} !important; }
         p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
         a { color: ${options.customTheme.fg} !important; }
       `);
@@ -406,7 +406,6 @@ export function useEpubReader(
             }
             html, body {
               background: ${bg} !important;
-              padding-bottom: 150px !important;
             }
             a, a * {
               color: ${linkColor} !important;
