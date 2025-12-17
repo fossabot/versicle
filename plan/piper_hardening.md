@@ -101,3 +101,8 @@ Downloads must be atomic. We should not attempt to load a voice unless we are 10
     -   Logic: Fetch (memory) -> Cache -> Verify (test load) -> Commit.
     -   On failure, `deleteCachedModel` is called automatically (Repair).
     -   Existing UI allows deleting (repairing) voice.
+
+-   [x] **Step 6:** Implement Phase 3 Defensive Coding.
+    -   Updated `PiperProvider.ts` to use `TextSegmenter` for input sanitization (splitting >500 char requests).
+    -   Updated `piper-utils.ts` to modify `piperGenerate` to return `Blob` directly, avoiding `URL.createObjectURL` leaks.
+    -   Implemented `stitchWavs` in `piper-utils.ts` to concatenate segmented audio responses efficiently.

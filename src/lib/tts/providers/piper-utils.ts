@@ -47,6 +47,85 @@ export const deleteCachedModel = (modelUrl: string, modelConfigUrl: string) => {
   supervisor.terminate();
 };
 
+/**
+ * Concatenates multiple WAV blobs into a single WAV blob.
+ * Assumes blobs are standard WAV files (RIFF header + data chunk).
+ */
+export async function stitchWavs(blobs: Blob[]): Promise<Blob> {
+    if (blobs.length === 0) return new Blob([], { type: 'audio/wav' });
+    if (blobs.length === 1) return blobs[0];
+
+    // Helper to find data chunk
+    function findDataChunk(view: DataView): { offset: number, size: number } | null {
+        // Start after RIFF header (12 bytes)
+        let offset = 12;
+        while (offset < view.byteLength) {
+            // Read 4 chars
+            const chunkId = String.fromCharCode(
+                view.getUint8(offset),
+                view.getUint8(offset + 1),
+                view.getUint8(offset + 2),
+                view.getUint8(offset + 3)
+            );
+            const chunkSize = view.getUint32(offset + 4, true); // little endian
+
+            if (chunkId === 'data') {
+                return { offset: offset + 8, size: chunkSize };
+            }
+            offset += 8 + chunkSize;
+        }
+        return null;
+    }
+
+    const buffers = await Promise.all(blobs.map(b => b.arrayBuffer()));
+    const firstBuffer = buffers[0];
+    const firstView = new DataView(firstBuffer);
+
+    const firstData = findDataChunk(firstView);
+    if (!firstData) {
+        // Fallback: assume 44 byte header if parsing fails
+         console.warn("Could not find data chunk in first WAV, assuming 44 byte header.");
+    }
+
+    // Header size (everything before data)
+    const headerSize = firstData ? firstData.offset : 44;
+    const header = firstBuffer.slice(0, headerSize);
+
+    const dataParts: ArrayBuffer[] = [];
+    let totalDataSize = 0;
+
+    for (let i = 0; i < buffers.length; i++) {
+        const buffer = buffers[i];
+        const view = new DataView(buffer);
+        const dataInfo = findDataChunk(view);
+
+        if (dataInfo) {
+            dataParts.push(buffer.slice(dataInfo.offset, dataInfo.offset + dataInfo.size));
+            totalDataSize += dataInfo.size;
+        } else {
+             // Fallback: strip 44 bytes
+             dataParts.push(buffer.slice(44));
+             totalDataSize += (buffer.byteLength - 44);
+        }
+    }
+
+    // Update Header
+    const newHeader = new DataView(header.slice(0)); // copy
+    // RIFF ChunkSize (at 4) = 4 + (8 + subchunks) + (8 + dataSize)
+    // Simplified: FileSize - 8
+    // headerSize includes the preamble (4) + size (4) + rest of header
+    newHeader.setUint32(4, headerSize - 8 + totalDataSize, true);
+    // Data SubchunkSize (at headerSize - 4 usually?)
+    // Actually, if we found the data chunk, its size is at offset-4.
+    if (firstData) {
+        newHeader.setUint32(firstData.offset - 4, totalDataSize, true);
+    } else {
+        newHeader.setUint32(40, totalDataSize, true);
+    }
+
+    return new Blob([newHeader, ...dataParts], { type: 'audio/wav' });
+}
+
 export const piperGenerate = async (
   piperPhonemizeJsUrl: string,
   piperPhonemizeWasmUrl: string,
@@ -58,7 +137,7 @@ export const piperGenerate = async (
   input: string,
   onProgress: (progress: number) => void,
   onnxruntimeUrl = "https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.1/"
-): Promise<{ file: string; duration: number }> => {
+): Promise<{ file: Blob; duration: number }> => {
 
   // Initialize supervisor with worker URL
   supervisor.init(workerUrl);
@@ -112,8 +191,8 @@ export const piperGenerate = async (
         const data = event.data;
         switch (data.kind) {
           case "output": {
-            const audioBlobUrl = URL.createObjectURL(data.file);
-            resolve({ file: audioBlobUrl, duration: data.duration });
+            // Hardening Phase 3: Return Blob directly to avoid unrevoked ObjectURLs
+            resolve({ file: data.file, duration: data.duration });
             break;
           }
           case "stderr": {

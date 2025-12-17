@@ -1,6 +1,7 @@
 import { BaseCloudProvider } from './BaseCloudProvider';
 import type { TTSOptions, TTSVoice, SpeechSegment } from './types';
-import { piperGenerate, isModelCached, deleteCachedModel, fetchWithBackoff, cacheModel } from './piper-utils';
+import { piperGenerate, isModelCached, deleteCachedModel, fetchWithBackoff, cacheModel, stitchWavs } from './piper-utils';
+import { TextSegmenter } from '../TextSegmenter';
 
 const HF_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/";
 const PIPER_ASSETS_BASE = "/piper/";
@@ -24,6 +25,12 @@ interface PiperVoiceInfo {
 export class PiperProvider extends BaseCloudProvider {
   id = 'piper';
   private voiceMap: Map<string, { modelPath: string; configPath: string; speakerId?: number }> = new Map();
+  private segmenter: TextSegmenter;
+
+  constructor() {
+    super();
+    this.segmenter = new TextSegmenter();
+  }
 
   async init(): Promise<void> {
     try {
@@ -151,21 +158,70 @@ export class PiperProvider extends BaseCloudProvider {
     const modelUrl = HF_BASE + voiceInfo.modelPath;
     const modelConfigUrl = HF_BASE + voiceInfo.configPath;
 
-    const result = await piperGenerate(
-      PIPER_ASSETS_BASE + 'piper_phonemize.js',
-      PIPER_ASSETS_BASE + 'piper_phonemize.wasm',
-      PIPER_ASSETS_BASE + 'piper_phonemize.data',
-      PIPER_ASSETS_BASE + 'piper_worker.js',
-      modelUrl,
-      modelConfigUrl,
-      voiceInfo.speakerId,
-      text,
-      (progress) => {
-        this.emit({ type: 'download-progress', percent: progress, status: 'Downloading...', voiceId: options.voiceId });
-      }
-    );
+    // Phase 3 Hardening: Input Sanitization
+    // Split long requests to prevent worker crashes
+    const MAX_CHARS = 500;
 
-    const audioBlob = await fetch(result.file).then(r => r.blob());
+    let segments: string[] = [];
+    if (text.length > MAX_CHARS) {
+       // Use TextSegmenter to split safely
+       const sentences = this.segmenter.segment(text);
+       let currentChunk = "";
+       for (const sentence of sentences) {
+           if (currentChunk.length + sentence.text.length > MAX_CHARS) {
+               if (currentChunk) segments.push(currentChunk);
+               currentChunk = sentence.text;
+           } else {
+               currentChunk += sentence.text;
+           }
+       }
+       if (currentChunk) segments.push(currentChunk);
+    } else {
+        segments = [text];
+    }
+
+    const audioBlobs: Blob[] = [];
+
+    // Process segments sequentially
+    let completedSegments = 0;
+    const totalSegments = segments.length;
+
+    for (const segment of segments) {
+         if (!segment.trim()) continue;
+
+         // Double-check length; if a single sentence is huge, we must split it hard.
+         // This is a safety fallback if TextSegmenter returns a giant chunk.
+         const subSegments = segment.length > MAX_CHARS ? segment.match(new RegExp(`.{1,${MAX_CHARS}}`, 'g')) || [segment] : [segment];
+
+         for (const subSegment of subSegments) {
+            const result = await piperGenerate(
+                PIPER_ASSETS_BASE + 'piper_phonemize.js',
+                PIPER_ASSETS_BASE + 'piper_phonemize.wasm',
+                PIPER_ASSETS_BASE + 'piper_phonemize.data',
+                PIPER_ASSETS_BASE + 'piper_worker.js',
+                modelUrl,
+                modelConfigUrl,
+                voiceInfo.speakerId,
+                subSegment,
+                (progress) => {
+                    // Weighted progress: (completed segments + current segment progress) / total segments
+                    const currentSegmentProgress = progress / 100;
+                    const totalProgress = ((completedSegments + currentSegmentProgress) / totalSegments) * 100;
+                    this.emit({ type: 'download-progress', percent: Math.round(totalProgress), status: 'Downloading...', voiceId: options.voiceId });
+                }
+            );
+            audioBlobs.push(result.file);
+         }
+         completedSegments++;
+    }
+
+    // Stitch blobs if needed
+    let audioBlob: Blob;
+    if (audioBlobs.length === 1) {
+        audioBlob = audioBlobs[0];
+    } else {
+        audioBlob = await stitchWavs(audioBlobs);
+    }
 
     return {
       audio: audioBlob,
