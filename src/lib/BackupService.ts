@@ -215,14 +215,11 @@ export class BackupService {
         continue;
       }
 
-      let book = check.sanitized;
+      // Always sanitize metadata to ensure security (XSS prevention) and DB integrity
+      const book = check.sanitized;
 
       if (check.wasModified) {
-          const msg = `Security Warning: Backup contains book "${candidate.title}" with metadata that is too long.\n${check.modifications.join('\n')}\n\nClick OK to Sanitize (Recommended), or Cancel to Import As-Is (Not Recommended).`;
-          if (!confirm(msg)) {
-              // User chose As-Is. We use the candidate (which has default values but original long strings)
-              book = candidate as BookMetadata;
-          }
+          console.warn(`Metadata sanitized for backup book "${candidate.title}":`, check.modifications);
       }
 
       booksToSave.push(book);
