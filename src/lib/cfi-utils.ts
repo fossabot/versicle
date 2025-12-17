@@ -85,8 +85,15 @@ function fallbackCfiCompare(a: string, b: string): number {
 
     // Remove epubcfi( and )
     const strip = (s: string) => s.replace(/^epubcfi\(|\)$/g, '');
-    const aParts = strip(a).split('/');
-    const bParts = strip(b).split('/');
+
+    // Helper to split CFI into comparable parts
+    // Handles /, :, and !
+    const tokenize = (str: string) => {
+        return str.split(/([/:!])/).filter(p => p !== '');
+    };
+
+    const aParts = tokenize(strip(a));
+    const bParts = tokenize(strip(b));
 
     // Compare parts
     for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
@@ -95,15 +102,22 @@ function fallbackCfiCompare(a: string, b: string): number {
 
         if (partA === partB) continue;
 
-        // Handle step indices (integers)
+        // If separators, they have an order.
+        // Hierarchy usually: ! (indirection) > / (step) > : (offset) ?
+        // Actually, structurally they should match. If they don't, it's different branches.
+        // Assuming valid CFIs, we compare integers if both are integers.
+
         const intA = parseInt(partA, 10);
         const intB = parseInt(partB, 10);
 
         if (!isNaN(intA) && !isNaN(intB)) {
-            if (intA !== intB) return intA - intB;
+            // Ensure we are comparing entire string as integer
+            if (intA.toString() === partA && intB.toString() === partB) {
+                 if (intA !== intB) return intA - intB;
+            }
         }
 
-        // String fallback (e.g. IDs)
+        // String fallback
         if (partA < partB) return -1;
         if (partA > partB) return 1;
     }

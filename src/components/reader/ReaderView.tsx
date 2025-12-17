@@ -112,6 +112,11 @@ export const ReaderView: React.FC = () => {
     lineHeight,
     shouldForceFont,
     onLocationChange: (location, percentage, title, sectionId) => {
+         // Initialize previousLocation if it's null (e.g. initial load), so we can track subsequent moves
+         if (!previousLocation.current) {
+             previousLocation.current = { start: location.start.cfi, end: location.end.cfi };
+         }
+
          // Prevent infinite loop if CFI hasn't changed (handled in store usually, but double check)
          if (location.start.cfi === useReaderStore.getState().currentCfi) return;
 
@@ -119,7 +124,8 @@ export const ReaderView: React.FC = () => {
          if (id && previousLocation.current) {
              const prevStart = previousLocation.current.start;
              const prevEnd = previousLocation.current.end;
-             if (prevStart && prevEnd) {
+             // Ensure we don't save zero-length ranges (where start == current start)
+             if (prevStart && prevEnd && prevStart !== location.start.cfi) {
                  const range = generateCfiRange(prevStart, prevEnd);
                  dbService.updateReadingHistory(id, range)
                     .then(() => setHistoryTick(t => t + 1))
