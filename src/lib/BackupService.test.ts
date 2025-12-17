@@ -212,8 +212,8 @@ describe('BackupService', () => {
       }));
     });
 
-    it('should sanitize long metadata if confirmed', async () => {
-        vi.spyOn(window, 'confirm').mockImplementation(() => true);
+    it('should always sanitize metadata', async () => {
+        const confirmSpy = vi.spyOn(window, 'confirm');
         const longTitle = 'a'.repeat(3000);
         const manifest = {
           version: 1,
@@ -237,40 +237,9 @@ describe('BackupService', () => {
 
         await service.restoreBackup(file);
 
-        expect(window.confirm).toHaveBeenCalled();
+        expect(confirmSpy).not.toHaveBeenCalled();
         expect(mockTx.objectStore('books').put).toHaveBeenCalledWith(expect.objectContaining({
           title: 'a'.repeat(500)
-        }));
-    });
-
-    it('should restore as-is if user rejects sanitization', async () => {
-        vi.spyOn(window, 'confirm').mockImplementation(() => false);
-        const longTitle = 'a'.repeat(3000);
-        const manifest = {
-          version: 1,
-          timestamp: '2023-01-01',
-          books: [{ id: 'b1', title: longTitle, author: 'Author', addedAt: 1234567890 }],
-          annotations: [],
-          lexicon: [],
-          locations: []
-        };
-
-        const file = new File([JSON.stringify(manifest)], 'backup.json', { type: 'application/json' });
-
-        const mockTx = {
-          objectStore: vi.fn().mockReturnValue({
-            get: vi.fn().mockResolvedValue(undefined),
-            put: vi.fn().mockResolvedValue(undefined),
-          }),
-          done: Promise.resolve(),
-        };
-        mockDB.transaction.mockReturnValue(mockTx);
-
-        await service.restoreBackup(file);
-
-        expect(window.confirm).toHaveBeenCalled();
-        expect(mockTx.objectStore('books').put).toHaveBeenCalledWith(expect.objectContaining({
-          title: longTitle
         }));
     });
   });
