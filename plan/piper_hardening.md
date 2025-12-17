@@ -90,8 +90,14 @@ Downloads must be atomic. We should not attempt to load a voice unless we are 10
 
 -   [x] **Step 2:** Modify `PiperProvider.ts` (specifically `piper-utils.ts`) to use the Supervisor instead of raw Worker interactions.
 
--   [ ] **Step 3:** Update `src/lib/tts/providers/piper-utils.ts` to include retry logic for downloads.
+-   [x] **Step 3:** Update `src/lib/tts/providers/piper-utils.ts` to include retry logic for downloads.
+    -   Implemented `fetchWithBackoff` with 3 retries (1s, 2s, 4s delay).
+    -   Implemented `cacheModel` for transactional updates.
 
 -   [x] **Step 4:** Add global error trapping to the worker script generation logic.
 
--   [ ] **Step 5:** Add a "Repair Voice" function in the Settings UI that clears the cache for a specific voice.
+-   [x] **Step 5:** Add a "Repair Voice" function in the Settings UI that clears the cache for a specific voice.
+    -   Implemented Transactional Download in `PiperProvider.downloadVoice`.
+    -   Logic: Fetch (memory) -> Cache -> Verify (test load) -> Commit.
+    -   On failure, `deleteCachedModel` is called automatically (Repair).
+    -   Existing UI allows deleting (repairing) voice.
