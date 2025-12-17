@@ -674,7 +674,7 @@ export const ReaderView: React.FC = () => {
                             trigger={historyTick}
                             onNavigate={(cfi) => {
                                 rendition?.display(cfi);
-                                if (window.innerWidth < 768) setShowToc(false);
+                                setShowToc(false);
                             }}
                          />
                      </TabsContent>
