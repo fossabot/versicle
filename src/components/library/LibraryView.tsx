@@ -64,17 +64,35 @@ export const LibraryView: React.FC = () => {
   }, [fetchBooks]);
 
   useLayoutEffect(() => {
-    function updateSize() {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.offsetWidth,
-          height: window.innerHeight - containerRef.current.getBoundingClientRect().top - 20 // Approx remaining height
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      // Debounce logic could be added here if needed, but ResizeObserver is already reasonably efficient.
+      // For immediate responsiveness, we'll update directly but wrapped in requestAnimationFrame to align with paint cycles.
+      window.requestAnimationFrame(() => {
+        if (!Array.isArray(entries) || !entries.length) return;
+        const entry = entries[0];
+
+        // Use contentRect for precise content box dimensions
+        const { width } = entry.contentRect;
+
+        // Calculate height based on window to keep the original full-screen behavior
+        // (Though using contentRect height would be more robust if the parent container is constrained)
+        const top = entry.target.getBoundingClientRect().top;
+        const height = window.innerHeight - top - 20;
+
+        setDimensions(prev => {
+            if (prev.width === width && prev.height === height) return prev;
+            return { width, height };
         });
-      }
-    }
-    window.addEventListener('resize', updateSize);
-    updateSize();
-    return () => window.removeEventListener('resize', updateSize);
+      });
+    });
+
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
