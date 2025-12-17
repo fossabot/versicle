@@ -44,7 +44,6 @@ self.onunhandledrejection = function(event) {
         stack: event.reason ? event.reason.stack : null
     });
 };
-
 async function phonemize(data, onnxruntimeBase, modelConfig) {
   const { input, speakerId, blobs, modelUrl, modelConfigUrl } = data;
   const piperPhonemizeJs = URL.createObjectURL(await getBlob(data.piperPhonemizeJsUrl, blobs));
@@ -88,57 +87,55 @@ async function phonemize(data, onnxruntimeBase, modelConfig) {
   });
   return phonemeIds;
 }
-
 async function init(data, phonemizeOnly = false) {
   try {
-      const { input, speakerId, blobs, modelUrl, modelConfigUrl, onnxruntimeUrl } = data;
-      const modelConfigBlob = await getBlob(modelConfigUrl, blobs);
-      const modelConfig = JSON.parse(await modelConfigBlob.text());
-      const onnxruntimeBase = onnxruntimeUrl;
-      const providedPhonemeIds = data.phonemeIds;
-      let phonemeIds = providedPhonemeIds ?? await phonemize(data, onnxruntimeBase, modelConfig);
-      if (modelConfig.num_symbols) {
-        const maxId = modelConfig.num_symbols - 1;
-        for (let i = 0; i < phonemeIds.length; i++) {
-          if (phonemeIds[i] > maxId) {
-            console.warn('Phoneme ID ' + phonemeIds[i] + ' out of bounds (max ' + maxId + '). Replacing with 0.');
-            phonemeIds[i] = 0;
-          }
-        }
+  const { input, speakerId, blobs, modelUrl, modelConfigUrl, onnxruntimeUrl } = data;
+  const modelConfigBlob = await getBlob(modelConfigUrl, blobs);
+  const modelConfig = JSON.parse(await modelConfigBlob.text());
+  const onnxruntimeBase = onnxruntimeUrl;
+  const providedPhonemeIds = data.phonemeIds;
+  let phonemeIds = providedPhonemeIds ?? await phonemize(data, onnxruntimeBase, modelConfig);
+  if (modelConfig.num_symbols) {
+    const maxId = modelConfig.num_symbols - 1;
+    for (let i = 0; i < phonemeIds.length; i++) {
+      if (phonemeIds[i] > maxId) {
+        console.warn('Phoneme ID ' + phonemeIds[i] + ' out of bounds (max ' + maxId + '). Replacing with 0.');
+        phonemeIds[i] = 0;
       }
-      const phonemeIdMap = Object.entries(modelConfig.phoneme_id_map);
-      const idPhonemeMap = Object.fromEntries(phonemeIdMap.map(([k, v]) => [v[0], k]));
-      const phonemes = phonemeIds.map((id) => idPhonemeMap[id]);
-      if (phonemizeOnly) {
-        self.postMessage({ kind: "output", input, phonemes, phonemeIds });
-        self.postMessage({ kind: "complete" });
-        return;
-      }
-      const onnxruntimeJs = URL.createObjectURL(await getBlob(`${onnxruntimeBase}ort.min.js`, blobs));
-      importScripts(onnxruntimeJs);
-      ort.env.wasm.numThreads = navigator.hardwareConcurrency;
-      ort.env.wasm.wasmPaths = onnxruntimeBase;
-      const sampleRate = modelConfig.audio.sample_rate;
-      const numChannels = 1;
-      const noiseScale = modelConfig.inference.noise_scale;
-      const lengthScale = modelConfig.inference.length_scale;
-      const noiseW = modelConfig.inference.noise_w;
-      const modelBlob = await getBlob(modelUrl, blobs);
-      const session = cachedSession[modelUrl] ?? await ort.InferenceSession.create(URL.createObjectURL(modelBlob));
-      if (Object.keys(cachedSession).length && !cachedSession[modelUrl])
-        cachedSession = {};
-      cachedSession[modelUrl] = session;
-      const feeds = {
-        input: new ort.Tensor("int64", phonemeIds, [1, phonemeIds.length]),
-        input_lengths: new ort.Tensor("int64", [phonemeIds.length]),
-        scales: new ort.Tensor("float32", [noiseScale, lengthScale, noiseW])
-      };
-      if (Object.keys(modelConfig.speaker_id_map).length)
-        feeds.sid = new ort.Tensor("int64", [speakerId]);
-      const {
-        output: { data: pcm }
-      } = await session.run(feeds);
-
+    }
+  }
+  const phonemeIdMap = Object.entries(modelConfig.phoneme_id_map);
+  const idPhonemeMap = Object.fromEntries(phonemeIdMap.map(([k, v]) => [v[0], k]));
+  const phonemes = phonemeIds.map((id) => idPhonemeMap[id]);
+  if (phonemizeOnly) {
+    self.postMessage({ kind: "output", input, phonemes, phonemeIds });
+    self.postMessage({ kind: "complete" });
+    return;
+  }
+  const onnxruntimeJs = URL.createObjectURL(await getBlob(`${onnxruntimeBase}ort.min.js`, blobs));
+  importScripts(onnxruntimeJs);
+  ort.env.wasm.numThreads = navigator.hardwareConcurrency;
+  ort.env.wasm.wasmPaths = onnxruntimeBase;
+  const sampleRate = modelConfig.audio.sample_rate;
+  const numChannels = 1;
+  const noiseScale = modelConfig.inference.noise_scale;
+  const lengthScale = modelConfig.inference.length_scale;
+  const noiseW = modelConfig.inference.noise_w;
+  const modelBlob = await getBlob(modelUrl, blobs);
+  const session = cachedSession[modelUrl] ?? await ort.InferenceSession.create(URL.createObjectURL(modelBlob));
+  if (Object.keys(cachedSession).length && !cachedSession[modelUrl])
+    cachedSession = {};
+  cachedSession[modelUrl] = session;
+  const feeds = {
+    input: new ort.Tensor("int64", phonemeIds, [1, phonemeIds.length]),
+    input_lengths: new ort.Tensor("int64", [phonemeIds.length]),
+    scales: new ort.Tensor("float32", [noiseScale, lengthScale, noiseW])
+  };
+  if (Object.keys(modelConfig.speaker_id_map).length)
+    feeds.sid = new ort.Tensor("int64", [speakerId]);
+  const {
+    output: { data: pcm }
+  } = await session.run(feeds);
       /**
        * Converts PCM audio data to a WAV file format.
        *
@@ -158,60 +155,49 @@ async function init(data, phonemizeOnly = false) {
        * - Subchunk2 Size (4 bytes): NumSamples * NumChannels * BitsPerSample/8
        */
       function PCM2WAV(buffer, sampleRate2, numChannels2) {
-        const bufferLength = buffer.length;
-        const headerLength = 44;
-        const view = new DataView(new ArrayBuffer(bufferLength * numChannels2 * 2 + headerLength));
-
-        // RIFF chunk descriptor
-        view.setUint32(0, 1179011410, true); // "RIFF"
-        view.setUint32(4, view.buffer.byteLength - 8, true); // Chunk size
-        view.setUint32(8, 1163280727, true); // "WAVE"
-
-        // fmt sub-chunk
-        view.setUint32(12, 544501094, true); // "fmt "
-        view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
-        view.setUint16(20, 1, true); // AudioFormat (1 for PCM)
-        view.setUint16(22, numChannels2, true); // NumChannels
-        view.setUint32(24, sampleRate2, true); // SampleRate
-        view.setUint32(28, numChannels2 * 2 * sampleRate2, true); // ByteRate
-        view.setUint16(32, numChannels2 * 2, true); // BlockAlign
-        view.setUint16(34, 16, true); // BitsPerSample (16 bits)
-
-        // data sub-chunk
-        view.setUint32(36, 1635017060, true); // "data"
-        view.setUint32(40, 2 * bufferLength, true); // Subchunk2Size
-
-        // Write PCM samples
-        let p = headerLength;
-        for (let i = 0; i < bufferLength; i++) {
-          const v = buffer[i];
-          // Clamp to 16-bit range and convert float to int16
-          if (v >= 1)
-            view.setInt16(p, 32767, true);
-          else if (v <= -1)
-            view.setInt16(p, -32768, true);
-          else
-            view.setInt16(p, v * 32768 | 0, true);
-          p += 2;
-        }
-
-        const wavBuffer = view.buffer;
-        const duration2 = bufferLength / (sampleRate2 * numChannels2);
-        return { wavBuffer, duration: duration2 };
-      }
-
-      const result = PCM2WAV(pcm, sampleRate, numChannels);
-      const file = new Blob([result.wavBuffer], { type: "audio/x-wav" });
-      const duration = Math.floor(result.duration * 1000);
-      self.postMessage({
-        kind: "output",
-        input,
-        file,
-        duration,
-        phonemes,
-        phonemeIds
-      });
-      self.postMessage({ kind: "complete" });
+    const bufferLength = buffer.length;
+    const headerLength = 44;
+    const view = new DataView(new ArrayBuffer(bufferLength * numChannels2 * 2 + headerLength));
+    view.setUint32(0, 1179011410, true);
+    view.setUint32(4, view.buffer.byteLength - 8, true);
+    view.setUint32(8, 1163280727, true);
+    view.setUint32(12, 544501094, true);
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels2, true);
+    view.setUint32(24, sampleRate2, true);
+    view.setUint32(28, numChannels2 * 2 * sampleRate2, true);
+    view.setUint16(32, numChannels2 * 2, true);
+    view.setUint16(34, 16, true);
+    view.setUint32(36, 1635017060, true);
+    view.setUint32(40, 2 * bufferLength, true);
+    let p = headerLength;
+    for (let i = 0;i < bufferLength; i++) {
+      const v = buffer[i];
+      if (v >= 1)
+        view.setInt16(p, 32767, true);
+      else if (v <= -1)
+        view.setInt16(p, -32768, true);
+      else
+        view.setInt16(p, v * 32768 | 0, true);
+      p += 2;
+    }
+    const wavBuffer = view.buffer;
+    const duration2 = bufferLength / (sampleRate2 * numChannels2);
+    return { wavBuffer, duration: duration2 };
+  }
+  const result = PCM2WAV(pcm, sampleRate, numChannels);
+  const file = new Blob([result.wavBuffer], { type: "audio/x-wav" });
+  const duration = Math.floor(result.duration * 1000);
+  self.postMessage({
+    kind: "output",
+    input,
+    file,
+    duration,
+    phonemes,
+    phonemeIds
+  });
+  self.postMessage({ kind: "complete" });
   } catch (err) {
       self.postMessage({ kind: 'error', error: err.toString() });
   }
