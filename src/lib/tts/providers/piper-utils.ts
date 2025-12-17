@@ -2,13 +2,99 @@ import { PiperProcessSupervisor } from './PiperProcessSupervisor';
 
 const blobs: Record<string, Blob> = {};
 const supervisor = new PiperProcessSupervisor();
+const CACHE_NAME = 'piper-voices-v1';
 
+// --- Cache API Helpers ---
+
+/**
+ * Opens the specific CacheStorage for Piper voices.
+ * Returns null if Cache API is unavailable (e.g. non-secure context or older browser).
+ */
+const getCache = async () => {
+  if (typeof caches === 'undefined') return null;
+  try {
+    return await caches.open(CACHE_NAME);
+  } catch (e) {
+    console.warn('Failed to open cache', e);
+    return null;
+  }
+};
+
+/**
+ * Stores a blob in the persistent CacheStorage.
+ * Failures are logged but do not block execution (best effort).
+ */
+const storeInCache = async (url: string, blob: Blob) => {
+  const cache = await getCache();
+  if (!cache) return;
+  try {
+    await cache.put(url, new Response(blob));
+  } catch (e) {
+    console.warn('Failed to cache file:', url, e);
+  }
+};
+
+/**
+ * Retrieves a blob from the persistent CacheStorage.
+ * Returns null if not found or if Cache API fails.
+ */
+const loadFromCache = async (url: string): Promise<Blob | null> => {
+  const cache = await getCache();
+  if (!cache) return null;
+  try {
+    const response = await cache.match(url);
+    if (response) return await response.blob();
+  } catch (e) {
+    console.warn('Failed to load from cache:', url, e);
+  }
+  return null;
+};
+
+/**
+ * Removes a file from the persistent CacheStorage.
+ */
+const removeFromCache = async (url: string) => {
+  const cache = await getCache();
+  if (!cache) return;
+  try {
+    await cache.delete(url);
+  } catch (e) {
+    console.warn('Failed to delete from cache:', url, e);
+  }
+};
+
+/**
+ * Checks if a model file exists in the persistent CacheStorage.
+ * This is the primary check for "is downloaded" status.
+ */
+export const isModelPersisted = async (modelUrl: string): Promise<boolean> => {
+    const cache = await getCache();
+    if (!cache) return false;
+    try {
+        const match = await cache.match(modelUrl);
+        return !!match;
+    } catch {
+        return false;
+    }
+};
+
+// --- Core Utils ---
+
+/**
+ * Caches the model in both memory (blobs map) and persistent storage (Cache API).
+ * The in-memory map is used by the worker for immediate access.
+ */
 export const cacheModel = (url: string, blob: Blob) => {
   blobs[url] = blob;
+  storeInCache(url, blob).catch(e => console.error("Background cache write failed", e));
 };
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Fetches a URL with exponential backoff retry logic.
+ * Useful for downloading large model files over unstable connections.
+ */
 export const fetchWithBackoff = async (url: string, retries = 3, delay = 1000): Promise<Blob> => {
   try {
     const response = await fetch(url);
@@ -25,7 +111,11 @@ export const fetchWithBackoff = async (url: string, retries = 3, delay = 1000): 
   }
 };
 
-export const isModelCached = async (modelUrl: string): Promise<boolean> => {
+/**
+ * Checks if the model is currently loaded in the worker.
+ * Used internally to determine if we need to restart/init the worker.
+ */
+export const isModelLoadedInWorker = async (modelUrl: string): Promise<boolean> => {
   return new Promise<boolean>((resolve) => {
     supervisor.send(
       { kind: "isAlive", modelUrl },
@@ -40,16 +130,42 @@ export const isModelCached = async (modelUrl: string): Promise<boolean> => {
   });
 };
 
+
+/**
+ * Deletes a model from both memory and persistent storage.
+ * Also terminates the worker to ensure no stale state remains.
+ */
 export const deleteCachedModel = (modelUrl: string, modelConfigUrl: string) => {
   if (blobs[modelUrl]) delete blobs[modelUrl];
   if (blobs[modelConfigUrl]) delete blobs[modelConfigUrl];
+
+  removeFromCache(modelUrl);
+  removeFromCache(modelConfigUrl);
 
   supervisor.terminate();
 };
 
 /**
+ * Ensures that the model and config files are loaded into the in-memory 'blobs' map.
+ * If they are missing from memory but exist in persistent cache, they are loaded.
+ * This is crucial for restoring state after a page reload.
+ */
+async function ensureModelLoaded(modelUrl: string, modelConfigUrl: string) {
+    if (!blobs[modelUrl]) {
+        const blob = await loadFromCache(modelUrl);
+        if (blob) blobs[modelUrl] = blob;
+    }
+    if (!blobs[modelConfigUrl]) {
+        const blob = await loadFromCache(modelConfigUrl);
+        if (blob) blobs[modelConfigUrl] = blob;
+    }
+}
+
+/**
  * Concatenates multiple WAV blobs into a single WAV blob.
  * Assumes blobs are standard WAV files (RIFF header + data chunk).
+ * It extracts the raw PCM data from each blob and stitches them together,
+ * creating a new valid WAV header.
  */
 export async function stitchWavs(blobs: Blob[]): Promise<Blob> {
     if (blobs.length === 0) return new Blob([], { type: 'audio/wav' });
@@ -83,7 +199,6 @@ export async function stitchWavs(blobs: Blob[]): Promise<Blob> {
 
     const firstData = findDataChunk(firstView);
     if (!firstData) {
-        // Fallback: assume 44 byte header if parsing fails
          console.warn("Could not find data chunk in first WAV, assuming 44 byte header.");
     }
 
@@ -113,10 +228,8 @@ export async function stitchWavs(blobs: Blob[]): Promise<Blob> {
     const newHeader = new DataView(header.slice(0)); // copy
     // RIFF ChunkSize (at 4) = 4 + (8 + subchunks) + (8 + dataSize)
     // Simplified: FileSize - 8
-    // headerSize includes the preamble (4) + size (4) + rest of header
     newHeader.setUint32(4, headerSize - 8 + totalDataSize, true);
-    // Data SubchunkSize (at headerSize - 4 usually?)
-    // Actually, if we found the data chunk, its size is at offset-4.
+    // Data SubchunkSize
     if (firstData) {
         newHeader.setUint32(firstData.offset - 4, totalDataSize, true);
     } else {
@@ -139,21 +252,19 @@ export const piperGenerate = async (
   onnxruntimeUrl = "https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.1/"
 ): Promise<{ file: Blob; duration: number }> => {
 
+  // Load from cache to memory if needed
+  await ensureModelLoaded(modelUrl, modelConfigUrl);
+
   // Initialize supervisor with worker URL
   supervisor.init(workerUrl);
 
   // Validate worker state before starting generation.
-  // We check if the worker is alive and has the correct model loaded.
-  // If the check fails or returns false (different model loaded), we restart
-  // the worker to ensure a clean state for the new generation request.
   await new Promise<void>((resolve) => {
       supervisor.send(
           { kind: "isAlive", modelUrl },
           (event) => {
               if (event.data.kind === 'isAlive') {
                   if (!event.data.isAlive) {
-                      // Model not loaded or worker state mismatch.
-                      // Terminate and re-initialize to force a fresh load.
                       supervisor.terminate();
                       supervisor.init(workerUrl);
                   }
@@ -161,8 +272,6 @@ export const piperGenerate = async (
               }
           },
           () => {
-              // If the health check times out or errors, assume the worker is
-              // unresponsive and restart it.
               supervisor.terminate();
               supervisor.init(workerUrl);
               resolve();
@@ -185,13 +294,12 @@ export const piperGenerate = async (
         modelUrl,
         modelConfigUrl,
         onnxruntimeUrl,
-        workerUrl // Pass workerUrl so supervisor can restart if needed
+        workerUrl
       },
       (event: MessageEvent) => {
         const data = event.data;
         switch (data.kind) {
           case "output": {
-            // Hardening Phase 3: Return Blob directly to avoid unrevoked ObjectURLs
             resolve({ file: data.file, duration: data.duration });
             break;
           }
@@ -221,8 +329,8 @@ export const piperGenerate = async (
       (error) => {
         reject(error);
       },
-      60000, // 60s timeout for generation (includes download time potentially)
-      1 // Retry once
+      60000,
+      1
     );
   });
 };
