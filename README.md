@@ -19,9 +19,9 @@ It is designed to be a "Forever Reader"—an app that you can rely on for decade
     *   **Background Playback**: (Android) Continue listening when the screen is off.
 *   **Full-Text Search**: Fast, off-main-thread search using Web Workers and FlexSearch.
 *   **Data Management**:
-    *   **Backup/Restore**: Export your entire library to ZIP (Full Backup) or just metadata/notes to JSON (Light Backup).
+    *   **Backup/Restore**: Export your library metadata, reading progress, and settings to JSON. (Note: EPUB files are not currently included in backups and must be re-imported).
     *   **Offloading**: Remove large book files to save space on mobile devices while keeping your notes, reading progress, and metadata intact.
-    *   **Orphan Pruning**: Clean up database fragments (unused files or annotations) to reclaim space.
+    *   **Maintenance**: Run health checks to identify missing files or corrupt data, and perform factory resets if needed.
 *   **PWA & Mobile**: Installable as a standalone app on desktop and mobile. Native Android build via Capacitor.
 
 ## Tech Stack

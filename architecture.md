@@ -155,17 +155,16 @@ Implements full-text search off the main thread to prevent UI freezing.
 #### Backup (`src/lib/BackupService.ts`)
 Manages data portability.
 
-*   **`createLightBackup()`**: Exports JSON containing metadata, annotations, lexicon, and reading stats.
-*   **`createFullBackup()`**: Exports a ZIP file containing the "Light" JSON manifest plus all EPUB files (fetched from IDB).
-*   **`restoreBackup(file)`**: Smartly merges data.
-    *   **Smart Merge**: If a book already exists, it updates progress only if the backup is newer.
-    *   **Sanitization**: Validates and sanitizes metadata from the backup before import.
+*   **`createMetadataBackup()`**: Exports JSON containing metadata, themes, and settings.
+    *   *Note*: Does **not** include EPUB binaries (metadata only).
+*   **`restoreMetadataBackup(json)`**: Restores data from a JSON backup string.
+    *   **Strategy**: Upserts metadata. If a book exists, it preserves the existing binary.
 
 #### Maintenance (`src/lib/MaintenanceService.ts`)
 Handles database health.
 
-*   **`scanForOrphans()`**: Identifies files, annotations, or lexicon rules that reference non-existent books.
-*   **`pruneOrphans()`**: Deletes identified orphaned records to reclaim storage space.
+*   **`runHealthCheck()`**: Scans for inconsistencies, such as books missing their binary EPUB data.
+*   **`factoryReset()`**: Wipes all data from IndexedDB and reloads the application.
 
 ---
 
