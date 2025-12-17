@@ -24,15 +24,15 @@ def test_reading_history_journey(page: Page):
     # Wait for reader to load
     page.wait_for_selector("[data-testid='reader-view']", timeout=10000)
 
+    # DWELL TIME CHECK: We must stay on the initial page for > 2 seconds for history to track it
+    # upon the next navigation.
+    page.wait_for_timeout(3000)
+
     # 2. Open Table of Contents
     page.click("[data-testid='reader-toc-button']")
 
     # 3. Switch to History Tab
     page.click("[data-testid='tab-history']")
-
-    # Verify "No reading history" or list of items
-    # It seems to persist across test runs in this environment?
-    # Or maybe opening the book writes a history entry?
 
     # 4. Navigate to a new chapter to generate history
     page.click("[data-testid='tab-chapters']")
@@ -42,7 +42,9 @@ def test_reading_history_journey(page: Page):
     page.click("[data-testid='toc-item-2']")
 
     # Wait for navigation to complete
-    page.wait_for_timeout(2000)
+    # AND WAIT FOR DWELL TIME (2s) so subsequent history is recorded if we navigate again
+    # (Though we check history of the PREVIOUS segment now)
+    page.wait_for_timeout(3000)
 
     # 5. Check History again
     page.click("[data-testid='reader-toc-button']")
@@ -52,9 +54,7 @@ def test_reading_history_journey(page: Page):
     page.click("[data-testid='tab-history']")
 
     # Should have at least one entry now.
-    # Use count > 0 assert instead of exact count
-    count = page.locator("ul.divide-y li").count()
-    assert count > 0, f"Expected at least 1 history item, found {count}"
+    expect(page.locator("ul.divide-y li")).not_to_have_count(0, timeout=5000)
 
     # 6. Click the history item to navigate back
     history_item = page.locator("ul.divide-y li").first

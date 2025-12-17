@@ -42,7 +42,7 @@ export const ReaderView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const viewerRef = useRef<HTMLDivElement>(null);
-  const previousLocation = useRef<{ start: string; end: string } | null>(null);
+  const previousLocation = useRef<{ start: string; end: string; timestamp: number } | null>(null);
 
   const {
     currentTheme,
@@ -114,7 +114,11 @@ export const ReaderView: React.FC = () => {
     onLocationChange: (location, percentage, title, sectionId) => {
          // Initialize previousLocation if it's null (e.g. initial load), so we can track subsequent moves
          if (!previousLocation.current) {
-             previousLocation.current = { start: location.start.cfi, end: location.end.cfi };
+             previousLocation.current = {
+                 start: location.start.cfi,
+                 end: location.end.cfi,
+                 timestamp: Date.now()
+             };
          }
 
          // Prevent infinite loop if CFI hasn't changed (handled in store usually, but double check)
@@ -124,15 +128,25 @@ export const ReaderView: React.FC = () => {
          if (id && previousLocation.current) {
              const prevStart = previousLocation.current.start;
              const prevEnd = previousLocation.current.end;
+             const duration = Date.now() - previousLocation.current.timestamp;
+
+             // console.log(`[History] Check: prev=${prevStart}, curr=${location.start.cfi}, dur=${duration}`);
+
              // Ensure we don't save zero-length ranges (where start == current start)
-             if (prevStart && prevEnd && prevStart !== location.start.cfi) {
+             // And enforce a Dwell Time of 2 seconds to avoid recording skips
+             if (prevStart && prevEnd && prevStart !== location.start.cfi && duration > 2000) {
                  const range = generateCfiRange(prevStart, prevEnd);
+                 // console.log(`[History] Saving range: ${range}`);
                  dbService.updateReadingHistory(id, range)
                     .then(() => setHistoryTick(t => t + 1))
                     .catch((err) => console.error("History update failed", err));
              }
          }
-         previousLocation.current = { start: location.start.cfi, end: location.end.cfi };
+         previousLocation.current = {
+             start: location.start.cfi,
+             end: location.end.cfi,
+             timestamp: Date.now()
+         };
 
          updateLocation(location.start.cfi, percentage, title, sectionId);
          if (id) {
@@ -158,7 +172,7 @@ export const ReaderView: React.FC = () => {
          if (id) {
             // Index for Search (Async)
             searchClient.indexBook(book, id).then(() => {
-                console.log("Book indexed for search");
+                // console.log("Book indexed for search");
             });
          }
     },
@@ -274,7 +288,7 @@ export const ReaderView: React.FC = () => {
 
            // eslint-disable-next-line @typescript-eslint/no-explicit-any
            (rendition as any).annotations.add('highlight', annotation.cfiRange, {}, () => {
-                console.log("Clicked annotation", annotation.id);
+                // console.log("Clicked annotation", annotation.id);
             }, className, getAnnotationStyles(annotation.color));
            addedAnnotations.current.add(annotation.id);
         }
@@ -369,7 +383,7 @@ export const ReaderView: React.FC = () => {
   const [autoPlayNext, setAutoPlayNext] = useState(false);
 
   const handlePrev = useCallback(() => {
-      console.log("Navigating to previous page");
+      // console.log("Navigating to previous page");
       if (status === 'playing' || status === 'loading') {
           setAutoPlayNext(true);
       }
@@ -377,7 +391,7 @@ export const ReaderView: React.FC = () => {
   }, [status, rendition]);
 
   const handleNext = useCallback(() => {
-      console.log("Navigating to next page");
+      // console.log("Navigating to next page");
       if (status === 'playing' || status === 'loading') {
           setAutoPlayNext(true);
       }
