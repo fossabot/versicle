@@ -1,6 +1,6 @@
 import { BaseCloudProvider } from './BaseCloudProvider';
 import type { TTSOptions, TTSVoice, SpeechSegment } from './types';
-import { piperGenerate, isModelCached, deleteCachedModel } from './piper-utils';
+import { piperGenerate, isModelCached, deleteCachedModel, fetchWithBackoff, cacheModel } from './piper-utils';
 
 const HF_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/";
 const PIPER_ASSETS_BASE = "/piper/";
@@ -101,6 +101,21 @@ export class PiperProvider extends BaseCloudProvider {
     const modelConfigUrl = HF_BASE + voiceInfo.configPath;
 
     try {
+      // Phase 2 Hardening: Transactional Download
+      // 1. Download files to memory first (Staging)
+      this.emit({ type: 'download-progress', percent: 10, status: 'Downloading Model...', voiceId });
+      const [modelBlob, configBlob] = await Promise.all([
+        fetchWithBackoff(modelUrl),
+        fetchWithBackoff(modelConfigUrl)
+      ]);
+
+      this.emit({ type: 'download-progress', percent: 50, status: 'Verifying...', voiceId });
+
+      // 2. Commit to Cache
+      cacheModel(modelUrl, modelBlob);
+      cacheModel(modelConfigUrl, configBlob);
+
+      // 3. Integrity Check (Test Load)
       await piperGenerate(
         PIPER_ASSETS_BASE + 'piper_phonemize.js',
         PIPER_ASSETS_BASE + 'piper_phonemize.wasm',
@@ -109,13 +124,18 @@ export class PiperProvider extends BaseCloudProvider {
         modelUrl,
         modelConfigUrl,
         voiceInfo.speakerId,
-        "",
-        (progress) => {
-          this.emit({ type: 'download-progress', percent: progress, status: 'Downloading...', voiceId });
+        "", // Empty input to trigger load
+        () => {
+             // Ignoring progress from worker during verification as we already have blobs
         }
       );
+
       this.emit({ type: 'download-progress', percent: 100, status: 'Ready', voiceId });
     } catch (e) {
+      console.error("Voice download failed:", e);
+      // Rollback: clear any partial cache
+      deleteCachedModel(modelUrl, modelConfigUrl);
+
       this.emit({ type: 'error', error: e });
       this.emit({ type: 'download-progress', percent: 0, status: 'Failed', voiceId });
       throw e;

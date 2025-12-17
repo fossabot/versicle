@@ -3,6 +3,28 @@ import { PiperProcessSupervisor } from './PiperProcessSupervisor';
 const blobs: Record<string, Blob> = {};
 const supervisor = new PiperProcessSupervisor();
 
+export const cacheModel = (url: string, blob: Blob) => {
+  blobs[url] = blob;
+};
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const fetchWithBackoff = async (url: string, retries = 3, delay = 1000): Promise<Blob> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.blob();
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Fetch failed for ${url}, retrying in ${delay}ms...`, error);
+      await wait(delay);
+      return fetchWithBackoff(url, retries - 1, delay * 2);
+    } else {
+      throw error;
+    }
+  }
+};
+
 export const isModelCached = async (modelUrl: string): Promise<boolean> => {
   return new Promise<boolean>((resolve) => {
     supervisor.send(
