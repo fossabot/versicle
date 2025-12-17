@@ -105,14 +105,14 @@ def test_visual_settings(page: Page):
     frame_loc.locator("html").evaluate("el => el.ownerDocument.defaultView.scrollTo(0, el.ownerDocument.body.scrollHeight)")
     page.wait_for_timeout(1000)
 
-    # Verify that the iframe has padding applied (indirectly via screenshot, or directly via evaluation)
-    # The fix applied padding to the iframe element itself in the ReaderView
-    # Let's check the computed style of the iframe
-    iframe_padding_bottom = page.locator('[data-testid="reader-iframe-container"] iframe').evaluate("el => getComputedStyle(el).paddingBottom")
-    print(f"Iframe Padding Bottom: {iframe_padding_bottom}")
+    # Verify that the iframe has spacer div applied
+    # The fix applied spacer div to the reader body
+    # Let's check if the spacer exists and has correct height
+    spacer_height = frame_loc.locator('#reader-bottom-spacer').evaluate("el => getComputedStyle(el).height")
+    print(f"Spacer Height: {spacer_height}")
 
     # It should be 150px
-    assert iframe_padding_bottom == "150px", f"Expected padding-bottom 150px, got {iframe_padding_bottom}"
+    assert spacer_height == "150px", f"Expected spacer height 150px, got {spacer_height}"
 
     utils.capture_screenshot(page, "visual_settings_05_scrolled_bottom")
 
