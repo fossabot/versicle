@@ -98,6 +98,28 @@ export function useEpubReader(
       setError(null);
       setIsReady(false);
 
+      // Handle Iframe Sandbox Patching
+      // Fixes "Blocked script execution" by injecting allow-scripts into the sandbox attribute
+      // created by epub.js, without enabling allowScriptedContent which changes loading behavior.
+      const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+              mutation.addedNodes.forEach((node) => {
+                  if (node.nodeName === 'IFRAME') {
+                      const iframe = node as HTMLIFrameElement;
+                      const sandbox = iframe.getAttribute('sandbox') || '';
+                      if (!sandbox.includes('allow-scripts')) {
+                          // Append allow-scripts if missing
+                          iframe.setAttribute('sandbox', sandbox + ' allow-scripts');
+                      }
+                  }
+              });
+          });
+      });
+
+      if (viewerRef.current) {
+          observer.observe(viewerRef.current, { childList: true, subtree: true });
+      }
+
       try {
         const { file: fileData, metadata: meta } = await dbService.getBook(bookId);
 
@@ -125,6 +147,8 @@ export function useEpubReader(
           height: '100%',
           flow: optionsRef.current.viewMode === 'scrolled' ? 'scrolled-doc' : 'paginated',
           manager: 'default',
+          // Do NOT set allowScriptedContent: true here as it breaks hooks.content
+          // We patch sandbox attribute manually via MutationObserver instead.
         });
         renditionRef.current = newRendition;
         setRendition(newRendition);
@@ -143,21 +167,21 @@ export function useEpubReader(
         // Register themes
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const themes = newRendition.themes as any;
-        themes.register('light', `
-          body { background: #ffffff !important; color: #000000 !important; }
-          p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
-          a { color: #0000ee !important; }
-        `);
-        themes.register('dark', `
-          body { background: #1a1a1a !important; color: #f5f5f5 !important; }
-          p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
-          a { color: #6ab0f3 !important; }
-        `);
-        themes.register('sepia', `
-          body { background: #f4ecd8 !important; color: #5b4636 !important; }
-          p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
-          a { color: #0000ee !important; }
-        `);
+        themes.register('light', {
+          'body': { 'background': '#ffffff !important', 'color': '#000000 !important' },
+          'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
+          'a': { 'color': '#0000ee !important' }
+        });
+        themes.register('dark', {
+          'body': { 'background': '#1a1a1a !important', 'color': '#f5f5f5 !important' },
+          'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
+          'a': { 'color': '#6ab0f3 !important' }
+        });
+        themes.register('sepia', {
+          'body': { 'background': '#f4ecd8 !important', 'color': '#5b4636 !important' },
+          'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
+          'a': { 'color': '#0000ee !important' }
+        });
 
         // Display at saved location or start
         const startLocation = meta?.currentCfi || undefined;
@@ -238,8 +262,15 @@ export function useEpubReader(
 
         // Manual selection listener fallback
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (newRendition.hooks.content as any).register((contents: any) => {
+        const attachListeners = (contents: any) => {
             const doc = contents.document;
+            if (!doc) return;
+
+            // Prevent duplicate listeners
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((contents as any)._listenersAttached) return;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (contents as any)._listenersAttached = true;
 
             // Prevent default context menu (especially for Android)
             doc.addEventListener('contextmenu', (e: Event) => {
@@ -280,7 +311,10 @@ export function useEpubReader(
                 spacer.style.clear = 'both'; // Ensure it sits below floated content
                 doc.body.appendChild(spacer);
             }
-        });
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (newRendition.hooks.content as any).register(attachListeners);
 
       } catch (err) {
         console.error('Error loading book:', err);
@@ -289,6 +323,7 @@ export function useEpubReader(
         if (optionsRef.current.onError) optionsRef.current.onError(errorMessage);
       } finally {
         setIsLoading(false);
+        observer.disconnect();
       }
     };
 
@@ -346,11 +381,11 @@ export function useEpubReader(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const themes = r.themes as any;
 
-      themes.register('custom', `
-        body { background: ${options.customTheme.bg} !important; color: ${options.customTheme.fg} !important; }
-        p, div, span, h1, h2, h3, h4, h5, h6 { color: inherit !important; background: transparent !important; }
-        a { color: ${options.customTheme.fg} !important; }
-      `);
+      themes.register('custom', {
+        'body': { 'background': `${options.customTheme.bg} !important`, 'color': `${options.customTheme.fg} !important` },
+        'p, div, span, h1, h2, h3, h4, h5, h6': { 'color': 'inherit !important', 'background': 'transparent !important' },
+        'a': { 'color': `${options.customTheme.fg} !important` }
+      });
 
       // TTS Highlight Theme
       themes.default({
