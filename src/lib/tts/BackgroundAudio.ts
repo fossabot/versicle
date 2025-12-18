@@ -9,6 +9,8 @@ export interface BackgroundAudioConfig {
 export class BackgroundAudio {
     private silentAudio: HTMLAudioElement;
     private config: BackgroundAudioConfig;
+    private pauseTimeout: ReturnType<typeof setTimeout> | null = null;
+    private readonly PAUSE_DELAY = 500;
 
     constructor(config: BackgroundAudioConfig = { silentAudioType: 'silence', whiteNoiseVolume: 0.1 }) {
         this.config = config;
@@ -26,8 +28,14 @@ export class BackgroundAudio {
         const src = this.config.silentAudioType === 'white-noise' ? whiteNoiseUrl : silenceUrl;
         const currentSrc = this.silentAudio.getAttribute('src');
         if (currentSrc !== src) {
-            const wasPlaying = !this.silentAudio.paused;
-            if (wasPlaying) this.silentAudio.pause();
+            const wasPlaying = !this.silentAudio.paused || this.pauseTimeout !== null;
+
+            if (this.pauseTimeout) {
+                clearTimeout(this.pauseTimeout);
+                this.pauseTimeout = null;
+            }
+
+            if (!this.silentAudio.paused) this.silentAudio.pause();
             this.silentAudio.src = src;
             if (wasPlaying) {
                 this.silentAudio.play().catch(e => console.warn("Background audio switch failed", e));
@@ -41,16 +49,28 @@ export class BackgroundAudio {
     }
 
     play() {
+        if (this.pauseTimeout) {
+            clearTimeout(this.pauseTimeout);
+            this.pauseTimeout = null;
+        }
         if (this.silentAudio.paused) {
             this.silentAudio.play().catch(e => console.warn("Background audio play failed", e));
         }
     }
 
     pause() {
-        this.silentAudio.pause();
+        if (this.pauseTimeout) return;
+        this.pauseTimeout = setTimeout(() => {
+            this.silentAudio.pause();
+            this.pauseTimeout = null;
+        }, this.PAUSE_DELAY);
     }
 
     stop() {
+        if (this.pauseTimeout) {
+            clearTimeout(this.pauseTimeout);
+            this.pauseTimeout = null;
+        }
         this.silentAudio.pause();
         this.silentAudio.currentTime = 0;
     }
