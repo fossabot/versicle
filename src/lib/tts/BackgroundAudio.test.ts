@@ -7,6 +7,7 @@ describe('BackgroundAudio', () => {
   let mockAudio: any;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     // Mock Audio
     mockAudio = {
         play: vi.fn().mockResolvedValue(undefined),
@@ -29,6 +30,7 @@ describe('BackgroundAudio', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -50,20 +52,46 @@ describe('BackgroundAudio', () => {
           backgroundAudio.play();
           expect(mockAudio.play).not.toHaveBeenCalled();
       });
+
+      it('should cancel pending pause', () => {
+        backgroundAudio.pause();
+        expect(mockAudio.pause).not.toHaveBeenCalled();
+
+        backgroundAudio.play();
+        vi.advanceTimersByTime(600);
+        expect(mockAudio.pause).not.toHaveBeenCalled();
+        expect(mockAudio.play).toHaveBeenCalled();
+      });
   });
 
   describe('pause', () => {
-      it('should pause audio', () => {
+      it('should delay pause', () => {
           backgroundAudio.pause();
+          expect(mockAudio.pause).not.toHaveBeenCalled();
+
+          vi.advanceTimersByTime(400);
+          expect(mockAudio.pause).not.toHaveBeenCalled();
+
+          vi.advanceTimersByTime(101); // 501ms total
           expect(mockAudio.pause).toHaveBeenCalled();
       });
   });
 
   describe('stop', () => {
-      it('should pause audio and reset time', () => {
+      it('should pause audio immediately and reset time', () => {
           backgroundAudio.stop();
           expect(mockAudio.pause).toHaveBeenCalled();
           expect(mockAudio.currentTime).toBe(0);
+      });
+
+      it('should cancel pending pause', () => {
+        backgroundAudio.pause();
+        backgroundAudio.stop();
+        expect(mockAudio.pause).toHaveBeenCalled(); // from stop()
+        mockAudio.pause.mockClear();
+
+        vi.advanceTimersByTime(600);
+        expect(mockAudio.pause).not.toHaveBeenCalled(); // delayed pause cancelled
       });
   });
 
