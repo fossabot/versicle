@@ -137,6 +137,20 @@ if (typeof File !== 'undefined' && !File.prototype.arrayBuffer) {
 }
 
 
+// Polyfill innerText for JSDOM
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+if (typeof HTMLElement !== 'undefined' && !Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'innerText')) {
+  Object.defineProperty(HTMLElement.prototype, 'innerText', {
+    get() {
+      return this.textContent;
+    },
+    set(value) {
+      this.textContent = value;
+    },
+    configurable: true
+  });
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
