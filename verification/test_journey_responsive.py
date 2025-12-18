@@ -20,7 +20,7 @@ def test_journey_responsive_library(page: Page, name, width, height):
 
     page.set_viewport_size({"width": width, "height": height})
     # Wait for layout shift
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(1000)
 
     expect(page.get_by_test_id("library-view")).to_be_visible()
     utils.capture_screenshot(page, f"responsive_library_{name}")
@@ -36,5 +36,5 @@ def test_journey_responsive_reader(page: Page, name, width, height):
     expect(page.get_by_test_id("reader-view")).to_be_visible()
 
     page.set_viewport_size({"width": width, "height": height})
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(1000)
     utils.capture_screenshot(page, f"responsive_reader_{name}")
