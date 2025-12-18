@@ -9,7 +9,7 @@ def test_lexicon_reorder(page: Page):
     utils.reset_app(page)
 
     # Open Global Settings
-    page.get_by_test_id("reader-settings-button").click()
+    page.get_by_test_id("header-settings-button").click()
 
     # Go to Dictionary tab
     page.get_by_role("button", name="Dictionary").click()
@@ -32,7 +32,7 @@ def test_lexicon_reorder(page: Page):
     # Verify initial order (Insertion order)
     # 1. Apple
     # 2. Banana
-    items = page.locator("[data-testid='lexicon-list-container'] > div > div")
+    items = page.locator("[data-testid='lexicon-rules-list'] > div")
     expect(items).to_have_count(2)
 
     expect(items.nth(0)).to_contain_text("Apple")
@@ -53,7 +53,7 @@ def test_lexicon_reorder(page: Page):
     page.wait_for_timeout(1000)
 
     # Close Dialog
-    page.get_by_role("button", name="Close").click()
+    page.get_by_test_id("lexicon-close-btn").click()
 
     # Close Settings Modal (press Escape to ensure everything closes)
     page.keyboard.press("Escape")
@@ -65,11 +65,11 @@ def test_lexicon_reorder(page: Page):
     page.reload()
 
     # Check again
-    page.get_by_test_id("reader-settings-button").click()
+    page.get_by_test_id("header-settings-button").click()
     page.get_by_role("button", name="Dictionary").click()
     page.get_by_role("button", name="Manage Rules").click()
 
-    items = page.locator("[data-testid='lexicon-list-container'] > div > div")
+    items = page.locator("[data-testid='lexicon-rules-list'] > div")
     expect(items).to_have_count(2)
     expect(items.nth(0)).to_contain_text("Banana")
     expect(items.nth(1)).to_contain_text("Apple")

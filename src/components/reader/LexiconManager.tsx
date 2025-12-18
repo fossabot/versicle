@@ -184,7 +184,7 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
         title="Pronunciation Lexicon"
         description="Define custom pronunciation rules for specific words or names."
         footer={
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button data-testid="lexicon-close-btn" variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
         }
     >
         <div className="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-700 pb-2 overflow-x-auto gap-4">
@@ -223,7 +223,7 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
 
         <div data-testid="lexicon-list-container" className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
           {/* List */}
-          <div className="space-y-2">
+          <div data-testid="lexicon-rules-list" className="space-y-2">
             {rules.map((rule, index) => (
                <div key={rule.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                    {editingRule?.id === rule.id ? (
