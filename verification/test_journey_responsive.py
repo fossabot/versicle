@@ -22,7 +22,7 @@ def test_journey_responsive_library(page: Page, name, width, height):
     # Wait for layout shift
     page.wait_for_timeout(500)
 
-    expect(page.get_by_test_id("library-container")).to_be_visible()
+    expect(page.get_by_test_id("library-view")).to_be_visible()
     utils.capture_screenshot(page, f"responsive_library_{name}")
 
 @pytest.mark.parametrize("name, width, height", VIEWPORTS)
@@ -33,7 +33,7 @@ def test_journey_responsive_reader(page: Page, name, width, height):
 
     page.locator("[data-testid^='book-card-']").first.click()
     # Wait for reader
-    expect(page.get_by_test_id("reader-container")).to_be_visible() # Assuming ID
+    expect(page.get_by_test_id("reader-view")).to_be_visible()
 
     page.set_viewport_size({"width": width, "height": height})
     page.wait_for_timeout(500)
