@@ -1,6 +1,6 @@
 import pytest
 from playwright.sync_api import Page, expect
-import utils
+from verification import utils
 
 def test_lexicon_reorder(page: Page):
     """
