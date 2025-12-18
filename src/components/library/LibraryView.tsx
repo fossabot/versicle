@@ -57,7 +57,10 @@ export const LibraryView: React.FC = () => {
   const showToast = useToastStore(state => state.showToast);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [dimensions, setDimensions] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0
+  });
   const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
@@ -76,6 +79,9 @@ export const LibraryView: React.FC = () => {
 
         // Use contentRect for precise content box dimensions
         const { width } = entry.contentRect;
+
+        // Ignore invalid width updates (prevents collapse in some environments)
+        if (width <= 0) return;
 
         // Calculate height based on window to keep the original full-screen behavior
         // (Though using contentRect height would be more robust if the parent container is constrained)
@@ -248,7 +254,7 @@ export const LibraryView: React.FC = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <section className="flex-1 min-h-0" ref={containerRef}>
+        <section className="flex-1 min-h-0 w-full" ref={containerRef}>
           {books.length === 0 ? (
              <EmptyLibrary onImport={triggerFileUpload} />
           ) : (
