@@ -113,7 +113,7 @@ async function collectChapterData(
             if (doc) {
                  // Try innerText first (browser), then textContent (standard)
                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                 const content = (doc.body as any)?.innerText;
+                 const content = (doc.body as any)?.innerText || (doc.documentElement as any)?.innerText;
 
                  if (content) {
                     const text = content.trim().substring(0, 500);
