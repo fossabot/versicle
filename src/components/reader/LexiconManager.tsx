@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { LexiconService } from '../../lib/tts/LexiconService';
 import { AudioPlayerService } from '../../lib/tts/AudioPlayerService';
 import type { LexiconRule } from '../../types/db';
-import { Plus, Trash2, Volume2, Save, X, Download, Upload, ArrowUp, ArrowDown, Play, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Save, X, Download, Upload, ArrowUp, ArrowDown, Play, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Dialog as UiDialog } from '../ui/Dialog';
 import { useReaderStore } from '../../store/useReaderStore';
