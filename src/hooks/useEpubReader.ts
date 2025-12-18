@@ -125,6 +125,7 @@ export function useEpubReader(
           height: '100%',
           flow: optionsRef.current.viewMode === 'scrolled' ? 'scrolled-doc' : 'paginated',
           manager: 'default',
+          allowScriptedContent: true,
         });
         renditionRef.current = newRendition;
         setRendition(newRendition);
