@@ -51,6 +51,12 @@ export const UnifiedInputController: React.FC<UnifiedInputControllerProps> = ({
     const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastClickTimeRef = useRef<number>(0);
 
+    // Ref to hold latest callbacks to avoid effect re-runs and timeout clearing on parent render
+    const callbacksRef = useRef({ onPrev, onNext, onToggleHUD, play });
+    useEffect(() => {
+        callbacksRef.current = { onPrev, onNext, onToggleHUD, play };
+    }, [onPrev, onNext, onToggleHUD, play]);
+
     useEffect(() => {
         if (!rendition || isPlaying) return;
 
@@ -63,11 +69,11 @@ export const UnifiedInputController: React.FC<UnifiedInputControllerProps> = ({
              if (e.defaultPrevented) return;
 
              if (x < width * 0.2) {
-                 onPrev();
+                 callbacksRef.current.onPrev();
              } else if (x > width * 0.8) {
-                 onNext();
+                 callbacksRef.current.onNext();
              } else {
-                 onToggleHUD();
+                 callbacksRef.current.onToggleHUD();
              }
         };
 
@@ -86,7 +92,7 @@ export const UnifiedInputController: React.FC<UnifiedInputControllerProps> = ({
                     clearTimeout(clickTimeoutRef.current);
                     clickTimeoutRef.current = null;
                 }
-                play(); // Start Audio
+                callbacksRef.current.play(); // Start Audio
             } else {
                 // Single Tap - Wait
                 clickTimeoutRef.current = setTimeout(() => {
@@ -103,7 +109,7 @@ export const UnifiedInputController: React.FC<UnifiedInputControllerProps> = ({
             (rendition as any).off('click', handleClick);
             if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
         };
-    }, [rendition, isPlaying, onPrev, onNext, onToggleHUD, play]);
+    }, [rendition, isPlaying]); // Stable dependencies
 
 
     // --- Listening State (Audio Playing) ---
