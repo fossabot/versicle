@@ -239,8 +239,15 @@ export function useEpubReader(
 
         // Manual selection listener fallback
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (newRendition.hooks.content as any).register((contents: any) => {
+        const attachListeners = (contents: any) => {
             const doc = contents.document;
+            if (!doc) return;
+
+            // Prevent duplicate listeners
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((contents as any)._listenersAttached) return;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (contents as any)._listenersAttached = true;
 
             // Prevent default context menu (especially for Android)
             doc.addEventListener('contextmenu', (e: Event) => {
@@ -281,6 +288,17 @@ export function useEpubReader(
                 spacer.style.clear = 'both'; // Ensure it sits below floated content
                 doc.body.appendChild(spacer);
             }
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (newRendition.hooks.content as any).register(attachListeners);
+
+        // Also attach on 'rendered' event as fallback if hooks don't fire (e.g. allowScriptedContent=true)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        newRendition.on('rendered', (_section: any, view: any) => {
+             if (view && view.contents) {
+                 attachListeners(view.contents);
+             }
         });
 
       } catch (err) {
