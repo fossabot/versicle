@@ -5,10 +5,9 @@ import { BookCard } from './BookCard';
 import { BookListItem } from './BookListItem';
 import { EmptyLibrary } from './EmptyLibrary';
 import { Grid } from 'react-window';
-import { Upload, Settings, LayoutGrid, List as ListIcon, FilePlus, Compass } from 'lucide-react';
+import { Upload, Settings, LayoutGrid, List as ListIcon, FilePlus } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { Button } from '../ui/Button';
-import { useNavigate } from 'react-router-dom';
 
 // Grid Configuration
 const CARD_WIDTH = 200; // Minimal width
@@ -58,14 +57,6 @@ export const LibraryView: React.FC = () => {
   const showToast = useToastStore(state => state.showToast);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-
-  const lastReadBook = React.useMemo(() => {
-    if (!books || books.length === 0) return null;
-    const startedBooks = books.filter(b => b.lastRead && b.progress && b.progress > 0);
-    if (startedBooks.length === 0) return null;
-    return startedBooks.sort((a, b) => (b.lastRead || 0) - (a.lastRead || 0))[0];
-  }, [books]);
   const [dimensions, setDimensions] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 0,
     height: typeof window !== 'undefined' ? window.innerHeight : 0
@@ -210,31 +201,7 @@ export const LibraryView: React.FC = () => {
       <header className="mb-8 flex-none flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">My Library</h1>
-          <p className="text-muted-foreground mb-4">Manage and read your EPUB collection</p>
-
-          {lastReadBook && (
-            <Button
-              variant="secondary"
-              className="rounded-full pl-2 pr-4 py-6 h-auto shadow-sm hover:shadow-md transition-all border border-transparent hover:border-primary/20 bg-card text-card-foreground"
-              onClick={() => navigate(`/read/${lastReadBook.id}`)}
-              data-testid="continue-reading-pill"
-            >
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 p-2 rounded-full text-primary">
-                  <Compass className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col items-start text-left">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Continue Reading</span>
-                  <div className="flex items-center gap-2">
-                     <span className="text-sm font-semibold max-w-[160px] truncate" title={lastReadBook.title}>{lastReadBook.title}</span>
-                     <span className="text-xs font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                        {Math.round((lastReadBook.progress || 0) * 100)}%
-                     </span>
-                  </div>
-                </div>
-              </div>
-            </Button>
-          )}
+          <p className="text-muted-foreground">Manage and read your EPUB collection</p>
         </div>
         <div className="flex gap-2">
             <Button

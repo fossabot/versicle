@@ -7,9 +7,13 @@ import { ChevronsLeft, ChevronsRight, SkipBack, SkipForward, Play, Pause } from 
 
 interface CompassPillProps {
   variant: 'active' | 'summary' | 'compact';
+  title?: string;
+  subtitle?: string;
+  progress?: number;
+  onClick?: () => void;
 }
 
-export const CompassPill: React.FC<CompassPillProps> = ({ variant }) => {
+export const CompassPill: React.FC<CompassPillProps> = ({ variant, title, subtitle, progress: overrideProgress, onClick }) => {
   const {
     isPlaying,
     queue,
@@ -29,7 +33,9 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant }) => {
   // Optimize: Select only currentChapterTitle to prevent re-renders on progress/cfi updates
   const readerChapterTitle = useReaderStore(state => state.currentChapterTitle);
 
-  const { timeRemaining, progress } = useChapterDuration();
+  const { timeRemaining, progress: hookProgress } = useChapterDuration();
+
+  const progress = overrideProgress !== undefined ? overrideProgress : hookProgress;
 
   // Helper for chapter navigation
   const handleChapterNav = (direction: 'prev' | 'next') => {
@@ -66,15 +72,22 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant }) => {
   // Title priority: Queue Item Title -> Reader Store Title -> "Chapter X"
   const chapterTitle = currentItem?.title || readerChapterTitle || `Chapter ${currentIndex + 1}`;
 
+  const displayTitle = title || currentItem?.bookTitle || "Current Book";
+  const displaySubtitle = subtitle || chapterTitle;
+
   // Summary Mode
   if (variant === 'summary') {
       return (
-          <div data-testid="compass-pill-summary" className="relative flex flex-col items-center justify-center w-full max-w-sm px-4 py-2 mx-auto overflow-hidden text-center transition-all border shadow-lg h-24 rounded-xl bg-background/80 backdrop-blur-md border-white/10">
+          <div
+            data-testid="compass-pill-summary"
+            className={`relative flex flex-col items-center justify-center w-full max-w-sm px-4 py-2 mx-auto overflow-hidden text-center transition-all border shadow-lg h-24 rounded-xl bg-background/80 backdrop-blur-md border-white/10 ${onClick ? 'cursor-pointer hover:bg-background/90' : ''}`}
+            onClick={onClick}
+          >
               <div className="text-xs font-bold truncate w-full opacity-90">
-                  {currentItem?.bookTitle || "Current Book"}
+                  {displayTitle}
               </div>
               <div className="text-xs font-medium truncate w-full opacity-80 my-1">
-                  {chapterTitle}
+                  {displaySubtitle}
               </div>
               <div className="text-[10px] text-muted-foreground">
                    {Math.round(progress)}% complete

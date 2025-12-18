@@ -4,6 +4,11 @@ from verification import utils
 
 def test_compass_pill(page: Page):
     print("Starting Compass Pill Journey...")
+
+    # Clear local storage to ensure TTS queue is empty
+    page.goto("/")
+    page.evaluate("localStorage.clear()")
+
     utils.reset_app(page)
     utils.ensure_library_with_book(page)
 
@@ -33,7 +38,6 @@ def test_compass_pill(page: Page):
     # 3. Go back to Library
     print("Going back to library...")
     page.get_by_test_id("reader-back-button").click()
-    # Expect library url (root)
     expect(page).to_have_url(re.compile(r".*/$"))
 
     # Wait for library to load and update
@@ -41,11 +45,12 @@ def test_compass_pill(page: Page):
 
     # 4. Check for Compass Pill
     print("Checking for Compass Pill...")
-    pill = page.get_by_test_id("continue-reading-pill")
+    # The existing pill component is reused, which uses this test ID for summary view
+    pill = page.get_by_test_id("compass-pill-summary")
     expect(pill).to_be_visible()
 
     expect(pill).to_contain_text("Continue Reading")
-    expect(pill).to_contain_text("%")
+    expect(pill).to_contain_text("% complete")
 
     utils.capture_screenshot(page, "compass_pill_visible")
 
