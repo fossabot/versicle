@@ -34,7 +34,7 @@ export class BackgroundAudio {
 
         // If switching source, or if just starting
         // Note: checking getAttribute('src') is unreliable as .src setter doesn't always update the content attribute
-        if (this.currentMode !== mode) {
+        if (this.currentMode !== mode || this.audio.error || !this.audio.src) {
             this.audio.src = targetSrc;
             // When src changes, we might want to load(), though play() usually handles it.
             // load() resets currentTime to 0.
