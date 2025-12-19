@@ -1,14 +1,17 @@
-import React, { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTTSStore } from '../../store/useTTSStore';
 import { useReaderStore } from '../../store/useReaderStore';
+import { useLibraryStore } from '../../store/useLibraryStore';
 import { CompassPill } from './CompassPill';
 import { SatelliteFAB } from './SatelliteFAB';
 
 export const AudioReaderHUD: React.FC = () => {
     const { queue, isPlaying, pause } = useTTSStore();
     const { immersiveMode } = useReaderStore();
+    const { books } = useLibraryStore();
     const location = useLocation();
+    const navigate = useNavigate();
 
     // Check if we are in Library (root path)
     const isLibrary = location.pathname === '/';
@@ -20,8 +23,20 @@ export const AudioReaderHUD: React.FC = () => {
         }
     }, [isLibrary, isPlaying, pause]);
 
-    // Don't render if nothing in queue
-    if (!queue || queue.length === 0) {
+    const lastReadBook = useMemo(() => {
+        if (!books || books.length === 0) return null;
+        const startedBooks = books.filter(b => b.lastRead && b.progress && b.progress > 0);
+        if (startedBooks.length === 0) return null;
+        return startedBooks.sort((a, b) => (b.lastRead || 0) - (a.lastRead || 0))[0];
+    }, [books]);
+
+    // Show last read book if in library and not playing audio
+    const showLastRead = isLibrary && !isPlaying && lastReadBook;
+
+    // Don't render if nothing in queue AND no last read book in library
+    // If showLastRead is true, we render.
+    // If showLastRead is false, we only render if queue has items.
+    if ((!queue || queue.length === 0) && !showLastRead) {
         return null;
     }
 
@@ -37,7 +52,17 @@ export const AudioReaderHUD: React.FC = () => {
 
                  {/* Pill Container */}
                  <div className="mb-4">
-                     <CompassPill variant={immersiveMode ? 'compact' : (isLibrary ? 'summary' : 'active')} />
+                     {showLastRead ? (
+                        <CompassPill
+                            variant="summary"
+                            title={lastReadBook!.title}
+                            subtitle="Continue Reading"
+                            progress={(lastReadBook!.progress || 0) * 100}
+                            onClick={() => navigate(`/read/${lastReadBook!.id}`)}
+                        />
+                     ) : (
+                        <CompassPill variant={immersiveMode ? 'compact' : (isLibrary ? 'summary' : 'active')} />
+                     )}
                  </div>
              </div>
         </div>
