@@ -174,6 +174,16 @@ export interface LexiconRule {
 /**
  * Represents the reading history of a book.
  */
+export interface ReadingSession {
+  /** The CFI range read during this session. */
+  cfiRange: string;
+  /** Timestamp when the session occurred. */
+  timestamp: number;
+}
+
+/**
+ * Represents the reading history of a book.
+ */
 export interface ReadingHistoryEntry {
   /** The ID of the book. */
   bookId: string;
@@ -181,6 +191,8 @@ export interface ReadingHistoryEntry {
    * A list of combined CFI ranges representing read content.
    */
   readRanges: string[];
+  /** A list of individual reading sessions (chronological). */
+  sessions?: ReadingSession[];
   /** Timestamp when the history was last updated. */
   lastUpdated: number;
 }
