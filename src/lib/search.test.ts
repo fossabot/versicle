@@ -47,21 +47,30 @@ vi.stubGlobal('URL', class {
 import { searchClient } from './search';
 
 // Mock epubjs Book
+const mockBlob = new Blob(['<html xmlns="http://www.w3.org/1999/xhtml"><body>This is some text content in chapter 1.</body></html>'], { type: 'application/xhtml+xml' });
+
 const mockBook = {
   spine: {
       items: [
           { href: 'chap1.html', id: 'chap1' }
       ]
   },
+  archive: {
+    getBlob: vi.fn().mockResolvedValue(mockBlob)
+  },
   load: vi.fn().mockResolvedValue({
       body: { innerText: 'This is some text content in chapter 1.' }
-  })
+  }),
+  ready: Promise.resolve()
 };
 
 describe('SearchClient', () => {
 
-    it('should index a book using batch messages and send completion signal', async () => {
+    it('should index a book using archive access and send completion signal', async () => {
         const postMessageSpy = vi.spyOn(MockWorker.prototype, 'postMessage');
+        // Reset mocks
+        vi.clearAllMocks();
+        mockBook.archive.getBlob.mockResolvedValue(mockBlob);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await searchClient.indexBook(mockBook as any, 'book-1');
@@ -72,8 +81,10 @@ describe('SearchClient', () => {
             payload: { bookId: 'book-1' }
         }));
 
-        // Should load chapter
-        expect(mockBook.load).toHaveBeenCalledWith('chap1.html');
+        // Should use archive to get blob
+        expect(mockBook.archive.getBlob).toHaveBeenCalledWith('chap1.html');
+        // Should NOT load chapter via rendering
+        expect(mockBook.load).not.toHaveBeenCalled();
 
         // Should send add message
         expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({
@@ -81,7 +92,7 @@ describe('SearchClient', () => {
             payload: {
                 bookId: 'book-1',
                 sections: expect.arrayContaining([
-                    expect.objectContaining({ href: 'chap1.html' })
+                    expect.objectContaining({ href: 'chap1.html', text: expect.stringContaining('This is some text content in chapter 1.') })
                 ])
             }
         }));
@@ -90,6 +101,32 @@ describe('SearchClient', () => {
         expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({
             type: 'FINISH_INDEXING',
             payload: { bookId: 'book-1' }
+        }));
+    });
+
+    it('should fallback to book.load if archive fails', async () => {
+        const postMessageSpy = vi.spyOn(MockWorker.prototype, 'postMessage');
+        // Reset mocks
+        vi.clearAllMocks();
+        mockBook.archive.getBlob.mockResolvedValue(null); // Simulate archive failure/missing file
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await searchClient.indexBook(mockBook as any, 'book-1');
+
+        // Should attempt archive
+        expect(mockBook.archive.getBlob).toHaveBeenCalledWith('chap1.html');
+        // Should fallback to load
+        expect(mockBook.load).toHaveBeenCalledWith('chap1.html');
+
+        // Should send add message (with content from load)
+        expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'ADD_TO_INDEX',
+            payload: {
+                bookId: 'book-1',
+                sections: expect.arrayContaining([
+                    expect.objectContaining({ href: 'chap1.html', text: expect.stringContaining('This is some text content in chapter 1.') })
+                ])
+            }
         }));
     });
 
@@ -121,6 +158,9 @@ describe('SearchClient', () => {
                     resolve();
                 }, 20);
             }),
+            archive: {
+                 getBlob: vi.fn().mockResolvedValue(mockBlob)
+            },
             load: vi.fn().mockResolvedValue({
                 body: { innerText: 'Content' }
             })

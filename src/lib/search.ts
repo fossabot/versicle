@@ -92,10 +92,36 @@ class SearchClient {
             const sections: SearchSection[] = [];
 
             for (const item of batch) {
+                let text = '';
                 try {
-                    const doc = await book.load(item.href);
-                    if (doc && doc.body) {
-                        const text = doc.body.innerText;
+                    // Attempt 1: Access raw file content from the archive (fast & robust)
+                    if (book.archive) {
+                        try {
+                            const blob = await book.archive.getBlob(item.href);
+                            if (blob) {
+                                const rawXml = await blob.text();
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(rawXml, 'application/xhtml+xml');
+                                text = doc.body.textContent || '';
+                            }
+                        } catch (err) {
+                            console.warn(`Archive extraction failed for ${item.href}, falling back to render`, err);
+                        }
+                    }
+
+                    // Attempt 2: Fallback to rendering pipeline (slow but handles resource resolution)
+                    if (!text) {
+                        const doc = await book.load(item.href);
+                        if (doc) {
+                            if (doc.body && doc.body.innerText) {
+                                text = doc.body.innerText;
+                            } else if (doc.documentElement) {
+                                text = doc.documentElement.innerText || '';
+                            }
+                        }
+                    }
+
+                    if (text) {
                         sections.push({
                             id: item.id,
                             href: item.href,
