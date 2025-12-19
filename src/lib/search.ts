@@ -92,35 +92,37 @@ class SearchClient {
             const sections: SearchSection[] = [];
 
             for (const item of batch) {
+                let text = '';
                 try {
-                    // Access raw file content from the archive (more robust than book.load)
+                    // Attempt 1: Access raw file content from the archive (fast & robust)
                     if (book.archive) {
-                        const blob = await book.archive.getBlob(item.href);
-                        if (blob) {
-                            const rawXml = await blob.text();
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(rawXml, 'application/xhtml+xml');
-
-                            const text = doc.body.textContent || '';
-                            if (text) {
-                                sections.push({
-                                    id: item.id,
-                                    href: item.href,
-                                    text: text
-                                });
+                        try {
+                            const blob = await book.archive.getBlob(item.href);
+                            if (blob) {
+                                const rawXml = await blob.text();
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(rawXml, 'application/xhtml+xml');
+                                text = doc.body.textContent || '';
                             }
+                        } catch (err) {
+                            console.warn(`Archive extraction failed for ${item.href}, falling back to render`, err);
                         }
-                    } else {
-                        // Fallback to legacy loading if archive is not available
+                    }
+
+                    // Attempt 2: Fallback to rendering pipeline (slow but handles resource resolution)
+                    if (!text) {
                         const doc = await book.load(item.href);
                         if (doc && doc.body) {
-                            const text = doc.body.innerText;
-                            sections.push({
-                                id: item.id,
-                                href: item.href,
-                                text: text
-                            });
+                            text = doc.body.innerText;
                         }
+                    }
+
+                    if (text) {
+                        sections.push({
+                            id: item.id,
+                            href: item.href,
+                            text: text
+                        });
                     }
                 } catch (e) {
                     console.warn(`Failed to index section ${item.href}`, e);
