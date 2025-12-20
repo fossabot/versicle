@@ -7,16 +7,17 @@ The verification suite is written as playwright tests. All code changes require 
 3. If the user asks to update the golden screenshots (goldens for short), you must run the playwright test successfully via the container and replace the `verification/goldens` with the generated screenshots from `verification/screenshots/` and commit it to the repository. Old screenshots should be deleted.
 4. The main way to run the playwright verification test suite is via Docker:
    ```bash
-   docker build -t versicle-verify -f Dockerfile.verification .
+   sudo docker build -t versicle-verify -f Dockerfile.verification .
    mkdir -p verification/screenshots
-   docker run --rm -v $(pwd)/verification/screenshots:/app/verification/screenshots versicle-verify
+   sudo docker run --rm -v $(pwd)/verification/screenshots:/app/verification/screenshots versicle-verify
    ```
 5. The individual verification tests are located in `verification/test_*.py`.
+6. Timeouts are often caused by bugs or flakiness in the code or the test. It is rarely a performance issue, so increasing the timeout should be a last resort.
 
 # Testing
 Never override PYTHONPATH for running tests because the testing environment does not do that either.
 
-# Before you submit
+# Pull Request Prerequisite
 1. Always make sure that `npm run build` succeed and `npm run lint` is clean. Fix issues and repeat until it is true.
 2. Check that the playwright verification suite succeeds (using the Docker container). Fix issues and repeat until it is true.
 3. Check that the `npm test` succeed. Fix issues and repeat until it is true.
