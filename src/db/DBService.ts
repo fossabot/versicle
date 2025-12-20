@@ -208,7 +208,8 @@ class DBService {
         const fileStore = tx.objectStore('files');
         const fileData = await fileStore.get(id);
         if (fileData) {
-          book.fileHash = await generateFileFingerprint(fileData, {
+          const blob = fileData instanceof Blob ? fileData : new Blob([fileData]);
+          book.fileHash = await generateFileFingerprint(blob, {
             title: book.title,
             author: book.author,
             filename: book.filename || 'unknown.epub'
