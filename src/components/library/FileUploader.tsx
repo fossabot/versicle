@@ -3,6 +3,7 @@ import { useLibraryStore } from '../../store/useLibraryStore';
 import { useToastStore } from '../../store/useToastStore';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { validateEpubFile } from '../../lib/ingestion';
 
 /**
  * A component for uploading EPUB files via drag-and-drop or file selection.
@@ -14,6 +15,25 @@ export const FileUploader: React.FC = () => {
   const { addBook, isImporting } = useLibraryStore();
   const { showToast } = useToastStore();
   const [dragActive, setDragActive] = useState(false);
+
+  /**
+   * Validates and processes the selected file.
+   * Checks for .epub extension and validates ZIP magic bytes.
+   */
+  const processFile = useCallback(async (file: File) => {
+      // Check extension first for quick feedback
+      if (file.name.endsWith('.epub')) {
+           // Security Check: Validate Magic Bytes
+           const isValid = await validateEpubFile(file);
+           if (isValid) {
+               addBook(file);
+           } else {
+               showToast("Invalid EPUB file (header mismatch)", 'error');
+           }
+      } else {
+           showToast("Only .epub files are supported", 'error');
+      }
+  }, [addBook, showToast]);
 
   /**
    * Handles drag events to toggle visual feedback for the drop zone.
@@ -36,21 +56,16 @@ export const FileUploader: React.FC = () => {
    * @param e - The React DragEvent containing the dropped files.
    */
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       setDragActive(false);
 
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        const file = e.dataTransfer.files[0];
-        if (file.name.endsWith('.epub')) {
-          addBook(file);
-        } else {
-            showToast("Only .epub files are supported", 'error');
-        }
+        await processFile(e.dataTransfer.files[0]);
       }
     },
-    [addBook, showToast]
+    [processFile]
   );
 
   /**
@@ -58,10 +73,10 @@ export const FileUploader: React.FC = () => {
    *
    * @param e - The React ChangeEvent from the file input.
    */
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (e.target.files && e.target.files[0]) {
-      addBook(e.target.files[0]);
+      await processFile(e.target.files[0]);
     }
   };
 
