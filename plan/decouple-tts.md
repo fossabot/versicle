@@ -239,19 +239,19 @@ The implementation is divided into 4 Phases. We are currently executing Phase 1 
 
 *Goal: Establish the storage layer and data structures.*
 
--   **Step 1.1: Database Schema Update** (Completed)
+-   **Step 1.1: Database Schema Update**
 
     -   Target: `src/db/db.ts`
 
     -   Action: Incremented DB version to 10. Added `tts_content` object store with index `by_bookId`.
 
--   **Step 1.2: Type Definitions** (Completed)
+-   **Step 1.2: Type Definitions**
 
     -   Target: `src/types/db.ts`
 
     -   Action: Defined `TTSContent` interface containing `id`, `bookId`, `sectionId`, and `sentences[]`.
 
--   **Step 1.3: DB Service Extensions** (Completed)
+-   **Step 1.3: DB Service Extensions**
 
     -   Target: `src/db/DBService.ts`
 
@@ -261,13 +261,13 @@ The implementation is divided into 4 Phases. We are currently executing Phase 1 
 
 *Goal: Separate text extraction from the visual rendering process.*
 
--   **Step 2.1: Refactor `src/lib/tts.ts`** (Completed)
+-   **Step 2.1: Refactor `src/lib/tts.ts`**
 
     -   Action: Created `extractSentencesFromNode(rootNode, cfiGenerator)`.
 
     -   Details: This function traverses a standard DOM `Node` (not an epub.js view), segments text using `TextSegmenter`, and uses a callback to generate CFIs.
 
--   **Step 2.2: Implement Structural CFI Generator** (Pending)
+-   **Step 2.2: Implement Structural CFI Generator**
 
     -   Target: `src/lib/cfi-utils.ts` or inline in `src/lib/ingestion.ts`
 
