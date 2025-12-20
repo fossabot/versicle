@@ -53,11 +53,7 @@ export const useTTS = (rendition: Rendition | null, isReady: boolean) => {
   useEffect(() => {
     let isMounted = true;
 
-    // We do NOT update lastLoadedHref here because we want to allow re-loading if the previous load was interrupted
-    // or if we switch logic. However, to prevent unnecessary re-fetches if nothing changed,
-    // we should rely on useEffect dependency array (currentSectionId) and internal checks.
-
-    // BUT, legacyLoadSentences checks (currentHref === lastLoadedHref.current) to avoid page-turn reloads.
+    // legacyLoadSentences checks (currentHref === lastLoadedHref.current) to avoid page-turn reloads.
     // If we update lastLoadedHref prematurely, we break that check if DB load fails.
     // So we ONLY update lastLoadedHref when we successfully load content (DB or Legacy).
 
