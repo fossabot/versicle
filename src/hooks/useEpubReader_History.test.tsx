@@ -2,7 +2,6 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useEpubReader } from './useEpubReader';
 import { dbService } from '../db/DBService';
-import ePub from 'epubjs';
 
 // Mock DBService
 vi.mock('../db/DBService', () => ({
@@ -116,6 +115,7 @@ describe('useEpubReader History Integration', () => {
         const rendition = result.current.rendition;
 
         expect(rendition?.display).toHaveBeenCalled();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const calledArg = (rendition?.display as any).mock.calls[0][0];
 
         // It should NOT be the metadata one

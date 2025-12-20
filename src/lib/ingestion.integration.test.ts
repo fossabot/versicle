@@ -52,6 +52,12 @@ describe('ingestion integration', () => {
     expect(book?.title).toContain("Alice's Adventures in Wonderland");
     expect(book?.author).toContain('Lewis Carroll');
 
+    // Verify fileHash (fingerprint)
+    expect(book?.fileHash).toBeDefined();
+    expect(typeof book?.fileHash).toBe('string');
+    // Fingerprint includes filename
+    expect(book?.fileHash).toContain('alice.epub');
+
     // Verify cover extraction
     expect(book?.coverBlob).toBeDefined();
 

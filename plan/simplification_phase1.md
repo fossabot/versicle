@@ -61,3 +61,22 @@ async function generateFileFingerprint(file: File): Promise<string> {
 *   **Performance Test**: Import a large file (200MB+) and verify it is instantaneous.
 *   **Functional Test**: Verify "Offload/Restore" cycle.
 *   **Edge Case Test**: Ensure small files (< 8KB) are handled correctly.
+
+## 3. Implementation Status (Completed)
+
+**Date:** 2024-05-23
+**Status:** Implemented and Verified.
+
+### Changes Implemented
+1.  **Ingestion Refactor**:
+    *   Replaced `crypto-js` SHA-256 with `generateFileFingerprint` in `src/lib/ingestion.ts`.
+    *   Fingerprint strategy: `${file.name}-${file.size}-${file.lastModified}` + DJB2-like hash of first/last 4KB.
+    *   Removed `computeFileHash` and `crypto-js` dependency.
+2.  **Database Updates**:
+    *   Updated `src/db/DBService.ts`: `restoreBook` now calculates the fingerprint of the incoming file.
+    *   Implemented "Legacy Migration": If the stored hash is a legacy SHA-256 (64 hex chars), and the incoming file matches filename/size, we migrate the stored hash to the new fingerprint.
+    *   Updated `offloadBook`: Only calculates/updates hash if it is missing AND we have a valid `File` object (preserving `lastModified`). If we only have a `Blob` (lost metadata), we skip updating to avoid generating a mismatching fingerprint.
+
+### Divergences & Discoveries
+*   **Last Modified Dependency**: The fingerprint heavily relies on `file.lastModified`. If a user re-downloads a file, this timestamp might change, altering the fingerprint. The legacy migration path (trusting filename/size) mitigates this for existing books, but future restores of offloaded books require the *exact* same file instance (or one with preserved timestamps).
+*   **Offload Logic**: We discovered that `offloadBook` might not always have access to the original `File` object (e.g., if IDB implementation strips metadata or returns Blob). We added a check to only generate a new fingerprint if `fileData instanceof File`, ensuring we don't commit a broken fingerprint that would permanently block restoration.

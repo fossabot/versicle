@@ -1,7 +1,7 @@
 import { getDB } from './db';
 import type { BookMetadata, Annotation, CachedSegment, BookLocations, TTSState, ContentAnalysis, ReadingListEntry, ReadingHistoryEntry, ReadingSession } from '../types/db';
 import { DatabaseError, StorageFullError } from '../types/errors';
-import { processEpub } from '../lib/ingestion';
+import { processEpub, generateFileFingerprint } from '../lib/ingestion';
 import { validateBookMetadata } from './validators';
 import { mergeCfiRanges } from '../lib/cfi-utils';
 import { Logger } from '../lib/logger';
@@ -203,21 +203,12 @@ class DBService {
 
       if (!book) throw new Error('Book not found');
 
-      // If missing hash, calculate it from existing file before deleting
+      // If missing hash, calculate fingerprint from existing file before deleting
       if (!book.fileHash) {
         const fileStore = tx.objectStore('files');
         const fileData = await fileStore.get(id);
-        if (fileData) {
-          let arrayBuffer: ArrayBuffer;
-          if (fileData instanceof Blob) {
-             arrayBuffer = await fileData.arrayBuffer();
-          } else {
-             arrayBuffer = fileData;
-          }
-
-          const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          book.fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+        if (fileData instanceof File) {
+          book.fileHash = await generateFileFingerprint(fileData);
         }
       }
 
@@ -244,15 +235,25 @@ class DBService {
       const book = await db.get('books', id);
 
       if (!book) throw new Error('Book not found');
-      if (!book.fileHash) throw new Error('Cannot verify file (missing hash).');
 
-      const arrayBuffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      const newFingerprint = await generateFileFingerprint(file);
 
-      if (fileHash !== book.fileHash) {
-        throw new Error('File verification failed: Checksum mismatch.');
+      if (book.fileHash) {
+        if (book.fileHash !== newFingerprint) {
+          // Check for legacy SHA-256 hash (64 hex characters)
+          const isLegacy = book.fileHash.length === 64 && /^[0-9a-fA-F]+$/.test(book.fileHash);
+          const matchesLegacyCriteria = file.name === book.filename && file.size === book.fileSize;
+
+          if (isLegacy && matchesLegacyCriteria) {
+            // Migrate to new fingerprint
+            book.fileHash = newFingerprint;
+          } else {
+            throw new Error('File verification failed: Fingerprint mismatch.');
+          }
+        }
+      } else {
+        // If hash was missing, we accept the file and set the hash
+        book.fileHash = newFingerprint;
       }
 
       const tx = db.transaction(['books', 'files'], 'readwrite');
