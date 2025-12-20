@@ -3,57 +3,43 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDB } from '../db/db';
 import type { BookMetadata, SectionMetadata } from '../types/db';
 import { getSanitizedBookMetadata } from '../db/validators';
-import CryptoJS from 'crypto-js';
 
-// Chunk size for hashing (e.g., 2MB)
-const HASH_CHUNK_SIZE = 2 * 1024 * 1024;
+function cheapHash(buffer: ArrayBuffer): string {
+  const view = new Uint8Array(buffer);
+  let hash = 5381;
+  for (let i = 0; i < view.length; i++) {
+    hash = ((hash << 5) + hash) + view[i]; /* hash * 33 + c */
+  }
+  return (hash >>> 0).toString(16);
+}
 
 /**
- * Computes the SHA-256 hash of a file incrementally using chunks.
- * This avoids loading the entire file into memory.
+ * Generates a unique fingerprint for a file based on metadata and content sampling.
+ * This is much faster than a full cryptographic hash (SHA-256).
  *
- * @param file - The file to hash.
- * @returns The hex string representation of the hash.
+ * @param file - The file (or blob) to fingerprint.
+ * @param metadata - The metadata to include in the fingerprint (title, author, filename).
+ * @returns A string fingerprint.
  */
-export async function computeFileHash(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // CryptoJS.algo.SHA256.create() gives us an incremental hasher
-    const algo = CryptoJS.algo.SHA256.create();
-    let offset = 0;
+export async function generateFileFingerprint(
+  file: Blob,
+  metadata: { title: string; author: string; filename: string }
+): Promise<string> {
+  // 1. Metadata: This acts as the primary filter.
+  // We use title/author/filename instead of volatile attributes like size/lastModified.
+  const metaString = `${metadata.filename}-${metadata.title}-${metadata.author}`;
 
-    const readNextChunk = () => {
-      if (offset >= file.size) {
-        // Finalize hash
-        const hash = algo.finalize();
-        resolve(hash.toString(CryptoJS.enc.Hex));
-        return;
-      }
+  // 2. Head/Tail Sampling: Read the first 4KB and last 4KB of the file.
+  // The header usually contains file format signatures (magic bytes) and metadata.
+  // The footer often contains EOF markers or central directory records (in ZIP/EPUB).
+  const headSize = Math.min(4096, file.size);
 
-      const chunk = file.slice(offset, offset + HASH_CHUNK_SIZE);
-      const reader = new FileReader();
+  const head = await file.slice(0, headSize).arrayBuffer();
+  // if file is smaller than 4096, tail overlaps head, which is fine for fingerprinting
+  const tail = await file.slice(Math.max(0, file.size - 4096), file.size).arrayBuffer();
 
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          const arrayBuffer = e.target.result as ArrayBuffer;
-          // Convert ArrayBuffer to crypto-js WordArray
-          const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
-          algo.update(wordArray);
-          offset += HASH_CHUNK_SIZE;
-          readNextChunk();
-        } else {
-          reject(new Error('Failed to read chunk'));
-        }
-      };
-
-      reader.onerror = (e) => {
-        reject(e.target?.error || new Error('FileReader error'));
-      };
-
-      reader.readAsArrayBuffer(chunk);
-    };
-
-    readNextChunk();
-  });
+  // 3. Fast non-crypto hash
+  return `${metaString}-${cheapHash(head)}-${cheapHash(tail)}`;
 }
 
 
@@ -209,8 +195,12 @@ export async function processEpub(file: File): Promise<string> {
     }
   }
 
-  // Calculate SHA-256 hash incrementally
-  const fileHash = await computeFileHash(file);
+  // Calculate fingerprint
+  const fileHash = await generateFileFingerprint(file, {
+    title: metadata.title || 'Untitled',
+    author: metadata.creator || 'Unknown Author',
+    filename: file.name
+  });
 
   const candidateBook: BookMetadata = {
     id: bookId,

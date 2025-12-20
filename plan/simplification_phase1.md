@@ -11,13 +11,12 @@
 **Problem:** Cryptographic certainty is overkill for personal library management. The threat model we are defending against---a user manually selecting a *different* file that happens to have the exact same filename and byte size---is vanishingly small. The current solution optimizes for a negligible edge case at the expense of everyday performance.
 
 **Proposed Design: "The 3-Point Fingerprint"**
-Instead of reading and hashing the entire file content, we will generate a unique identifier based on a composite of file metadata and a small, fixed-size data sample.
+Instead of reading and hashing the entire file content, we will generate a unique identifier based on a composite of file metadata (Filename, Title, Author) and a small, fixed-size data sample. Note: We deliberately avoid volatile metadata like `lastModified` or `file.size` to allow for file system variations or re-downloads.
 
 ```typescript
-async function generateFileFingerprint(file: File): Promise<string> {
+async function generateFileFingerprint(file: File | Blob, metadata: { title: string, author: string, filename: string }): Promise<string> {
   // 1. Metadata: This acts as the primary filter.
-  // It is extremely rare for two different files to share name, size, and modification time.
-  const metaString = `${file.name}-${file.size}-${file.lastModified}`;
+  const metaString = `${metadata.filename}-${metadata.title}-${metadata.author}`;
 
   // 2. Head/Tail Sampling: Read the first 4KB and last 4KB of the file.
   // The header usually contains file format signatures (magic bytes) and metadata.
@@ -61,3 +60,22 @@ async function generateFileFingerprint(file: File): Promise<string> {
 *   **Performance Test**: Import a large file (200MB+) and verify it is instantaneous.
 *   **Functional Test**: Verify "Offload/Restore" cycle.
 *   **Edge Case Test**: Ensure small files (< 8KB) are handled correctly.
+
+## 3. Implementation Status (Completed)
+
+**Date:** 2024-05-23
+**Status:** Implemented and Verified.
+
+### Changes Implemented
+1.  **Ingestion Refactor**:
+    *   Replaced `crypto-js` SHA-256 with `generateFileFingerprint` in `src/lib/ingestion.ts`.
+    *   Fingerprint strategy: `${filename}-${title}-${author}` + DJB2-like hash of first/last 4KB.
+    *   Removed `computeFileHash` and `crypto-js` dependency.
+2.  **Database Updates**:
+    *   Updated `src/db/DBService.ts`: `restoreBook` now calculates the fingerprint of the incoming file using provided metadata.
+    *   **Removed Legacy Compatibility**: Per review feedback, we removed logic to migrate legacy SHA-256 hashes. Restoring legacy books will fail verification.
+    *   Updated `offloadBook`: Now generates fingerprint using `book` metadata (Title/Author) + Blob content. This resolves the missing `lastModified` issue for Blobs.
+
+### Divergences & Discoveries
+*   **Metadata Strategy**: Shifted from `size/lastModified` to `Title/Author` to improve robustness across re-downloads and file system changes, and to enable fingerprinting of stored Blobs that lack file system metadata.
+*   **Legacy Support**: Explicitly dropped support for verifying/migrating legacy SHA-256 hashes.

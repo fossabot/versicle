@@ -1,7 +1,7 @@
 import { getDB } from './db';
 import type { BookMetadata, Annotation, CachedSegment, BookLocations, TTSState, ContentAnalysis, ReadingListEntry, ReadingHistoryEntry, ReadingSession } from '../types/db';
 import { DatabaseError, StorageFullError } from '../types/errors';
-import { processEpub } from '../lib/ingestion';
+import { processEpub, generateFileFingerprint } from '../lib/ingestion';
 import { validateBookMetadata } from './validators';
 import { mergeCfiRanges } from '../lib/cfi-utils';
 import { Logger } from '../lib/logger';
@@ -203,21 +203,17 @@ class DBService {
 
       if (!book) throw new Error('Book not found');
 
-      // If missing hash, calculate it from existing file before deleting
+      // If missing hash, calculate fingerprint from existing file before deleting
       if (!book.fileHash) {
         const fileStore = tx.objectStore('files');
         const fileData = await fileStore.get(id);
         if (fileData) {
-          let arrayBuffer: ArrayBuffer;
-          if (fileData instanceof Blob) {
-             arrayBuffer = await fileData.arrayBuffer();
-          } else {
-             arrayBuffer = fileData;
-          }
-
-          const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          book.fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+          const blob = fileData instanceof Blob ? fileData : new Blob([fileData]);
+          book.fileHash = await generateFileFingerprint(blob, {
+            title: book.title,
+            author: book.author,
+            filename: book.filename || 'unknown.epub'
+          });
         }
       }
 
@@ -244,15 +240,18 @@ class DBService {
       const book = await db.get('books', id);
 
       if (!book) throw new Error('Book not found');
-      if (!book.fileHash) throw new Error('Cannot verify file (missing hash).');
 
-      const arrayBuffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      const newFingerprint = await generateFileFingerprint(file, {
+        title: book.title,
+        author: book.author,
+        filename: file.name
+      });
 
-      if (fileHash !== book.fileHash) {
-        throw new Error('File verification failed: Checksum mismatch.');
+      if (book.fileHash && book.fileHash !== newFingerprint) {
+        throw new Error('File verification failed: Fingerprint mismatch.');
+      } else if (!book.fileHash) {
+        // If hash was missing, we accept the file and set the hash
+        book.fileHash = newFingerprint;
       }
 
       const tx = db.transaction(['books', 'files'], 'readwrite');
