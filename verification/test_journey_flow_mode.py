@@ -63,7 +63,7 @@ def test_journey_flow_mode(page: Page):
     # 6. Verify Peek Mode
     # Single tap triggers Peek Mode
     # Wait a bit to ensure previous double tap is processed
-    time.sleep(0.5)
+    time.sleep(1.0)
     page.mouse.click(center_x, center_y)
 
     # Expect time and battery/text to be visible
@@ -75,7 +75,7 @@ def test_journey_flow_mode(page: Page):
 
     # 7. Disable Curtain Mode (Double Tap)
     # Wait for peek to potentially fade or just double tap through it
-    time.sleep(0.5)
+    time.sleep(1.0)
     page.mouse.click(center_x, center_y)
     page.mouse.click(center_x, center_y)
 
@@ -85,7 +85,7 @@ def test_journey_flow_mode(page: Page):
 
     # 8. Stop Audio (via Center Tap on Overlay)
     # Wait a bit to ensure we don't trigger double tap from previous clicks
-    time.sleep(0.5)
+    time.sleep(1.0)
     page.mouse.click(center_x, center_y)
 
     # Verify Overlay Disappears (Visual Reading State)
