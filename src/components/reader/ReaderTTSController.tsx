@@ -17,6 +17,7 @@ interface ReaderTTSControllerProps {
  * Handles:
  * 1. Highlighting the current sentence (activeCfi)
  * 2. Keyboard navigation during TTS (currentIndex)
+ * 3. Visibility reconciliation (syncing visual state when returning to foreground)
  */
 export const ReaderTTSController: React.FC<ReaderTTSControllerProps> = ({
   rendition,
@@ -31,28 +32,95 @@ export const ReaderTTSController: React.FC<ReaderTTSControllerProps> = ({
   const queue = useTTSStore(state => state.queue);
   const jumpTo = useTTSStore(state => state.jumpTo);
 
-  // --- TTS Highlighting ---
+  const lastBackgroundCfi = useRef<string | null>(null);
+
+  // --- TTS Highlighting & Sync ---
   useEffect(() => {
       if (!rendition || !activeCfi) return;
 
-      // Auto-turn page in paginated mode
-      if (viewMode === 'paginated') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (rendition as any).display(activeCfi);
-      }
+      const syncVisuals = () => {
+         // Auto-turn page in paginated mode
+         if (viewMode === 'paginated') {
+             // Non-blocking display call
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             (rendition as any).display(activeCfi).catch((err: unknown) => {
+                 console.warn("[TTS] Sync skipped", err);
+             });
+         }
 
-      // Add highlight
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (rendition as any).annotations.add('highlight', activeCfi, {}, () => {
-          // Click handler for TTS highlight
-      }, 'tts-highlight');
+         // Add highlight
+         try {
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             (rendition as any).annotations.add('highlight', activeCfi, {}, () => {
+                 // Click handler for TTS highlight
+             }, 'tts-highlight');
+         } catch (e) {
+             console.warn("[TTS] Highlight failed", e);
+         }
+      };
+
+      if (document.visibilityState === 'visible') {
+           syncVisuals();
+      } else {
+           // Background mode: Store for later
+           lastBackgroundCfi.current = activeCfi;
+      }
 
       // Remove highlight when activeCfi changes
       return () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (rendition as any).annotations.remove(activeCfi, 'highlight');
+          try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (rendition as any).annotations.remove(activeCfi, 'highlight');
+          } catch { /* ignore removal errors */ }
       };
   }, [activeCfi, viewMode, rendition]);
+
+  // --- Visibility Reconciliation ---
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && lastBackgroundCfi.current && rendition) {
+         // We just came back to foreground.
+         // If we have a stored CFI that we missed syncing, jump to it now.
+         const cfiToSync = lastBackgroundCfi.current;
+         lastBackgroundCfi.current = null;
+
+         if (viewMode === 'paginated') {
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             (rendition as any).display(cfiToSync).catch((err: unknown) => console.warn("Reconciliation failed", err));
+         }
+
+         // Note: We don't need to re-add highlight here because the main effect
+         // will re-run if activeCfi is still that value, OR if activeCfi has changed
+         // since then, the main effect has already run (but stored it).
+         // Wait, if activeCfi changed while backgrounded, the main effect ran, found hidden, and updated lastBackgroundCfi.
+         // So lastBackgroundCfi holds the *latest* cfi.
+         // However, the main effect cleanup ran for the *previous* cfi.
+         // But the main effect for the *current* cfi ran while hidden, so it DID NOT add the highlight.
+         // So we DO need to add the highlight if we are just catching up.
+
+         // Actually, if we just call 'display', we are syncing the page.
+         // The highlight logic is inside the main effect.
+         // If the main effect ran while hidden, it skipped 'syncVisuals'.
+         // So the highlight is MISSING.
+
+         // We should probably trigger the highlight logic again.
+         // But we can't easily force the effect to re-run.
+
+         // Alternative: Check visibility inside the effect, and if visible, do work.
+         // But if we become visible LATER, we need to trigger that work.
+
+         // Let's manually add the highlight here if it matches current activeCfi
+         if (cfiToSync === activeCfi) {
+             try {
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 (rendition as any).annotations.add('highlight', cfiToSync, {}, () => {}, 'tts-highlight');
+             } catch (e) { console.warn("Reconciliation highlight failed", e); }
+         }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [rendition, viewMode, activeCfi]); // Added activeCfi dependency to ensure we have fresh value
 
   // --- Keyboard Navigation ---
   // Use a ref to access the latest state in the event listener without re-binding it constantly.
