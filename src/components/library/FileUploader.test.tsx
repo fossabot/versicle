@@ -1,13 +1,17 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import React from 'react';
 import { FileUploader } from './FileUploader';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useToastStore } from '../../store/useToastStore';
+import { validateEpubFile } from '../../lib/ingestion';
 
 // Mock dependencies
 vi.mock('../../store/useLibraryStore');
 vi.mock('../../store/useToastStore');
+vi.mock('../../lib/ingestion', () => ({
+  validateEpubFile: vi.fn(),
+}));
 
 describe('FileUploader', () => {
   const mockAddBook = vi.fn();
@@ -28,6 +32,9 @@ describe('FileUploader', () => {
     (useToastStore as any).mockReturnValue({
         showToast: mockShowToast,
     });
+
+    // Mock validation to pass by default
+    (validateEpubFile as Mock).mockResolvedValue(true);
   });
 
   it('should render upload instructions', () => {
@@ -35,7 +42,7 @@ describe('FileUploader', () => {
     expect(screen.getByText(/Drop your EPUB here/)).toBeInTheDocument();
   });
 
-  it('should handle file selection', () => {
+  it('should handle file selection', async () => {
     const { container } = render(<FileUploader />);
 
     // Find input by selector directly as it has no label
@@ -46,10 +53,13 @@ describe('FileUploader', () => {
 
     fireEvent.change(input!, { target: { files: [file] } });
 
-    expect(mockAddBook).toHaveBeenCalledWith(file);
+    await waitFor(() => {
+        expect(validateEpubFile).toHaveBeenCalledWith(file);
+        expect(mockAddBook).toHaveBeenCalledWith(file);
+    });
   });
 
-  it('should call addBook when file is selected', () => {
+  it('should call addBook when file is selected', async () => {
       const { container } = render(<FileUploader />);
       const input = container.querySelector('input[type="file"]');
 
@@ -57,7 +67,9 @@ describe('FileUploader', () => {
 
       fireEvent.change(input!, { target: { files: [file] } });
 
-      expect(mockAddBook).toHaveBeenCalledWith(file);
+      await waitFor(() => {
+          expect(mockAddBook).toHaveBeenCalledWith(file);
+      });
   });
 
   it('should show loading state', () => {
@@ -71,7 +83,7 @@ describe('FileUploader', () => {
     expect(screen.getByText('Importing book...')).toBeInTheDocument();
   });
 
-  it('should handle drag and drop', () => {
+  it('should handle drag and drop', async () => {
     const { container } = render(<FileUploader />);
     const dropZone = container.firstChild as HTMLElement;
 
@@ -91,11 +103,13 @@ describe('FileUploader', () => {
         },
     });
 
-    expect(mockAddBook).toHaveBeenCalledWith(file);
-    expect(dropZone).not.toHaveClass('border-primary');
+    await waitFor(() => {
+        expect(mockAddBook).toHaveBeenCalledWith(file);
+        expect(dropZone).not.toHaveClass('border-primary');
+    });
   });
 
-  it('should reject non-epub files', () => {
+  it('should reject non-epub extension files', async () => {
     const { container } = render(<FileUploader />);
     const dropZone = container.firstChild as HTMLElement;
 
@@ -106,7 +120,27 @@ describe('FileUploader', () => {
         },
     });
 
-    expect(mockAddBook).not.toHaveBeenCalled();
-    expect(mockShowToast).toHaveBeenCalledWith('Only .epub files are supported', 'error');
+    await waitFor(() => {
+        expect(mockAddBook).not.toHaveBeenCalled();
+        expect(mockShowToast).toHaveBeenCalledWith('Only .epub files are supported', 'error');
+    });
+  });
+
+  it('should reject epub files with invalid content', async () => {
+      // Mock validation to fail
+      (validateEpubFile as Mock).mockResolvedValue(false);
+
+      const { container } = render(<FileUploader />);
+      const input = container.querySelector('input[type="file"]');
+
+      const file = new File(['invalid content'], 'test.epub', { type: 'application/epub+zip' });
+
+      fireEvent.change(input!, { target: { files: [file] } });
+
+      await waitFor(() => {
+          expect(validateEpubFile).toHaveBeenCalledWith(file);
+          expect(mockAddBook).not.toHaveBeenCalled();
+          expect(mockShowToast).toHaveBeenCalledWith('Invalid EPUB file (header mismatch)', 'error');
+      });
   });
 });

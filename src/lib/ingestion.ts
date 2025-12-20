@@ -56,6 +56,7 @@ const blobToText = (blob: Blob): Promise<string> => {
 /**
  * Validates that the file has a ZIP header (PK\x03\x04), which is required for EPUBs.
  * This prevents uploading random files or potential malware masked as EPUBs.
+ * It checks the first 4 bytes for the Magic Number: 50 4B 03 04.
  *
  * @param file - The file to validate.
  * @returns A Promise resolving to true if valid, false otherwise.
