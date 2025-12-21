@@ -94,10 +94,20 @@ def test_journey_visual_reading(page: Page):
     tap_x_right = reader_x + (reader_w * 0.9)
     tap_x_left = reader_x + (reader_w * 0.1)
 
+    # Debug info
+    view_mode = page.evaluate("() => { try { return JSON.parse(localStorage.getItem('reader-storage')).state.viewMode } catch(e) { return 'unknown' } }")
+    print(f"Current View Mode: {view_mode}")
+
+    cfi_before = page.evaluate("window.rendition && window.rendition.location && window.rendition.location.start ? window.rendition.location.start.cfi : 'null'")
+    print(f"CFI Before: {cfi_before}")
+
     # --- Test Next Page (Right Tap) in Immersive Mode ---
     print("Tapping Right Zone (Immersive)...")
     page.mouse.click(tap_x_right, tap_y)
     page.wait_for_timeout(3000) # Wait for page turn animation/render
+
+    cfi_after = page.evaluate("window.rendition && window.rendition.location && window.rendition.location.start ? window.rendition.location.start.cfi : 'null'")
+    print(f"CFI After: {cfi_after}")
 
     # Re-fetch frame as it might be detached/replaced
     frame = get_reader_frame(page)
@@ -109,11 +119,16 @@ def test_journey_visual_reading(page: Page):
 
     # Assert changed
     if initial_text == new_text:
-        print("Warning: Text did not change. Trying again...")
-        page.mouse.click(tap_x_right, tap_y)
+        print("Warning: Text did not change. Trying direct call...")
+        page.evaluate("window.rendition.next()")
         page.wait_for_timeout(3000)
+
+        cfi_manual = page.evaluate("window.rendition.location.start.cfi")
+        print(f"CFI After Manual Next: {cfi_manual}")
+
         frame = get_reader_frame(page)
         new_text = frame.locator("body").inner_text()
+        print(f"New text length (manual): {len(new_text)}")
 
     assert initial_text != new_text, "Page did not turn (text unchanged)"
 

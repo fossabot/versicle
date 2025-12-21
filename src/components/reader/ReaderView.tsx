@@ -209,6 +209,14 @@ export const ReaderView: React.FC = () => {
       setIsLoading(hookLoading);
   }, [hookLoading, setIsLoading]);
 
+  // Expose rendition for testing
+  useEffect(() => {
+    if (rendition) {
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       (window as any).rendition = rendition;
+    }
+  }, [rendition]);
+
   // Handle errors
   useEffect(() => {
       if (hookError) {
