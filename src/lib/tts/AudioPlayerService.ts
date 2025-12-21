@@ -11,6 +11,19 @@ import { MediaSessionManager, type MediaSessionMetadata } from './MediaSessionMa
 import { dbService } from '../../db/DBService';
 import type { SectionMetadata } from '../../types/db';
 
+const NO_TEXT_MESSAGES = [
+    "This chapter appears to be empty.",
+    "There is no text to read here.",
+    "This page contains only images or formatting.",
+    "Silence fills this chapter.",
+    "Moving on, as this section has no content.",
+    "No words found on this page.",
+    "This section is blank.",
+    "Skipping this empty section.",
+    "Nothing to read here.",
+    "This part of the book is silent."
+];
+
 /**
  * Defines the possible states of the TTS playback.
  */
@@ -68,6 +81,7 @@ export class AudioPlayerService {
   private playlistPromise: Promise<void> | null = null;
   private currentSectionIndex: number = -1;
   private sessionRestored: boolean = false;
+  private prerollEnabled: boolean = false;
   private isPreviewing: boolean = false;
 
   private pendingPromise: Promise<void> = Promise.resolve();
@@ -275,6 +289,10 @@ export class AudioPlayerService {
 
   public setBackgroundVolume(volume: number) {
       this.backgroundAudio.setVolume(volume);
+  }
+
+  public setPrerollEnabled(enabled: boolean) {
+      this.prerollEnabled = enabled;
   }
 
   public setProvider(provider: ITTSProvider) {
@@ -737,25 +755,29 @@ export class AudioPlayerService {
       try {
           const ttsContent = await dbService.getTTSContent(this.currentBookId, section.sectionId);
 
+          // Determine Title
+          let title = `Chapter ${sectionIndex + 1}`;
+          const analysis = await dbService.getContentAnalysis(this.currentBookId, section.sectionId);
+          if (analysis && analysis.structure.title) {
+              title = analysis.structure.title;
+          }
+
+          const bookMetadata = await dbService.getBookMetadata(this.currentBookId);
+          const newQueue: TTSQueueItem[] = [];
+
           if (ttsContent && ttsContent.sentences.length > 0) {
-              const newQueue: TTSQueueItem[] = [];
-              const bookMetadata = await dbService.getBookMetadata(this.currentBookId);
-
-              let title = `Chapter ${sectionIndex + 1}`;
-              const analysis = await dbService.getContentAnalysis(this.currentBookId, section.sectionId);
-              if (analysis && analysis.structure.title) {
-                  title = analysis.structure.title;
+              // Add Preroll if enabled
+              if (this.prerollEnabled) {
+                  const prerollText = this.generatePreroll(title, Math.round(section.characterCount / 5), this.speed);
+                  newQueue.push({
+                      text: prerollText,
+                      cfi: null,
+                      isPreroll: true,
+                      title: title,
+                      bookTitle: bookMetadata?.title,
+                      author: bookMetadata?.author
+                  });
               }
-
-              const prerollText = this.generatePreroll(title, Math.round(section.characterCount / 5), this.speed);
-              newQueue.push({
-                  text: prerollText,
-                  cfi: null,
-                  isPreroll: true,
-                  title: title,
-                  bookTitle: bookMetadata?.title,
-                  author: bookMetadata?.author
-              });
 
               ttsContent.sentences.forEach(s => {
                   newQueue.push({
@@ -767,7 +789,20 @@ export class AudioPlayerService {
                       coverUrl: bookMetadata?.coverUrl
                   });
               });
+          } else {
+              // Empty Chapter Handling
+              const randomMessage = NO_TEXT_MESSAGES[Math.floor(Math.random() * NO_TEXT_MESSAGES.length)];
+              newQueue.push({
+                  text: randomMessage,
+                  cfi: null,
+                  isPreroll: true,
+                  title: title,
+                  bookTitle: bookMetadata?.title,
+                  author: bookMetadata?.author
+              });
+          }
 
+          if (newQueue.length > 0) {
               await this.stopInternal();
               this.queue = newQueue;
               this.currentIndex = 0;
