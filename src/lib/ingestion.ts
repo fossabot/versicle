@@ -128,7 +128,30 @@ export async function processEpub(file: File, ttsOptions?: ExtractionOptions): P
                // In ingestion context (file input), book.archive is available.
                // We use blob extraction + DOMParser as book.load() might rely on DOM attachment or network.
                if (book.archive) {
-                    const blob = await book.archive.getBlob(item.href);
+                    let blob = await book.archive.getBlob(item.href);
+
+                    // Fallback: Try to find file if path is relative
+                    if (!blob) {
+                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                         const zipFiles = Object.keys((book.archive as any).zip?.files || {});
+                         // Try to match end of string
+                         const match = zipFiles.find(f => f.endsWith(item.href));
+                         if (match) {
+                             // Use JSZip directly via internal property to bypass potential path resolution issues in getBlob
+                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                             const zipObj = (book.archive as any).zip;
+                             if (zipObj && zipObj.file) {
+                                 const fileObj = zipObj.file(match);
+                                 if (fileObj) {
+                                     blob = await fileObj.async("blob");
+                                 }
+                             }
+                             // Fallback to getBlob if direct zip access failed (though unlikely if match found)
+                             if (!blob) {
+                                 blob = await book.archive.getBlob(match);
+                             }
+                         }
+                    }
                     if (blob) {
                         const text = await blobToText(blob);
                         const parser = new DOMParser();
