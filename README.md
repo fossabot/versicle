@@ -24,7 +24,7 @@ It is designed to be a "Forever Reader"—an app that you can rely on for decade
     *   **Backup/Restore**: Export your library metadata, reading progress, and settings to JSON. (Note: EPUB files are not currently included in backups and must be re-imported).
     *   **Interoperability**: Import/Export reading lists (CSV) compatible with Goodreads.
     *   **Offloading**: Remove large book files to save space on mobile devices while keeping your notes, reading progress, and metadata intact.
-    *   **Maintenance**: Run health checks to identify missing files or corrupt data, prune orphaned records, and perform factory resets if needed.
+    *   **Maintenance**: Run health checks to identify missing files or corrupt data, prune orphaned records, and perform factory resets (Safe Mode) if needed.
 *   **PWA & Mobile**: Installable as a standalone app on desktop and mobile. Native Android build via Capacitor.
 
 ## Tech Stack
