@@ -162,7 +162,7 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
                <button
                  className={cn(
                    "rounded-full bg-black/50 text-white hover:bg-black/70 transition-opacity focus:opacity-100 focus-visible:opacity-100 touch-manipulation",
-                   "p-2", // Larger touch target
+                   "h-11 w-11 flex items-center justify-center", // Minimum 44px touch target
                    "opacity-100 md:opacity-0 md:group-hover:opacity-100" // Always visible on mobile
                  )}
                  data-testid="book-menu-trigger"
