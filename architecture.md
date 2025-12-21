@@ -16,7 +16,7 @@ Versicle is a **Local-First**, **Privacy-Centric** EPUB reader and audiobook pla
     *   **How**:
         *   **Search**: Uses a **Web Worker** running `FlexSearch` to build an in-memory index of the book on demand.
         *   **TTS**: Uses client-side logic (`TextSegmenter`) to split text into sentences and caches audio segments locally (`TTSCache`).
-        *   **Ingestion**: Parses EPUB files directly in the browser using `epub.js` and `JSZip`.
+        *   **Ingestion**: Parses EPUB files directly in the browser using `epub.js` and a custom **Offscreen Renderer** for accurate text extraction.
     *   **Trade-off**: Higher memory and CPU usage on the client device. Large books may take seconds to index for search or parse for ingestion.
 
 3.  **Hybrid Text-to-Speech (TTS)**:
@@ -141,6 +141,17 @@ The main database abstraction layer. It handles error wrapping (converting DOM e
 *   **`restoreBook(id, file)`**: Restores an offloaded book. Verifies `fileHash` matches the original before accepting.
 *   **`updateReadingHistory(bookId, newRange)`**: Merges a new CFI range into the book's reading history to track "read" status.
 
+#### Hardening: Validation & Sanitization (`src/db/validators.ts`)
+*   **Goal**: Prevent database corruption and XSS attacks from malicious EPUB metadata.
+*   **Logic**:
+    *   **`validateBookMetadata`**: Ensures required fields (ID, Title, AddedAt) exist.
+    *   **`sanitizeString`**: Uses `DOMParser` to strip HTML (scripts, styles) from text fields. Falls back to HTML escaping if `DOMParser` fails.
+*   **Trade-off**: Stripping HTML might lose formatting in book descriptions, but ensures safety.
+
+#### Resilience: Safe Mode (`src/components/SafeModeView.tsx`)
+*   **Goal**: Provide a recovery path if IndexedDB fails to initialize (e.g., corruption or storage quota exceeded).
+*   **Logic**: Catches global initialization errors and offers the user a choice to **Retry** or **Reset Database** (destructive).
+
 ### Core Logic & Services (`src/lib/`)
 
 #### Ingestion (`src/lib/ingestion.ts`)
@@ -148,8 +159,9 @@ Handles the complex task of importing an EPUB file.
 
 *   **`processEpub(file)`**:
     1.  **Validation**: Checks ZIP headers (magic bytes) to ensure file validity.
-    2.  **Parsing**: Uses `epub.js` to parse the container.
-    3.  **Synthetic TOC**: Iterates through the spine to generate a table of contents and calculate character counts (for reading time estimation).
+    2.  **Offscreen Rendering**: Uses a hidden `<iframe>` (via `offscreen-renderer.ts`) to render chapters. This ensures that the extracted text and CFIs match *exactly* what the user will see/hear, which is critical for accurate TTS synchronization.
+    3.  **Parsing**: Uses `epub.js` to parse the container.
+    4.  **Synthetic TOC**: Iterates through the spine to generate a table of contents and calculate character counts (for reading time estimation).
     4.  **Hashing**: Computes a SHA-256 hash of the file incrementally (chunked) to avoid memory spikes. Used for integrity checks during restore.
     5.  **Sanitization**: Uses `DOMParser` to strip HTML and scripts from metadata fields, and enforces character limits (e.g. 255 chars for Author).
     *   *Returns*: `Promise<string>` (New Book ID).
@@ -296,6 +308,12 @@ State is managed using **Zustand** with persistence to `localStorage` for prefer
 *   **`useGenAIStore`**: Manages AI settings (API key, model) and usage logs.
     *   *Persisted*: `apiKey`, `model`, `isEnabled`, `logs`, `usageStats`.
 *   **`useUIStore`**: Manages global UI state (e.g., `isGlobalSettingsOpen`). Transient.
+
+### UI Layer
+
+#### Theme Synchronization (`src/components/ThemeSynchronizer.tsx`)
+*   **Goal**: Ensure the global UI (Tailwind classes) matches the Reader's theme (Light/Dark/Sepia).
+*   **Logic**: Subscribes to `useReaderStore` and toggles classes on `document.documentElement`.
 
 ### Common Types (`src/types/db.ts`)
 *   **`BookMetadata`**: Includes `fileHash`, `isOffloaded`, `coverBlob`, and playback state (`lastPlayedCfi`).
