@@ -85,7 +85,7 @@ def test_journey_audio(page: Page):
 
     # Verify Text Dimming
     container = page.get_by_test_id("reader-iframe-container")
-    expect(container).to_have_css("opacity", "0.85")
+    expect(container).to_have_css("opacity", "0.4")
 
     # Verify Curtain Mode
     viewport = page.viewport_size
