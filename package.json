@@ -39,7 +39,6 @@
     "dompurify": "^3.3.1",
     "epubjs": "^0.3.93",
     "file-saver": "^2.0.5",
-    "flexsearch": "^0.8.212",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.555.0",

@@ -1,26 +1,20 @@
-import FlexSearch from 'flexsearch';
 import type { SearchResult, SearchSection } from '../types/search';
 
 /**
- * Provides search functionality for book content using FlexSearch.
- * Handles indexing and querying of book sections.
+ * Provides search functionality for book content using a simple RegExp scan.
+ * Handles storage of raw text and linear scanning for queries.
  */
 export class SearchEngine {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private indexes = new Map<string, any>();
+    // Stores content as: BookID -> (Href -> Text)
+    private books = new Map<string, Map<string, string>>();
 
     /**
-     * Initializes an empty index for a book, clearing any previous index.
+     * Initializes an empty storage for a book, clearing any previous data.
      *
      * @param bookId - The unique identifier of the book.
      */
     initIndex(bookId: string) {
-        const index = new FlexSearch.Document({
-            id: "id",
-            index: ["text"],
-            store: ["href", "text"]
-        });
-        this.indexes.set(bookId, index);
+        this.books.set(bookId, new Map<string, string>());
     }
 
     /**
@@ -32,24 +26,19 @@ export class SearchEngine {
     }
 
     /**
-     * Adds documents to the index for a book. Creates the index if it doesn't exist.
+     * Adds documents (sections) to the store for a book.
      *
      * @param bookId - The unique identifier of the book.
      * @param sections - An array of sections to add.
      */
     addDocuments(bookId: string, sections: SearchSection[]) {
-        let index = this.indexes.get(bookId);
-        if (!index) {
-             index = new FlexSearch.Document({
-                id: "id",
-                index: ["text"],
-                store: ["href", "text"]
-            });
-            this.indexes.set(bookId, index);
+        let bookStore = this.books.get(bookId);
+        if (!bookStore) {
+            bookStore = new Map<string, string>();
+            this.books.set(bookId, bookStore);
         }
 
         // Check if the number of documents being added is excessively large
-        // to prevent potential memory issues or worker crashes.
         const LARGE_INDEX_THRESHOLD = 2000;
         if (sections.length > LARGE_INDEX_THRESHOLD) {
             console.warn(`Search Index Warning: Adding ${sections.length} documents. Index size may impact performance.`);
@@ -70,18 +59,14 @@ export class SearchEngine {
             }
 
             if (text) {
-                index.add({
-                    id: section.href,
-                    text: text,
-                    href: section.href
-                });
+                bookStore.set(section.href, text);
             }
         });
     }
 
     /**
      * Indexes a book's sections for searching.
-     * Replace existing index.
+     * Replaces existing data for the book.
      *
      * @param bookId - The unique identifier of the book.
      * @param sections - An array of sections containing text and location data to be indexed.
@@ -92,52 +77,55 @@ export class SearchEngine {
     }
 
     /**
-     * Searches a specific book for a query string.
+     * Searches a specific book for a query string using linear RegExp scan.
      *
      * @param bookId - The unique identifier of the book to search.
      * @param query - The text query to search for.
      * @returns An array of SearchResult objects matching the query.
      */
     search(bookId: string, query: string): SearchResult[] {
-        const index = this.indexes.get(bookId);
-        if (!index) return [];
-
-        const results = index.search(query, {
-            enrich: true,
-            limit: 50
-        });
+        const bookStore = this.books.get(bookId);
+        if (!bookStore || !query.trim()) return [];
 
         // Escape regex special characters to safely use the query in a RegExp
         const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Use a case-insensitive regex to find the match without copying the entire string
-        const regex = new RegExp(escapedQuery, 'i');
+        // Use a global, case-insensitive regex to find all matches
+        const regex = new RegExp(escapedQuery, 'gi');
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return results.flatMap((entry: any) =>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            entry.result.map((match: any) => ({
-                href: match.doc.href,
-                excerpt: this.getExcerpt(match.doc.text, regex)
-            }))
-        );
+        const results: SearchResult[] = [];
+        const MAX_RESULTS = 50;
+
+        for (const [href, text] of bookStore.entries()) {
+            // Reset lastIndex for each new string because we are reusing the regex object
+            regex.lastIndex = 0;
+
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                results.push({
+                    href: href,
+                    excerpt: this.getExcerpt(text, match.index, match[0].length)
+                });
+
+                if (results.length >= MAX_RESULTS) {
+                    return results;
+                }
+            }
+        }
+
+        return results;
     }
 
     /**
-     * Generates a context excerpt for the found query in the text.
+     * Generates a context excerpt around the match.
      *
      * @param text - The full text where the match was found.
-     * @param regex - The compiled RegExp for the search query.
+     * @param index - The start index of the match.
+     * @param length - The length of the match.
      * @returns A string snippet surrounding the matched term.
      */
-    private getExcerpt(text: string, regex: RegExp): string {
-        const match = regex.exec(text);
-
-        if (!match) return text.substring(0, 100) + '...';
-
-        const index = match.index;
-        const matchLength = match[0].length;
+    private getExcerpt(text: string, index: number, length: number): string {
         const start = Math.max(0, index - 40);
-        const end = Math.min(text.length, index + matchLength + 40);
+        const end = Math.min(text.length, index + length + 40);
 
         return (start > 0 ? '...' : '') + text.substring(start, end) + (end < text.length ? '...' : '');
     }

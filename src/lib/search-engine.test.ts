@@ -50,4 +50,98 @@ describe('SearchEngine', () => {
         // Check context
         expect(results[0].excerpt).toContain('far away');
     });
+
+    it('should handle regex special characters in query', () => {
+        const sections = [
+            { id: '1', href: 'chap1.html', text: 'Why? Because I said so. (Parentheses) [Brackets] +Plus *Star.' }
+        ];
+        engine.indexBook('special-chars', sections);
+
+        let results = engine.search('special-chars', 'Why?');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('Why?');
+
+        results = engine.search('special-chars', '(Parentheses)');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('(Parentheses)');
+
+        results = engine.search('special-chars', '[Brackets]');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('[Brackets]');
+
+        results = engine.search('special-chars', '+Plus');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('+Plus');
+
+        results = engine.search('special-chars', '*Star');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('*Star');
+    });
+
+    it('should handle unicode characters', () => {
+        const sections = [
+            { id: '1', href: 'unicode.html', text: 'Thé quick bröwn föx jumps över the lazy dögs. 💩' }
+        ];
+        engine.indexBook('unicode', sections);
+
+        let results = engine.search('unicode', 'Thé');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('Thé');
+
+        results = engine.search('unicode', 'bröwn');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('bröwn');
+
+        results = engine.search('unicode', '💩');
+        expect(results).toHaveLength(1);
+        expect(results[0].excerpt).toContain('💩');
+    });
+
+    it('should return empty array when no match found in existing book', () => {
+        const sections = [
+            { id: '1', href: 'chap1.html', text: 'Just some normal text.' }
+        ];
+        engine.indexBook('no-match', sections);
+
+        const results = engine.search('no-match', 'missing');
+        expect(results).toHaveLength(0);
+    });
+
+    it('should find multiple matches in the same section', () => {
+        const sections = [
+            { id: '1', href: 'chap1.html', text: 'Apple banana apple orange Apple.' }
+        ];
+        engine.indexBook('multiple', sections);
+
+        const results = engine.search('multiple', 'apple');
+        expect(results).toHaveLength(3); // Apple, apple, Apple
+        expect(results[0].excerpt).toContain('Apple');
+        expect(results[1].excerpt).toContain('apple');
+        expect(results[2].excerpt).toContain('Apple');
+    });
+
+    it('should cap results at 50', () => {
+        const word = "repeat ";
+        const text = word.repeat(100);
+        const sections = [
+            { id: '1', href: 'limit.html', text: text }
+        ];
+        engine.indexBook('limit', sections);
+
+        const results = engine.search('limit', 'repeat');
+        expect(results).toHaveLength(50);
+    });
+
+    it('should handle multiple sections', () => {
+        const sections = [
+             { id: '1', href: 'chap1.html', text: 'First chapter text.' },
+             { id: '2', href: 'chap2.html', text: 'Second chapter text.' }
+        ];
+        engine.indexBook('multi-section', sections);
+
+        const results = engine.search('multi-section', 'chapter');
+        expect(results).toHaveLength(2);
+        expect(results[0].href).toBe('chap1.html');
+        expect(results[1].href).toBe('chap2.html');
+    });
 });
