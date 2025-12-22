@@ -51,7 +51,7 @@ export const ReadingHistoryPanel: React.FC<Props> = ({ bookId, rendition, onNavi
                     // Parse CFI to get start point for jumping
                     const parsed = parseCfiRange(range);
                     if (parsed) {
-                        targetCfi = parsed.fullStart;
+                        targetCfi = parsed.fullEnd;
                     }
 
                     if (book) {
