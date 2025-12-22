@@ -18,7 +18,7 @@ vi.mock('../../db/DBService', () => ({
 
 describe('ReadingHistory Integration', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
     });
 
     it('loads and displays reading history in panel', async () => {
@@ -44,7 +44,6 @@ describe('ReadingHistory Integration', () => {
         });
 
         expect(screen.getByText('Reading Segment')).toBeInTheDocument();
-        // CFI is not displayed in the UI, so we can't assert its presence
     });
 
     it('refreshes history when trigger changes', async () => {
