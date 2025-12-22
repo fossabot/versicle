@@ -10,7 +10,24 @@ vi.mock('lucide-react', () => ({
   Highlighter: () => <span data-testid="icon-highlighter" />,
   StickyNote: () => <span data-testid="icon-note" />,
   X: () => <span data-testid="icon-close" />,
+  Mic: () => <span data-testid="icon-mic" />,
+  Play: () => <span data-testid="icon-play" />,
 }));
+
+// Mock useToastStore
+const showToastMock = vi.fn();
+vi.mock('../../../store/useToastStore', () => ({
+  useToastStore: () => ({
+    showToast: showToastMock,
+  }),
+}));
+
+// Mock navigator.clipboard
+Object.assign(navigator, {
+  clipboard: {
+    writeText: vi.fn(),
+  },
+});
 
 describe('AnnotationPopover', () => {
   beforeEach(() => {
@@ -33,10 +50,10 @@ describe('AnnotationPopover', () => {
 
     render(<AnnotationPopover bookId="book1" onClose={vi.fn()} />);
     expect(screen.getByTestId('icon-close')).toBeInTheDocument();
-    expect(screen.getByTitle('Yellow')).toBeInTheDocument();
-    expect(screen.getByTitle('Green')).toBeInTheDocument();
-    expect(screen.getByTitle('Blue')).toBeInTheDocument();
-    expect(screen.getByTitle('Red')).toBeInTheDocument();
+    // Verify aria-labels are present
+    expect(screen.getByLabelText('Highlight Yellow')).toBeInTheDocument();
+    expect(screen.getByLabelText('Highlight Green')).toBeInTheDocument();
+    expect(screen.getByLabelText('Copy to Clipboard')).toBeInTheDocument();
   });
 
   it('should add annotation on color click', async () => {
@@ -50,7 +67,7 @@ describe('AnnotationPopover', () => {
     const onCloseMock = vi.fn();
     render(<AnnotationPopover bookId="book1" onClose={onCloseMock} />);
 
-    fireEvent.click(screen.getByTitle('Yellow'));
+    fireEvent.click(screen.getByLabelText('Highlight Yellow'));
 
     await waitFor(() => {
       expect(addAnnotationMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -71,8 +88,24 @@ describe('AnnotationPopover', () => {
 
     render(<AnnotationPopover bookId="book1" onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByTitle('Close'));
+    fireEvent.click(screen.getByLabelText('Close'));
 
     expect(useAnnotationStore.getState().popover.visible).toBe(false);
+  });
+
+  it('should copy text and show toast on copy click', async () => {
+    const textToCopy = 'Selected text content';
+    useAnnotationStore.setState({
+      popover: { visible: true, x: 100, y: 100, cfiRange: 'cfi', text: textToCopy },
+    });
+
+    const onCloseMock = vi.fn();
+    render(<AnnotationPopover bookId="book1" onClose={onCloseMock} />);
+
+    fireEvent.click(screen.getByLabelText('Copy to Clipboard'));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(textToCopy);
+    expect(showToastMock).toHaveBeenCalledWith("Copied to clipboard!", "success");
+    expect(onCloseMock).toHaveBeenCalled();
   });
 });
