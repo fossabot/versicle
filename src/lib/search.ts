@@ -12,6 +12,8 @@ export type { SearchResult };
 class SearchClient {
     private worker: Worker | null = null;
     private engine: Comlink.Remote<SearchEngine> | null = null;
+    private indexedBooks = new Set<string>();
+    private pendingIndexes = new Map<string, Promise<void>>();
 
     /**
      * Retrieves the existing Web Worker instance or creates a new one if it doesn't exist.
@@ -30,6 +32,13 @@ class SearchClient {
     }
 
     /**
+     * Checks if a book is already indexed.
+     */
+    isIndexed(bookId: string): boolean {
+        return this.indexedBooks.has(bookId);
+    }
+
+    /**
      * Extracts text content from a book's spine items and sends it to the worker for indexing.
      * Uses batch processing to avoid blocking the main thread.
      *
@@ -39,10 +48,37 @@ class SearchClient {
      * @returns A Promise that resolves when the indexing command is sent to the worker.
      */
     async indexBook(book: Book, bookId: string, onProgress?: (percent: number) => void) {
+        if (this.indexedBooks.has(bookId)) {
+            if (onProgress) onProgress(1.0);
+            return;
+        }
+
+        if (this.pendingIndexes.has(bookId)) {
+            // Wait for pending index
+            await this.pendingIndexes.get(bookId);
+            if (onProgress) onProgress(1.0);
+            return;
+        }
+
+        const task = this.indexBookInternal(book, bookId, onProgress);
+        this.pendingIndexes.set(bookId, task);
+
+        try {
+            await task;
+            this.indexedBooks.add(bookId);
+        } finally {
+            this.pendingIndexes.delete(bookId);
+        }
+    }
+
+    private async indexBookInternal(book: Book, bookId: string, onProgress?: (percent: number) => void) {
         const engine = this.getEngine();
         await book.ready;
         // Init/Clear index
         await engine.initIndex(bookId);
+
+        // Check if worker supports XML parsing to offload main thread
+        const canOffload = await engine.supportsXmlParsing();
 
         const spineItems = book.spine.items;
         const total = spineItems.length;
@@ -54,6 +90,7 @@ class SearchClient {
 
             for (const item of batch) {
                 let text = '';
+                let xml = '';
                 try {
                     // Attempt 1: Access raw file content from the archive (fast & robust)
                     if (book.archive) {
@@ -61,9 +98,13 @@ class SearchClient {
                             const blob = await book.archive.getBlob(item.href);
                             if (blob) {
                                 const rawXml = await blob.text();
-                                const parser = new DOMParser();
-                                const doc = parser.parseFromString(rawXml, 'application/xhtml+xml');
-                                text = doc.body.textContent || '';
+                                if (canOffload) {
+                                    xml = rawXml;
+                                } else {
+                                    const parser = new DOMParser();
+                                    const doc = parser.parseFromString(rawXml, 'application/xhtml+xml');
+                                    text = doc.body.textContent || '';
+                                }
                             }
                         } catch (err) {
                             console.warn(`Archive extraction failed for ${item.href}, falling back to render`, err);
@@ -71,7 +112,7 @@ class SearchClient {
                     }
 
                     // Attempt 2: Fallback to rendering pipeline (slow but handles resource resolution)
-                    if (!text) {
+                    if (!text && !xml) {
                         const doc = await book.load(item.href);
                         if (doc) {
                             if (doc.body && doc.body.innerText) {
@@ -82,11 +123,12 @@ class SearchClient {
                         }
                     }
 
-                    if (text) {
+                    if (text || xml) {
                         sections.push({
                             id: item.id,
                             href: item.href,
-                            text: text
+                            text: text || undefined,
+                            xml: xml || undefined
                         });
                     }
                 } catch (e) {
@@ -128,6 +170,8 @@ class SearchClient {
             this.worker.terminate();
             this.worker = null;
             this.engine = null;
+            this.indexedBooks.clear();
+            this.pendingIndexes.clear();
         }
     }
 }
