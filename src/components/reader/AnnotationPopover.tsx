@@ -1,5 +1,7 @@
 import React from 'react';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
+import { useToastStore } from '../../store/useToastStore';
+import { Button } from '../ui/Button';
 import { Copy, StickyNote, X, Mic, Play } from 'lucide-react';
 
 const COLORS = [
@@ -29,6 +31,7 @@ interface Props {
  */
 export const AnnotationPopover: React.FC<Props> = ({ bookId, onClose, onFixPronunciation, onPlayFromSelection }) => {
   const { popover, addAnnotation, hidePopover } = useAnnotationStore();
+  const { showToast } = useToastStore();
   const [isEditingNote, setIsEditingNote] = React.useState(false);
   const [noteText, setNoteText] = React.useState('');
   const popoverRef = React.useRef<HTMLDivElement>(null);
@@ -94,70 +97,134 @@ export const AnnotationPopover: React.FC<Props> = ({ bookId, onClose, onFixPronu
     }
   };
 
+  const handleCopy = () => {
+      navigator.clipboard.writeText(popover.text);
+      showToast("Copied to clipboard!", "success");
+      hidePopover();
+      onClose();
+  };
+
   if (isEditingNote) {
       return (
-          <div ref={popoverRef} className="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-2 flex gap-2 items-center border border-gray-200 dark:border-gray-700" style={style}>
+          <div ref={popoverRef} className="bg-popover text-popover-foreground shadow-xl rounded-lg p-2 flex gap-2 items-center border border-border" style={style}>
               <input
                   data-testid="popover-note-input"
                   type="text"
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
                   placeholder="Enter note..."
-                  className="text-xs p-1 border rounded dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:outline-none focus:border-blue-500"
+                  className="text-xs p-1 border rounded bg-background text-foreground border-input focus:outline-none focus:ring-1 focus:ring-ring"
                   autoFocus
                   onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSaveNote();
                       if (e.key === 'Escape') setIsEditingNote(false);
                   }}
+                  aria-label="Note text"
               />
-              <button data-testid="popover-save-note-button" onClick={handleSaveNote} className="p-1 hover:bg-green-100 dark:hover:bg-green-900 rounded text-green-600" aria-label="Save Note">
+              <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
+                  onClick={handleSaveNote}
+                  data-testid="popover-save-note-button"
+                  aria-label="Save Note"
+                  title="Save Note"
+              >
                   <StickyNote className="w-4 h-4" />
-              </button>
-              <button data-testid="popover-cancel-note-button" onClick={() => setIsEditingNote(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" aria-label="Cancel Note">
+              </Button>
+              <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsEditingNote(false)}
+                  data-testid="popover-cancel-note-button"
+                  aria-label="Cancel Note"
+                  title="Cancel Note"
+              >
                   <X className="w-4 h-4" />
-              </button>
+              </Button>
           </div>
       );
   }
 
-  const handleCopy = () => {
-      navigator.clipboard.writeText(popover.text);
-      hidePopover();
-      onClose();
-  };
-
   return (
-    <div ref={popoverRef} className="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-2 flex gap-2 items-center border border-gray-200 dark:border-gray-700" style={style}>
+    <div ref={popoverRef} className="bg-popover text-popover-foreground shadow-xl rounded-lg p-2 flex gap-1 items-center border border-border" style={style}>
       {COLORS.map((c) => (
         <button
           key={c.name}
           data-testid={`popover-color-${c.name.toLowerCase()}`}
-          className="w-6 h-6 rounded-full border border-gray-300 hover:scale-110 transition-transform"
+          className="w-6 h-6 rounded-full border border-gray-300 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           style={{ backgroundColor: c.value, opacity: 0.7 }}
           onClick={() => handleColorClick(c.name.toLowerCase())}
           title={c.name}
+          aria-label={`Highlight ${c.name}`}
         />
       ))}
-      <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
-      <button data-testid="popover-add-note-button" onClick={handleNoteClick} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" title="Add Note">
+      <div className="w-px h-6 bg-border mx-1" />
+
+      <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={handleNoteClick}
+          data-testid="popover-add-note-button"
+          aria-label="Add Note"
+          title="Add Note"
+      >
         <StickyNote className="w-4 h-4" />
-      </button>
+      </Button>
+
       {onPlayFromSelection && (
-          <button data-testid="popover-play-button" onClick={() => { onPlayFromSelection(popover.cfiRange); hidePopover(); onClose(); }} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" title="Start Playing">
+          <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => { onPlayFromSelection(popover.cfiRange); hidePopover(); onClose(); }}
+              data-testid="popover-play-button"
+              aria-label="Start Playing"
+              title="Start Playing"
+          >
             <Play className="w-4 h-4" />
-          </button>
+          </Button>
       )}
+
       {onFixPronunciation && (
-          <button data-testid="popover-fix-pronunciation-button" onClick={() => { onFixPronunciation(popover.text); hidePopover(); onClose(); }} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" title="Fix Pronunciation">
+          <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => { onFixPronunciation(popover.text); hidePopover(); onClose(); }}
+              data-testid="popover-fix-pronunciation-button"
+              aria-label="Fix Pronunciation"
+              title="Fix Pronunciation"
+          >
             <Mic className="w-4 h-4" />
-          </button>
+          </Button>
       )}
-      <button data-testid="popover-copy-button" onClick={handleCopy} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" title="Copy">
+
+      <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={handleCopy}
+          data-testid="popover-copy-button"
+          aria-label="Copy to Clipboard"
+          title="Copy"
+      >
         <Copy className="w-4 h-4" />
-      </button>
-      <button data-testid="popover-close-button" onClick={hidePopover} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300" title="Close">
+      </Button>
+
+      <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={hidePopover}
+          data-testid="popover-close-button"
+          aria-label="Close"
+          title="Close"
+      >
          <X className="w-4 h-4" />
-      </button>
+      </Button>
     </div>
   );
 };
