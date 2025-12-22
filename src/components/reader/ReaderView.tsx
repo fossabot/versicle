@@ -736,7 +736,17 @@ export const ReaderView: React.FC = () => {
          {showSearch && (
              <div data-testid="reader-search-sidebar" className="w-64 shrink-0 bg-surface border-r border-border overflow-y-auto z-50 absolute inset-y-0 left-0 md:static flex flex-col">
                  <div className="p-4 border-b border-border">
-                     <h2 className="text-lg font-bold mb-2 text-foreground">Search</h2>
+                     <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-lg font-bold text-foreground">Search</h2>
+                        <button
+                            data-testid="search-close-button"
+                            aria-label="Close search"
+                            onClick={() => setShowSearch(false)}
+                            className="p-2 hover:bg-border rounded -mr-2"
+                        >
+                            <X className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                     </div>
                      <div className="flex gap-2">
                          <input
                             data-testid="search-input"
@@ -755,16 +765,8 @@ export const ReaderView: React.FC = () => {
                                 }
                             }}
                             placeholder="Search in book..."
-                            className="flex-1 text-sm p-2 border rounded bg-background text-foreground border-border"
+                            className="w-full text-sm p-2 border rounded bg-background text-foreground border-border"
                          />
-                         <button
-                            data-testid="search-close-button"
-                            aria-label="Close search"
-                            onClick={() => setShowSearch(false)}
-                            className="p-2 hover:bg-border rounded"
-                         >
-                            <X className="w-4 h-4 text-muted-foreground" />
-                         </button>
                      </div>
                  </div>
                  <div className="flex-1 overflow-y-auto p-4">
