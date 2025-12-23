@@ -187,7 +187,10 @@ export async function snapCfiToSentence(book: Book, cfi: string): Promise<string
                  newRange.setStart(startNode, bestStart);
                  newRange.setEnd(startNode, bestStart);
 
-                 const baseCfi = cfi.split('!')[0] + '!';
+                 let baseCfi = cfi.split('!')[0] + '!';
+                 if (baseCfi.startsWith('epubcfi(')) {
+                     baseCfi = baseCfi.slice(8);
+                 }
 
                  const newCfi = new EpubCFI(newRange, baseCfi).toString();
                  return newCfi;
