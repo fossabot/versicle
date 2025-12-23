@@ -1,4 +1,14 @@
 /**
+ * Error thrown when a task is cancelled.
+ */
+export class CancellationError extends Error {
+  constructor(message = 'Task cancelled') {
+    super(message);
+    this.name = 'CancellationError';
+  }
+}
+
+/**
  * Runs a generator function that yields Promises, allowing for the execution flow to be cancelled.
  *
  * ## Why use this pattern?
@@ -21,13 +31,13 @@
  *
  * This pattern is error-prone and verbose. The `runCancellable` utility automates this check.
  * By using a generator, the runner controls the resumption of execution. If the task is cancelled,
- * the runner simply stops calling `generator.next()`, preventing any further code in the generator
- * from executing.
+ * the runner throws a `CancellationError` into the generator, ensuring `finally` blocks are executed
+ * for cleanup.
  *
  * ## Usage Example
  *
  * ```ts
- * import { runCancellable } from './cancellable-task-runner';
+ * import { runCancellable, CancellationError } from './cancellable-task-runner';
  *
  * useEffect(() => {
  *   // Define your logic as a generator
@@ -36,12 +46,17 @@
  *      try {
  *        // Use `yield` instead of `await`
  *        const data = yield api.fetchItem(id);
- *        // If cancelled while fetching, this line is never reached.
+ *        // If cancelled while fetching, this line is never reached (CancellationError is thrown).
  *        setResult(data);
+ *      } catch (err) {
+ *        if (err instanceof CancellationError) {
+ *          // Handle cancellation specifically if needed
+ *        } else {
+ *          // Handle other errors
+ *          setError(err);
+ *        }
  *      } finally {
- *        // Finally blocks still run if the generator completes or errors,
- *        // but usually not if it's simply abandoned (cancelled),
- *        // unless we explicitly throw/return in the runner (which this implementation simply stops).
+ *        // Finally blocks run even on cancellation
  *        setIsLoading(false);
  *      }
  *   };
@@ -73,7 +88,10 @@ export function runCancellable(
 
     try {
       const result = generator.next(arg);
-      if (result.done || cancelled) return;
+      if (result.done) return;
+
+      // Check if cancelled immediately after next (in case sync logic inside next caused cancellation, though unlikely with this structure)
+      if (cancelled) return;
 
       // Wait for the yielded promise
       const value = await result.value;
@@ -91,7 +109,29 @@ export function runCancellable(
   void iterate();
 
   return () => {
+    if (cancelled) return;
     cancelled = true;
+
+    try {
+        // Throw CancellationError into the generator to trigger finally blocks
+        if (generator.throw) {
+            const result = generator.throw(new CancellationError());
+            if (!result.done) {
+                console.warn(
+                    'Generator did not complete after cancellation. ' +
+                    'Ensure you are not catching CancellationError and continuing execution, ' +
+                    'or yielding more promises in the finally block.',
+                    new Error().stack
+                );
+            }
+        }
+    } catch (err) {
+        // If the generator throws an error (other than completing), log it if it's not the CancellationError itself re-thrown
+        if (!(err instanceof CancellationError)) {
+             console.error('Error during generator cancellation:', err);
+        }
+    }
+
     onCancel?.();
   };
 }
