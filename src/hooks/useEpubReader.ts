@@ -4,7 +4,7 @@ import { dbService } from '../db/DBService';
 import type { BookMetadata } from '../types/db';
 import { parseCfiRange } from '../lib/cfi-utils';
 import { sanitizeContent } from '../lib/sanitizer';
-import { runCancellable } from '../lib/async-utils';
+import { runCancellable } from '../lib/cancellable-task-runner';
 
 /**
  * Configuration options for the EpubReader hook.
