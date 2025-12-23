@@ -146,8 +146,9 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant, title, subtit
 
         {/* Left Button */}
         <button
-            className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"
+            className="h-11 w-11 flex items-center justify-center text-primary hover:bg-primary/10 rounded-full transition-colors touch-manipulation"
             onClick={() => isPlaying ? handleSkip('prev') : handleChapterNav('prev')}
+            aria-label={isPlaying ? "Skip to previous sentence" : "Previous chapter"}
         >
             {isPlaying ? <SkipBack size={20} /> : <ChevronsLeft size={24} />}
         </button>
@@ -164,8 +165,9 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant, title, subtit
 
         {/* Right Button */}
         <button
-            className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"
+            className="h-11 w-11 flex items-center justify-center text-primary hover:bg-primary/10 rounded-full transition-colors touch-manipulation"
             onClick={() => isPlaying ? handleSkip('next') : handleChapterNav('next')}
+            aria-label={isPlaying ? "Skip to next sentence" : "Next chapter"}
         >
              {isPlaying ? <SkipForward size={20} /> : <ChevronsRight size={24} />}
         </button>
