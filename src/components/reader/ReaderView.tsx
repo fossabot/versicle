@@ -249,9 +249,10 @@ export const ReaderView: React.FC = () => {
              const prevStart = previousLocation.current.start;
              const prevEnd = previousLocation.current.end;
              if (prevStart && prevEnd) {
-                 // Panic Save: Synchronous, raw capture
-                 // See Technical Design Document: Stable Exit-Phase Persistence
-                 // We bypass snapCfiToSentence to avoid async calls on destroyed book instances
+                 // Panic Save: Synchronous, raw capture.
+                 // We bypass snapCfiToSentence to avoid async calls on the Book instance,
+                 // which might be destroyed during unmount, causing crashes.
+                 // This ensures reading history is saved even if the reader is tearing down.
                  const range = generateCfiRange(prevStart, prevEnd);
                  const mode = useReaderStore.getState().viewMode;
                  const type = mode === 'scrolled' ? 'scroll' : 'page';
