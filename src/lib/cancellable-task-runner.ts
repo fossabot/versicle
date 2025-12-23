@@ -100,8 +100,14 @@ export function runCancellable(
       }
     } catch (err) {
       if (!cancelled) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        generator.throw?.(err);
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          generator.throw?.(err);
+        } catch (e) {
+          // If the generator doesn't handle the error, it might be re-thrown here.
+          // We catch it to prevent unhandled promise rejections in the runner.
+          console.error('Unhandled error in generator:', e);
+        }
       }
     }
   };
