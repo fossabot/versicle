@@ -96,7 +96,7 @@ export function useEpubReader(
   useEffect(() => {
     if (!bookId || !viewerRef.current) return;
 
-    const loadBookGenerator = function* (currentBookId: string) {
+    const loadBookGenerator = function* (currentBookId: string): Generator<Promise<any> | any, void, any> {
       setIsLoading(true);
       setError(null);
       setIsReady(false);
