@@ -144,3 +144,19 @@ This entry point file remains the "dumb" host for the engine. Its only responsib
 -   **Test Stability:** 100% pass rate on existing search unit tests.
 
 -   **User Experience:** Zero instances of "ghost results" (search hits where the excerpt is empty or shows the wrong text), providing a robust and trustworthy search tool.
+
+7\. Implementation Status
+-------------------------
+
+### 7.1 Completed Actions
+-   **Dependencies:** `flexsearch` has been uninstalled.
+-   **Code Rewrite:** `src/lib/search-engine.ts` has been rewritten to use `Map<string, Map<string, string>>` and native `RegExp` scanning. The logic simplifies storage and querying as planned.
+-   **Verification:**
+    -   Existing tests in `src/lib/search-engine.test.ts` passed.
+    -   New tests covering edge cases (regex special chars, unicode, result capping, multiple matches) were added to `src/lib/search-engine.test.ts` and passed.
+    -   Manual verification scenarios described in Phase 3 are covered by the automated tests.
+
+### 7.2 Discoveries
+-   The linear scan approach with `RegExp` is performant and significantly simplifies the code.
+-   Handling `lastIndex` in `RegExp` with the global flag (`'gi'`) requires careful reset or fresh instantiation per search to avoid state leakage, which was implemented correctly.
+-   The `SearchEngine` class now cleanly separates storage (Map) and search logic without external dependencies.
