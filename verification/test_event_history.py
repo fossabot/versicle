@@ -73,10 +73,6 @@ def verify_event_history():
         except:
             print("No history items found or timeout.")
 
-        screenshot_path = os.path.abspath("verification/history_verification.png")
-        page.screenshot(path=screenshot_path)
-        print(f"Screenshot saved to {screenshot_path}")
-
         browser.close()
 
 if __name__ == "__main__":
