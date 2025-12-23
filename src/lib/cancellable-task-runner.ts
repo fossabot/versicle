@@ -73,7 +73,7 @@ export class CancellationError extends Error {
  *
  * @param generator - The generator object (created by calling a generator function) that yields Promises.
  * @param onCancel - Optional callback invoked if the task is cancelled.
- * @returns An object containing `cancel` (function to stop execution) and `result` (Promise resolving to the generator's return value).
+ * @returns An object containing `result` (Promise resolving to the generator's return value) and `cancel` (function to stop execution).
  */
 export function runCancellable<TReturn = void>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -157,5 +157,5 @@ export function runCancellable<TReturn = void>(
     onCancel?.();
   };
 
-  return { cancel, result: resultPromise };
+  return { result: resultPromise, cancel };
 }
