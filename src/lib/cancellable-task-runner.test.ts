@@ -7,22 +7,22 @@ describe('runCancellable', () => {
     });
 
     it('should run a generator to completion', async () => {
-        const result: string[] = [];
+        const resultItems: string[] = [];
         const generatorFn = function* () {
-            result.push('start');
+            resultItems.push('start');
             yield Promise.resolve('step1');
-            result.push('middle');
+            resultItems.push('middle');
             yield Promise.resolve('step2');
-            result.push('end');
+            resultItems.push('end');
+            return 'finished';
         };
 
-        const cancel = runCancellable(generatorFn());
+        const { result } = runCancellable(generatorFn());
 
-        // Wait for execution to finish (since it's async)
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        const value = await result;
 
-        expect(result).toEqual(['start', 'middle', 'end']);
-        cancel(); // Cleanup
+        expect(resultItems).toEqual(['start', 'middle', 'end']);
+        expect(value).toBe('finished');
     });
 
     it('should resolve yielded promises', async () => {
@@ -31,8 +31,8 @@ describe('runCancellable', () => {
             capturedValue = yield Promise.resolve('resolved-value');
         };
 
-        runCancellable(generatorFn());
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        const { result } = runCancellable(generatorFn());
+        await result;
 
         expect(capturedValue).toBe('resolved-value');
     });
@@ -44,21 +44,21 @@ describe('runCancellable', () => {
             capturedValue = yield 'sync-value';
         };
 
-        runCancellable(generatorFn());
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        const { result } = runCancellable(generatorFn());
+        await result;
 
         expect(capturedValue).toBe('sync-value');
     });
 
     it('should stop execution when cancelled', async () => {
-        const result: string[] = [];
+        const resultItems: string[] = [];
         const generatorFn = function* () {
-            result.push('start');
+            resultItems.push('start');
             yield new Promise((resolve) => setTimeout(resolve, 20));
-            result.push('should-not-be-reached');
+            resultItems.push('should-not-be-reached');
         };
 
-        const cancel = runCancellable(generatorFn());
+        const { cancel } = runCancellable(generatorFn());
 
         // Wait a bit, but less than the promise delay
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -69,7 +69,7 @@ describe('runCancellable', () => {
         // Wait longer than the promise delay
         await new Promise((resolve) => setTimeout(resolve, 30));
 
-        expect(result).toEqual(['start']);
+        expect(resultItems).toEqual(['start']);
     });
 
     it('should throw CancellationError into generator on cancellation', async () => {
@@ -82,7 +82,7 @@ describe('runCancellable', () => {
             }
         };
 
-        const cancel = runCancellable(generatorFn());
+        const { cancel } = runCancellable(generatorFn());
         await new Promise((resolve) => setTimeout(resolve, 5));
         cancel();
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -100,7 +100,7 @@ describe('runCancellable', () => {
             }
         };
 
-        const cancel = runCancellable(generatorFn());
+        const { cancel } = runCancellable(generatorFn());
         await new Promise((resolve) => setTimeout(resolve, 5));
         cancel();
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -114,7 +114,7 @@ describe('runCancellable', () => {
             yield new Promise((resolve) => setTimeout(resolve, 20));
         };
 
-        const cancel = runCancellable(generatorFn(), onCancel);
+        const { cancel } = runCancellable(generatorFn(), onCancel);
         cancel();
 
         expect(onCancel).toHaveBeenCalledTimes(1);
@@ -132,7 +132,7 @@ describe('runCancellable', () => {
             yield Promise.resolve('ignoring cancellation');
         };
 
-        const cancel = runCancellable(generatorFn());
+        const { cancel } = runCancellable(generatorFn());
         await new Promise((resolve) => setTimeout(resolve, 5));
         cancel();
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -143,25 +143,13 @@ describe('runCancellable', () => {
         );
     });
 
-    it('should handle errors thrown by generator', async () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {}); // Suppress error logs if any are added in implementation
-        let errorCaught = false;
-
+    it('should handle errors thrown by generator by rejecting the result promise', async () => {
         const generatorFn = function* () {
              throw new Error('Test error');
         };
 
-        // runCancellable catches errors inside iterate.
-        // We can't easily assert on the internal catch unless we mock generator.next/throw or rely on side effects.
-        // But we can ensure it doesn't crash the runtime.
+        const { result } = runCancellable(generatorFn());
 
-        runCancellable(generatorFn());
-        await new Promise((resolve) => setTimeout(resolve, 10));
-
-        // No explicit assertion needed if it doesn't crash,
-        // but typically one might want an onError callback in runCancellable if this was a generic library.
-        // For this task, we assume it just swallows/logs internal errors safely.
-        expect(true).toBe(true);
-        consoleSpy.mockRestore();
+        await expect(result).rejects.toThrow('Test error');
     });
 });

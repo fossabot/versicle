@@ -62,7 +62,7 @@ export class CancellationError extends Error {
  *   };
  *
  *   // Start the task
- *   const cancel = runCancellable(loadData(currentId), () => {
+ *   const { cancel } = runCancellable(loadData(currentId), () => {
  *      console.log('Task was cancelled!');
  *   });
  *
@@ -73,48 +73,64 @@ export class CancellationError extends Error {
  *
  * @param generator - The generator object (created by calling a generator function) that yields Promises.
  * @param onCancel - Optional callback invoked if the task is cancelled.
- * @returns A function that, when called, cancels the execution of the generator.
+ * @returns An object containing `cancel` (function to stop execution) and `result` (Promise resolving to the generator's return value).
  */
-export function runCancellable(
+export function runCancellable<TReturn = void>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  generator: Generator<Promise<any> | any, void, any>,
+  generator: Generator<Promise<any> | any, TReturn, any>,
   onCancel?: () => void
 ) {
   let cancelled = false;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const iterate = async (arg?: any) => {
-    if (cancelled) return;
-
-    try {
-      const result = generator.next(arg);
-      if (result.done) return;
-
-      // Check if cancelled immediately after next (in case sync logic inside next caused cancellation, though unlikely with this structure)
+  const resultPromise = new Promise<TReturn>((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iterate = async (arg?: any) => {
       if (cancelled) return;
 
-      // Wait for the yielded promise
-      const value = await result.value;
-      if (!cancelled) {
-        iterate(value);
-      }
-    } catch (err) {
-      if (!cancelled) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-          generator.throw?.(err);
-        } catch (e) {
-          // If the generator doesn't handle the error, it might be re-thrown here.
-          // We catch it to prevent unhandled promise rejections in the runner.
-          console.error('Unhandled error in generator:', e);
+      try {
+        const result = generator.next(arg);
+        if (result.done) {
+          resolve(result.value);
+          return;
+        }
+
+        // Check if cancelled immediately after next (in case sync logic inside next caused cancellation)
+        if (cancelled) return;
+
+        // Wait for the yielded promise
+        const value = await result.value;
+        if (!cancelled) {
+          iterate(value);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+            const thrownResult = generator.throw?.(err);
+            if (thrownResult && thrownResult.done) {
+                resolve(thrownResult.value);
+            } else {
+                // If threw and not done, it means it caught the error and yielded again.
+                // Continue iteration with the value yielded from catch block.
+                // Note: standard generator behavior if catch block yields is `value` is the yielded thing.
+                if (thrownResult) {
+                    iterate(thrownResult.value);
+                }
+            }
+          } catch (e) {
+            // If the generator doesn't handle the error, it might be re-thrown here.
+            // We catch it to prevent unhandled promise rejections in the runner.
+            // And reject the result promise.
+            reject(e);
+          }
         }
       }
-    }
-  };
+    };
 
-  void iterate();
+    void iterate();
+  });
 
-  return () => {
+  const cancel = () => {
     if (cancelled) return;
     cancelled = true;
 
@@ -140,4 +156,6 @@ export function runCancellable(
 
     onCancel?.();
   };
+
+  return { cancel, result: resultPromise };
 }

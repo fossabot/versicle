@@ -364,7 +364,7 @@ export function useEpubReader(
       }
     };
 
-    const cancelTask = runCancellable(
+    const { cancel } = runCancellable(
       loadBookGenerator(bookId),
       () => {
         if (bookRef.current) {
@@ -376,7 +376,7 @@ export function useEpubReader(
     );
 
     return () => {
-      cancelTask();
+      cancel();
       if (resizeRaf.current) {
           cancelAnimationFrame(resizeRaf.current);
       }
