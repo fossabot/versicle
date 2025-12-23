@@ -161,4 +161,42 @@ describe('CompassPill', () => {
        fireEvent.click(pauseButton!);
        expect(mockPause).toHaveBeenCalled();
    });
+
+   it('has correct aria-labels in active mode', () => {
+       // Setup not playing
+       vi.mocked(useTTSStore).mockReturnValue({
+           isPlaying: false,
+           queue: [{ title: 'Item 1' }],
+           currentIndex: 0,
+           jumpTo: mockJumpTo,
+           play: mockPlay,
+           pause: mockPause
+       } as any);
+
+       const { rerender } = render(<CompassPill variant="active" />);
+
+       const prevButton = screen.getByTestId('icon-chevrons-left').closest('button');
+       const nextButton = screen.getByTestId('icon-chevrons-right').closest('button');
+
+       expect(prevButton).toHaveAttribute('aria-label', 'Previous chapter');
+       expect(nextButton).toHaveAttribute('aria-label', 'Next chapter');
+
+       // Setup playing
+       vi.mocked(useTTSStore).mockReturnValue({
+           isPlaying: true,
+           queue: [{ title: 'Item 1' }],
+           currentIndex: 0,
+           jumpTo: mockJumpTo,
+           play: mockPlay,
+           pause: mockPause
+       } as any);
+
+       rerender(<CompassPill variant="active" />);
+
+       const skipBackButton = screen.getByTestId('icon-skip-back').closest('button');
+       const skipForwardButton = screen.getByTestId('icon-skip-forward').closest('button');
+
+       expect(skipBackButton).toHaveAttribute('aria-label', 'Skip to previous sentence');
+       expect(skipForwardButton).toHaveAttribute('aria-label', 'Skip to next sentence');
+   });
 });
