@@ -4,13 +4,13 @@ import React from 'react';
 import { FileUploader } from './FileUploader';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useToastStore } from '../../store/useToastStore';
-import { validateEpubFile } from '../../lib/ingestion';
+import { validateZipSignature } from '../../lib/ingestion';
 
 // Mock dependencies
 vi.mock('../../store/useLibraryStore');
 vi.mock('../../store/useToastStore');
 vi.mock('../../lib/ingestion', () => ({
-  validateEpubFile: vi.fn(),
+  validateZipSignature: vi.fn(),
 }));
 
 describe('FileUploader', () => {
@@ -34,7 +34,7 @@ describe('FileUploader', () => {
     });
 
     // Mock validation to pass by default
-    (validateEpubFile as Mock).mockResolvedValue(true);
+    (validateZipSignature as Mock).mockResolvedValue(true);
   });
 
   it('should render upload instructions', () => {
@@ -54,7 +54,7 @@ describe('FileUploader', () => {
     fireEvent.change(input!, { target: { files: [file] } });
 
     await waitFor(() => {
-        expect(validateEpubFile).toHaveBeenCalledWith(file);
+        expect(validateZipSignature).toHaveBeenCalledWith(file);
         expect(mockAddBook).toHaveBeenCalledWith(file);
     });
   });
@@ -131,7 +131,7 @@ describe('FileUploader', () => {
 
   it('should reject epub files with invalid content', async () => {
       // Mock validation to fail
-      (validateEpubFile as Mock).mockResolvedValue(false);
+      (validateZipSignature as Mock).mockResolvedValue(false);
 
       const { container } = render(<FileUploader />);
       const input = container.querySelector('input[type="file"]');
@@ -141,7 +141,7 @@ describe('FileUploader', () => {
       fireEvent.change(input!, { target: { files: [file] } });
 
       await waitFor(() => {
-          expect(validateEpubFile).toHaveBeenCalledWith(file);
+          expect(validateZipSignature).toHaveBeenCalledWith(file);
           expect(mockAddBook).not.toHaveBeenCalled();
           expect(mockShowToast).toHaveBeenCalledWith('Invalid EPUB file (header mismatch): test.epub', 'error');
       });
@@ -149,7 +149,7 @@ describe('FileUploader', () => {
 
   it('should reject zip files with invalid content', async () => {
       // Mock validation to fail
-      (validateEpubFile as Mock).mockResolvedValue(false);
+      (validateZipSignature as Mock).mockResolvedValue(false);
 
       const { container } = render(<FileUploader />);
       const input = container.querySelector('input[type="file"]');
@@ -159,7 +159,7 @@ describe('FileUploader', () => {
       fireEvent.change(input!, { target: { files: [file] } });
 
       await waitFor(() => {
-          expect(validateEpubFile).toHaveBeenCalledWith(file);
+          expect(validateZipSignature).toHaveBeenCalledWith(file);
           expect(mockAddBook).not.toHaveBeenCalled();
           expect(mockShowToast).toHaveBeenCalledWith('Invalid ZIP file (header mismatch): test.zip', 'error');
       });

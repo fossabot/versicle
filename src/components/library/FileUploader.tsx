@@ -3,7 +3,7 @@ import { useLibraryStore } from '../../store/useLibraryStore';
 import { useToastStore } from '../../store/useToastStore';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { validateEpubFile } from '../../lib/ingestion';
+import { validateZipSignature } from '../../lib/ingestion';
 
 /**
  * A component for uploading EPUB files, ZIP archives, or directories via drag-and-drop or file selection.
@@ -21,14 +21,14 @@ export const FileUploader: React.FC = () => {
   const processSingleFile = useCallback(async (file: File) => {
       const lowerName = file.name.toLowerCase();
       if (lowerName.endsWith('.epub')) {
-           const isValid = await validateEpubFile(file);
+           const isValid = await validateZipSignature(file);
            if (isValid) {
                await addBook(file);
            } else {
                showToast(`Invalid EPUB file (header mismatch): ${file.name}`, 'error');
            }
       } else if (lowerName.endsWith('.zip')) {
-          const isValid = await validateEpubFile(file);
+          const isValid = await validateZipSignature(file);
           if (isValid) {
               await addBooks([file]);
           } else {
@@ -51,7 +51,7 @@ export const FileUploader: React.FC = () => {
           for (const file of files) {
               const lowerName = file.name.toLowerCase();
               if (lowerName.endsWith('.epub') || lowerName.endsWith('.zip')) {
-                   const isValid = await validateEpubFile(file);
+                   const isValid = await validateZipSignature(file);
                    if (isValid) {
                        validFiles.push(file);
                    } else {
