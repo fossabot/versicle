@@ -71,6 +71,10 @@ describe('CapacitorTTSProvider', () => {
 
     provider.resume();
 
+    // Since play is async and awaited inside resume (but resume is void),
+    // we need to wait a bit for the async operations to complete.
+    await new Promise(r => setTimeout(r, 10));
+
     expect(TextToSpeech.speak).toHaveBeenCalledWith(expect.objectContaining({
         text: 'hello'
     }));
@@ -85,10 +89,14 @@ describe('CapacitorTTSProvider', () => {
 
     // Setup speak to resolve later
     let resolveSpeak: ((value: void | PromiseLike<void>) => void) | undefined;
+
+    // Use mockImplementation to create a fresh promise on call
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (TextToSpeech.speak as any).mockReturnValue(new Promise<void>(resolve => {
-        resolveSpeak = resolve;
-    }));
+    (TextToSpeech.speak as any).mockImplementation(() => {
+        return new Promise<void>(resolve => {
+            resolveSpeak = resolve;
+        });
+    });
 
     await provider.init();
 
@@ -146,10 +154,15 @@ describe('CapacitorTTSProvider', () => {
   it('should ignore callback if stopped before speak finishes', async () => {
     // Mock speak to hang until stopped
     let resolveSpeak: (() => void) | null = null;
+
+    // Use mockImplementation so promise is created when speak is called
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (TextToSpeech.speak as any).mockReturnValue(new Promise<void>(resolve => {
-        resolveSpeak = resolve;
-    }));
+    (TextToSpeech.speak as any).mockImplementation(() => {
+        return new Promise<void>(resolve => {
+            resolveSpeak = resolve;
+        });
+    });
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (TextToSpeech.stop as any).mockImplementation(async () => {
         if (resolveSpeak) resolveSpeak();
@@ -179,5 +192,42 @@ describe('CapacitorTTSProvider', () => {
 
     expect(callback).toHaveBeenCalledWith({ type: 'start' });
     expect(callback).not.toHaveBeenCalledWith({ type: 'end' });
+  });
+
+  it('should ignore stray events from previous utterance (race condition)', async () => {
+    let onRangeStartCallback: (info: { start: number; end: number; word: string }) => void;
+
+    // Capture the listener
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TextToSpeech.addListener as any).mockImplementation((event: string, callback: any) => {
+      if (event === 'onRangeStart') {
+        onRangeStartCallback = callback;
+      }
+      return Promise.resolve({ remove: vi.fn() });
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (TextToSpeech.speak as any).mockResolvedValue(undefined);
+
+    await provider.init();
+    const eventSpy = vi.fn();
+    provider.on(eventSpy);
+
+    // 1. Play Chapter 1 (Long)
+    await provider.play('A long chapter one text...', { voiceId: 'v1', speed: 1 });
+
+    // 2. Play Chapter 2 (Short)
+    await provider.play('Short', { voiceId: 'v1', speed: 1 });
+
+    // 3. Simulate stray event from Chapter 1 (index 10, which is > length of "Short")
+    if (onRangeStartCallback!) {
+      onRangeStartCallback({ start: 10, end: 15, word: 'chapter' });
+    }
+
+    // 4. Assert that no boundary event was emitted for index 10
+    expect(eventSpy).not.toHaveBeenCalledWith(expect.objectContaining({
+      type: 'boundary',
+      charIndex: 10
+    }));
   });
 });
