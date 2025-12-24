@@ -292,7 +292,7 @@ export const UnifiedInputController: React.FC<UnifiedInputControllerProps> = ({
         }
     };
 
-    if (!isPlaying) return null;
+    if (!isPlaying || !immersiveMode) return null;
 
     return (
         <div

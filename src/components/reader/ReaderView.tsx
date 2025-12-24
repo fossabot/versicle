@@ -952,7 +952,7 @@ export const ReaderView: React.FC = () => {
             <div
                 data-testid="reader-iframe-container"
                 ref={viewerRef}
-                className={`w-full max-w-2xl overflow-hidden px-6 md:px-8 transition-opacity duration-300 ${isPlaying ? 'opacity-40' : 'opacity-100'}`}
+                className={`w-full max-w-2xl overflow-hidden px-6 md:px-8 transition-opacity duration-300 ${isPlaying && immersiveMode ? 'opacity-40' : 'opacity-100'}`}
                 style={{ height: viewMode === 'paginated' ? 'calc(100% - 100px)' : '100%' }}
             />
 
