@@ -28,8 +28,9 @@ export const useTTS = () => {
 
     const syncQueue = async () => {
          const status = useTTSStore.getState().status;
-         // If audio is active, we don't interrupt it just because the user is browsing
-         if (status === 'playing' || status === 'paused' || status === 'loading') {
+         // If audio is active, we don't interrupt it just because the user is browsing.
+         // Important note: We should not capture status changes.
+         if (status === 'playing') {
              return;
          }
 
