@@ -104,7 +104,10 @@ export class CapacitorTTSProvider implements ITTSProvider {
 
   pause(): void {
     // Native pause not reliable, so we stop.
-    this.stop();
+    // We increment activeUtteranceId so that any pending 'end' events from the stopped utterance are ignored.
+    this.activeUtteranceId++;
+    // However, we do NOT clear this.lastText, so resume() can restart the utterance.
+    TextToSpeech.stop().catch(e => console.warn('Failed to stop TTS', e));
   }
 
   resume(): void {
