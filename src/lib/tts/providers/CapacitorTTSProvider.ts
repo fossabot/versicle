@@ -14,6 +14,12 @@ export class CapacitorTTSProvider implements ITTSProvider {
     await this.getVoices();
     try {
         await TextToSpeech.addListener('onRangeStart', (info) => {
+             if (!this.lastText) return;
+
+             // If the index is outside the bounds of the current text,
+             // it belongs to a previous, longer utterance.
+             if (info.start >= this.lastText.length) return;
+
              this.emit({ type: 'boundary', charIndex: info.start });
         });
     } catch (e) {
@@ -42,6 +48,14 @@ export class CapacitorTTSProvider implements ITTSProvider {
   }
 
   async play(text: string, options: TTSOptions): Promise<void> {
+    this.lastText = null;
+
+    try {
+        await TextToSpeech.stop();
+    } catch (e) {
+        // Ignore errors if nothing was playing
+    }
+
     this.lastText = text;
     this.lastOptions = options;
 
@@ -84,6 +98,7 @@ export class CapacitorTTSProvider implements ITTSProvider {
 
   stop(): void {
     this.activeUtteranceId++;
+    this.lastText = null;
     TextToSpeech.stop().catch(e => console.warn('Failed to stop TTS', e));
   }
 
