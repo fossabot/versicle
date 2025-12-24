@@ -39,14 +39,11 @@ export const ReaderTTSController: React.FC<ReaderTTSControllerProps> = ({
       if (!rendition || !activeCfi || status === 'stopped') return;
 
       const syncVisuals = () => {
-         // Auto-turn page in paginated mode
-         if (viewMode === 'paginated') {
-             // Non-blocking display call
-             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-             (rendition as any).display(activeCfi).catch((err: unknown) => {
-                 console.warn("[TTS] Sync skipped", err);
-             });
-         }
+         // Non-blocking display call
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         (rendition as any).display(activeCfi).catch((err: unknown) => {
+             console.warn("[TTS] Sync skipped", err);
+         });
 
          // Add highlight
          try {
