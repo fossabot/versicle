@@ -423,6 +423,38 @@ class DBService {
   }
 
   /**
+   * Deletes a reading list entry.
+   *
+   * @param filename - The filename of the entry to delete.
+   */
+  async deleteReadingListEntry(filename: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.delete('reading_list', filename);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
+   * Deletes multiple reading list entries.
+   *
+   * @param filenames - The filenames of the entries to delete.
+   */
+  async deleteReadingListEntries(filenames: string[]): Promise<void> {
+    try {
+      const db = await this.getDB();
+      const tx = db.transaction('reading_list', 'readwrite');
+      const store = tx.objectStore('reading_list');
+
+      await Promise.all(filenames.map(filename => store.delete(filename)));
+      await tx.done;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /**
    * Imports reading list entries and syncs progress to books.
    *
    * @param entries - The list of entries to import.
