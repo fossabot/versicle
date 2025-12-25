@@ -4,6 +4,7 @@ import { useReaderStore } from '../../store/useReaderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useChapterDuration } from '../../hooks/useChapterDuration';
 import { ChevronsLeft, ChevronsRight, SkipBack, SkipForward, Play, Pause } from 'lucide-react';
+import { Button } from '../ui/Button';
 
 interface CompassPillProps {
   variant: 'active' | 'summary' | 'compact';
@@ -106,31 +107,37 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant, title, subtit
       return (
           <div data-testid="compass-pill-compact" className="relative z-40 flex items-center justify-center gap-3 w-auto h-10 px-4 mx-auto transition-all border shadow-lg rounded-full bg-background/80 backdrop-blur-md border-border">
                 {/* Prev Button */}
-                <button
-                    className="p-1 text-primary hover:bg-primary/10 rounded-full transition-colors"
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full text-primary hover:bg-primary/10 hover:text-primary"
                     onClick={() => isPlaying ? handleSkip('prev') : handleChapterNav('prev')}
                     aria-label="Previous"
                 >
                     {isPlaying ? <SkipBack size={16} /> : <ChevronsLeft size={18} />}
-                </button>
+                </Button>
 
                 {/* Play/Pause Button */}
-                <button
-                    className="p-1 text-primary hover:bg-primary/10 rounded-full transition-colors"
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full text-primary hover:bg-primary/10 hover:text-primary"
                     onClick={handleTogglePlay}
                     aria-label={isPlaying ? "Pause" : "Play"}
                 >
                     {isPlaying ? <Pause size={20} className="fill-current" /> : <Play size={20} className="fill-current ml-0.5" />}
-                </button>
+                </Button>
 
                 {/* Next Button */}
-                <button
-                    className="p-1 text-primary hover:bg-primary/10 rounded-full transition-colors"
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full text-primary hover:bg-primary/10 hover:text-primary"
                     onClick={() => isPlaying ? handleSkip('next') : handleChapterNav('next')}
                     aria-label="Next"
                 >
                      {isPlaying ? <SkipForward size={16} /> : <ChevronsRight size={18} />}
-                </button>
+                </Button>
           </div>
       );
   }
@@ -145,13 +152,14 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant, title, subtit
         />
 
         {/* Left Button */}
-        <button
-            className="h-11 w-11 flex items-center justify-center text-primary hover:bg-primary/10 rounded-full transition-colors touch-manipulation"
+        <Button
+            variant="ghost"
+            className="h-11 w-11 rounded-full text-primary hover:bg-primary/10 hover:text-primary touch-manipulation"
             onClick={() => isPlaying ? handleSkip('prev') : handleChapterNav('prev')}
             aria-label={isPlaying ? "Skip to previous sentence" : "Previous chapter"}
         >
             {isPlaying ? <SkipBack size={20} /> : <ChevronsLeft size={24} />}
-        </button>
+        </Button>
 
         {/* Center Info */}
         <div className="flex flex-col items-center justify-center flex-1 px-2 overflow-hidden">
@@ -164,13 +172,14 @@ export const CompassPill: React.FC<CompassPillProps> = ({ variant, title, subtit
         </div>
 
         {/* Right Button */}
-        <button
-            className="h-11 w-11 flex items-center justify-center text-primary hover:bg-primary/10 rounded-full transition-colors touch-manipulation"
+        <Button
+            variant="ghost"
+            className="h-11 w-11 rounded-full text-primary hover:bg-primary/10 hover:text-primary touch-manipulation"
             onClick={() => isPlaying ? handleSkip('next') : handleChapterNav('next')}
             aria-label={isPlaying ? "Skip to next sentence" : "Next chapter"}
         >
              {isPlaying ? <SkipForward size={20} /> : <ChevronsRight size={24} />}
-        </button>
+        </Button>
     </div>
   );
 };
