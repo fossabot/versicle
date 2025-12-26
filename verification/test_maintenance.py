@@ -9,7 +9,7 @@ def test_orphan_repair(page: Page):
     Steps:
     1. Reset app.
     2. Upload a book to get a valid DB state.
-    3. Manually inject orphaned data into IDB (file, annotation) via console.
+    3. Manually inject orphaned data into IDB (file, annotation, cover) via console.
     4. Open Settings -> Data Management.
     5. Run Repair.
     6. Verify orphans are detected and cleaned.
@@ -22,14 +22,17 @@ def test_orphan_repair(page: Page):
     print("Injecting orphans...")
     # Using window.indexedDB directly because window.idb might not be exposed globally in the bundle
     page.evaluate("""async () => {
-            // Use version 11 as we upgraded the DB
-            const req = window.indexedDB.open('EpubLibraryDB', 11);
+            // Use version 12 as we upgraded the DB
+            const req = window.indexedDB.open('EpubLibraryDB', 12);
         req.onsuccess = (e) => {
             const db = e.target.result;
-            const tx = db.transaction(['files', 'annotations'], 'readwrite');
+            const tx = db.transaction(['files', 'annotations', 'covers'], 'readwrite');
 
             // Orphaned File
             tx.objectStore('files').put(new ArrayBuffer(10), 'orphan-book-id');
+
+            // Orphaned Cover
+            tx.objectStore('covers').put(new Blob(['test']), 'orphan-book-id');
 
             // Orphaned Annotation
             tx.objectStore('annotations').put({
@@ -87,18 +90,24 @@ def test_orphan_repair(page: Page):
     print("Verifying cleanup...")
     orphans_exist = page.evaluate("""async () => {
         return new Promise((resolve, reject) => {
-            // Use version 11 as we upgraded the DB
-            const req = window.indexedDB.open('EpubLibraryDB', 11);
+            // Use version 12 as we upgraded the DB
+            const req = window.indexedDB.open('EpubLibraryDB', 12);
             req.onsuccess = (e) => {
                 const db = e.target.result;
-                const tx = db.transaction(['files', 'annotations'], 'readonly');
+                const tx = db.transaction(['files', 'annotations', 'covers'], 'readonly');
 
                 let fileExists = false;
                 let annExists = false;
+                let coverExists = false;
 
                 const fileReq = tx.objectStore('files').get('orphan-book-id');
                 fileReq.onsuccess = () => {
                     if (fileReq.result) fileExists = true;
+                };
+
+                const coverReq = tx.objectStore('covers').get('orphan-book-id');
+                coverReq.onsuccess = () => {
+                    if (coverReq.result) coverExists = true;
                 };
 
                 const annReq = tx.objectStore('annotations').get('orphan-note');
@@ -107,7 +116,7 @@ def test_orphan_repair(page: Page):
                 };
 
                 tx.oncomplete = () => {
-                    resolve(fileExists || annExists);
+                    resolve(fileExists || annExists || coverExists);
                 };
             };
         });

@@ -278,12 +278,7 @@ class DBService {
       await bookStore.put(book);
       await tx.objectStore('files').delete(id);
 
-      // Also delete the high-res cover, but keep the thumbnail in metadata
-      // Ideally we keep the high-res cover? The prompt says "keeping metadata and user data".
-      // Offloading usually removes the heavy "file".
-      // The cover is part of the book assets.
-      // If we remove the file, we can remove the cover too to save space, as the thumbnail remains.
-      // But if we restore, we re-process the EPUB.
+      // Delete high-res cover; metadata thumbnail remains.
       await tx.objectStore('covers').delete(id);
 
       await tx.done;
@@ -319,17 +314,6 @@ class DBService {
         // If hash was missing, we accept the file and set the hash
         book.fileHash = newFingerprint;
       }
-
-      // We need to re-extract the cover here if we deleted it during offload.
-      // But processEpub does everything including adding a new book entry which we don't want.
-      // We should probably extract the cover manually here if we want to restore it to 'covers' store.
-      // For now, let's just restore the file. The thumbnail is still there.
-      // If the user wants the high-res cover back, they might need to re-import, or we implement cover extraction here.
-      // Given the complexity, we'll accept that restored books might rely on the thumbnail until a re-import,
-      // OR we can quickly extract the cover using the same logic as ingestion.
-
-      // Let's just put the file back. The high-res cover is in the file anyway for the reader.
-      // The 'covers' store is for high-res access *outside* the reader (if any).
 
       const tx = db.transaction(['books', 'files'], 'readwrite');
       // Store File (Blob) instead of ArrayBuffer
