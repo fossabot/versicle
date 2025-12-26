@@ -55,7 +55,6 @@ graph TD
         GenAIStore[useGenAIStore]
         UIStore[useUIStore]
         ToastStore[useToastStore]
-        ReadingListStore[useReadingListStore]
     end
 
     subgraph Core [Core Services]
@@ -68,6 +67,7 @@ graph TD
         GenAI[GenAIService]
         CostEst[CostEstimator]
         TaskRunner[cancellable-task-runner.ts]
+        MediaSession[MediaSessionManager]
     end
 
     subgraph TTS [TTS Subsystem]
@@ -101,7 +101,6 @@ graph TD
     VisualSettings --> ReaderStore
     AudioPanel --> TTSStore
     GlobalSettings --> UIStore
-    GlobalSettings --> ReadingListStore
 
     TTSStore --> APS
     Library --> LibStore
@@ -119,6 +118,7 @@ graph TD
     APS --> Piper
     APS --> CostEst
     APS --> BG
+    APS --> MediaSession
 
     Piper --> PiperUtils
 
@@ -145,17 +145,17 @@ The main database abstraction layer. It handles error wrapping (converting DOM e
 
 **Key Functions:**
 
-*   **`getLibrary()`**: Retrieves all books. Validates metadata integrity using `validators.ts` and sorts by import date.
+*   **`getLibrary()`**: Retrieves all books. Validates metadata integrity using `validators.ts` and sorts by last read time.
     *   *Returns*: `Promise<BookMetadata[]>`
 *   **`getBook(id)`**: Retrieves both metadata and the binary EPUB file.
     *   *Returns*: `Promise<{ metadata: BookMetadata; file: Blob | ArrayBuffer }>`
 *   **`addBook(file)`**: Imports a new book. Delegates parsing to `ingestion.ts`.
 *   **`saveProgress(bookId, cfi, progress)`**: Saves reading progress.
-    *   *Implementation*: Debounced (1s) to prevent thrashing IndexedDB during scrolling/reading.
+    *   *Implementation*: Debounced (1s) to prevent thrashing IndexedDB during scrolling/reading. Updates both the book record and the `reading_list`.
     *   *Trade-off*: A crash within 1 second of reading might lose the very last position update.
 *   **`saveTTSState(bookId, queue, currentIndex)`**: Persists the current TTS playlist and position.
     *   *Why*: Allows the user to close the app and resume the audiobook exactly where they left off.
-*   **`offloadBook(id)`**: Deletes the large binary EPUB file to save space but keeps metadata, annotations, and reading progress. Sets `isOffloaded: true`.
+*   **`offloadBook(id)`**: Deletes the large binary EPUB file to save space but keeps metadata, annotations, and reading progress. Sets `isOffloaded: true`. Deletes the high-res cover but keeps the thumbnail.
     *   *Trade-off*: User must re-import the *exact same file* (verified via 3-point fingerprint) to read again.
 *   **`restoreBook(id, file)`**: Restores an offloaded book. Verifies the file fingerprint matches the original before accepting.
 *   **`updateReadingHistory(bookId, newRange, type)`**: Records reading sessions.
@@ -179,14 +179,15 @@ The main database abstraction layer. It handles error wrapping (converting DOM e
 Handles the complex task of importing an EPUB file.
 
 *   **`processEpub(file)`**:
-    1.  **Validation**: Checks ZIP headers (magic bytes) to ensure file validity.
+    1.  **Validation**: Checks ZIP headers (magic bytes `50 4B 03 04`) to ensure file validity.
     2.  **Offscreen Rendering**: Uses a hidden `<iframe>` (via `offscreen-renderer.ts`) to render chapters. This ensures that the extracted text and CFIs match *exactly* what the user will see/hear, which is critical for accurate TTS synchronization.
     3.  **Parsing**: Uses `epub.js` to parse the container.
-    4.  **Synthetic TOC**: Iterates through the spine to generate a table of contents and calculate character counts (for reading time estimation).
-    5.  **Fingerprinting**: Generates a **"3-Point Fingerprint"** based on metadata (filename, title, author) and head/tail file sampling.
+    4.  **Cover Optimization**: Compresses the cover image to a 50KB/300px thumbnail for the main library view, storing the high-res original separately.
+    5.  **Synthetic TOC**: Iterates through the spine to generate a table of contents and calculate character counts (for reading time estimation).
+    6.  **Fingerprinting**: Generates a **"3-Point Fingerprint"** based on metadata (filename, title, author) and head/tail file sampling.
         *   *Refactoring*: Replaced full-file SHA-256 hashing (which was slow and memory-intensive) with this constant-time O(1) check.
         *   *Trade-off*: Theoretical risk of collision is negligible for personal library scale, while performance gain is massive.
-    6.  **Sanitization**: Uses `DOMPurify` to strip HTML and scripts from metadata fields, and enforces character limits (e.g. 255 chars for Author).
+    7.  **Sanitization**: Uses `DOMPurify` to strip HTML and scripts from metadata fields, and enforces character limits.
     *   *Returns*: `Promise<string>` (New Book ID).
 
 #### Batch Ingestion (`src/lib/batch-ingestion.ts`)
@@ -210,9 +211,12 @@ Implements full-text search off the main thread to prevent UI freezing.
 #### Backup (`src/lib/BackupService.ts`)
 Manages internal state backup and restoration (JSON/ZIP).
 
-*   **`createMetadataBackup()`**: Exports JSON containing metadata, themes, settings, and reading history ("Light Backup").
-*   **`createFullBackup()`**: Exports a ZIP file containing the "Light" JSON manifest plus all original `.epub` files ("Full Backup").
+*   **`createLightBackup()`**: Exports JSON containing metadata, themes, settings, and reading history.
+*   **`createFullBackup()`**: Exports a ZIP file containing the "Light" JSON manifest plus all original `.epub` files.
     *   *Logic*: Uses `JSZip` to stream file content from IndexedDB into a downloadable archive.
+*   **`restoreBackup()`**:
+    *   **Smart Merge**: If a book already exists, it only updates reading progress if the backup's timestamp is newer.
+    *   **Sanitization**: Validates and sanitizes all metadata in the backup manifest before writing to the DB.
 
 #### Data Portability (`src/lib/csv.ts`)
 Handles interoperability with external reading trackers (Goodreads).
@@ -238,7 +242,7 @@ Enhances the reading experience using LLMs (Google Gemini).
 *   **Logic**:
     *   **`GenAIService`**: Singleton wrapper around `@google/generative-ai`. Handles API configuration and request logging.
     *   **`generateStructured`**: Uses Gemini's JSON schema enforcement to return strictly typed data (e.g., TOC structure).
-    *   **`textMatching.ts`**: Provides fuzzy matching to locate AI-generated quotes/references back in the original source text (handling whitespace/case differences).
+    *   **Testing**: Supports `localStorage`-based mocking for E2E tests to avoid API costs and flakiness.
 *   **Trade-off**: Requires an active internet connection and a Google API Key. Privacy implication: Book text snippets are sent to Google's servers.
 
 #### Cost Estimator (`src/lib/tts/CostEstimator.ts`)
@@ -265,7 +269,20 @@ The singleton controller (Orchestrator).
 *   **Goal**: Manage the playback queue, provider selection, and state machine (`playing`, `paused`, `loading`, etc.).
 *   **Logic**:
     *   **Concurrency**: Uses a **Sequential Promise Chain** (`enqueue`) to serialize async operations (play, pause, next). This replaces the previous complex Mutex pattern.
-    *   **Media Session**: Integrates with the OS Media Session API (lock screen controls) via `MediaSessionManager`.
+    *   **State Persistence**: Persists the queue and position to IndexedDB so playback can resume after an app restart.
+
+#### `src/lib/tts/MediaSessionManager.ts`
+*   **Goal**: Integrate with OS-level media controls (Lock Screen, Notification Center, Smartwatches).
+*   **Logic**:
+    *   **Wraps**: `navigator.mediaSession` (Web) and `@jofr/capacitor-media-session` (Native).
+    *   **Responsibility**: Updates metadata (Title, Artist, Artwork) and handles callbacks (Play, Pause, Next, Prev).
+
+#### `src/lib/tts/BackgroundAudio.ts`
+*   **Goal**: Prevent mobile operating systems (iOS/Android) from killing the app or pausing audio when the screen is locked or the app is in the background.
+*   **Logic**:
+    *   **Web/iOS**: Plays a silent loop (or optional white noise) to keep the OS Media Session active.
+    *   **Android**: Upgrades to a **Foreground Service** (via `@capawesome-team/capacitor-android-foreground-service`) which displays a persistent notification. This signals to Android that the app is "active" and should not be killed.
+*   **Trade-off**: "Hack" solution required due to restrictive mobile browser policies (iOS). Foreground Service requires explicit permissions on Android.
 
 #### `src/lib/tts/LexiconService.ts`
 Manages pronunciation rules.
@@ -300,13 +317,6 @@ Low-level wrapper around the HTML5 `<audio>` element.
 
 *   **Goal**: Abstract resource management for Blob-based playback used by `BaseCloudProvider` (Piper, OpenAI, etc.).
 *   **Logic**: Automatically revokes `ObjectURLs` on track end or stop to prevent memory leaks.
-
-#### `src/lib/tts/BackgroundAudio.ts`
-*   **Goal**: Prevent mobile operating systems (iOS/Android) from killing the app or pausing audio when the screen is locked or the app is in the background.
-*   **Logic**:
-    *   **Web**: Plays a silent loop (or optional white noise) to keep the OS Media Session active.
-    *   **Android**: Upgrades to a **Foreground Service** (via `@capawesome-team/capacitor-android-foreground-service`) which displays a persistent notification. This signals to Android that the app is "active" and should not be killed.
-*   **Trade-off**: "Hack" solution required due to restrictive mobile browser policies (iOS). Foreground Service requires explicit permissions on Android.
 
 #### TTS Processors & Extraction
 *   **`Sanitizer.ts` (TTS-Specific)**: Located in `src/lib/tts/processors/`. Cleans text *before* speech generation. Removes page numbers, citations, and URLs to improve listening flow.
@@ -361,8 +371,7 @@ State is managed using **Zustand** with persistence to `localStorage` for prefer
     *   *Persisted*: `apiKey`, `model`, `isEnabled`, `logs`, `usageStats`.
 *   **`useUIStore`**: Manages global UI state (e.g., `isGlobalSettingsOpen`). Transient.
 *   **`useToastStore`**: Manages global ephemeral notifications (Success/Error feedback). Transient.
-*   **`useReadingListStore`**: Manages the exportable reading list.
-    *   *Logic*: Syncs with IDB `reading_list` store. Handles CSV import/export.
+*   **Reading List**: The reading list is managed directly via `DBService` and `ReadingListDialog` using a direct-to-DB pattern, rather than a global Zustand store, to ensure data consistency.
 
 ### UI Layer
 
@@ -371,6 +380,6 @@ State is managed using **Zustand** with persistence to `localStorage` for prefer
 *   **Logic**: Subscribes to `useReaderStore` and toggles classes on `document.documentElement`.
 
 ### Common Types (`src/types/db.ts`)
-*   **`BookMetadata`**: Includes `fileHash`, `isOffloaded`, `coverBlob`, and playback state (`lastPlayedCfi`).
+*   **`BookMetadata`**: Includes `fileHash`, `isOffloaded`, `coverBlob` (thumbnail), and playback state (`lastPlayedCfi`).
 *   **`Annotation`**: Stores highlights (`cfiRange`, `color`) and notes.
 *   **`LexiconRule`**: Regex or string replacement rules for TTS pronunciation.
