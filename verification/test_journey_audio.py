@@ -19,24 +19,27 @@ def test_journey_audio(page: Page):
 
     # --- Part 1: Audio HUD Interaction ---
     print("--- Testing Audio HUD ---")
-    # Wait for HUD (Compass Pill)
+    # Wait for HUD (Compass Pill) in Active/Compact mode (since we have content)
+    # The default state when content is available but not playing might be active (if queue populated) or nothing.
+    # But navigating to chapter usually populates the queue (as we found earlier).
+    # So we expect compass-pill-active.
     expect(page.get_by_test_id("compass-pill-active")).to_be_visible(timeout=10000)
     utils.capture_screenshot(page, "audio_1_hud_visible")
 
-    # Check FAB
-    fab = page.get_by_test_id("satellite-fab")
-    expect(fab).to_be_visible()
-    expect(fab).to_have_attribute("aria-label", "Play")
+    # Check for Play Button inside the Compass Pill
+    # The active variant Compass Pill exposes a Play/Pause toggle in its center section.
+    play_button = page.get_by_test_id("compass-pill-active").get_by_label("Play")
+    expect(play_button).to_be_visible()
 
     # Click Play
-    print("Clicking FAB (Play)...")
-    fab.click()
-    expect(fab).to_have_attribute("aria-label", "Pause", timeout=5000)
+    print("Clicking Play...")
+    play_button.click()
+    expect(page.get_by_test_id("compass-pill-active").get_by_label("Pause")).to_be_visible(timeout=5000)
 
     # Click Pause
-    print("Clicking FAB (Pause)...")
-    fab.click()
-    expect(fab).to_have_attribute("aria-label", "Play")
+    print("Clicking Pause...")
+    page.get_by_test_id("compass-pill-active").get_by_label("Pause").click()
+    expect(play_button).to_be_visible()
 
     # --- Part 2: Audio Deck ---
     print("--- Testing Audio Deck ---")
@@ -64,20 +67,15 @@ def test_journey_audio(page: Page):
     print("Switching back to Queue...")
     page.get_by_role("button", name="Up Next").click()
 
-    # Close Audio Deck (click outside or use close button if any, or just Escape?)
-    # flow_mode.py uses Escape to close audio panel
+    # Close Audio Deck
     page.keyboard.press("Escape")
     expect(page.get_by_test_id("tts-panel")).not_to_be_visible()
 
     # --- Part 3: Flow Mode (Listening State) ---
     print("--- Testing Flow Mode ---")
 
-    # Open Audio Panel again to start play, or just use FAB
-    # Using FAB is easier if it works.
-    # But flow_mode test used the panel. Let's use the panel to ensure consistent state entry.
-    page.get_by_test_id("reader-audio-button").click()
-    page.get_by_test_id("tts-play-pause-button").click()
-    page.keyboard.press("Escape")
+    # Start Play via Pill (assuming we fixed it)
+    play_button.click()
 
     # Enter Immersive Mode (required for Flow Mode overlay)
     print("Entering Immersive Mode...")
@@ -146,8 +144,9 @@ def test_journey_audio(page: Page):
 
     # Check for Summary Pill
     expect(page.get_by_test_id("compass-pill-summary")).to_be_visible()
-    # Check FAB is hidden
-    expect(page.get_by_test_id("satellite-fab")).not_to_be_visible()
+
+    # Ensure active pill is gone
+    expect(page.get_by_test_id("compass-pill-active")).not_to_be_visible()
 
     utils.capture_screenshot(page, "audio_5_summary_mode")
 
