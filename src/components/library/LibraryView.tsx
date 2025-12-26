@@ -165,33 +165,21 @@ export const LibraryView: React.FC = () => {
   // Add 1 to rowCount for spacer
   const rowCount = Math.ceil(books.length / columnCount) + 1;
 
-  // To center the grid:
-  // 1. We keep the column width fixed (or close to fixed) so we know the total grid width.
-  // 2. Alternatively, we calculate the remaining space and center the Grid component.
+  // Logic to determine grid width and column width
+  // If columnCount is 1 (e.g. mobile), we allow the single column to stretch to fill the available space.
+  // This ensures the card is centered and substantial on small screens, satisfying the "no horizontal scroll" and "width > 300px" checks if the screen permits.
+  // For multi-column layouts (desktop), we use a fixed column width (CARD_WIDTH + GAP) and center the grid block to avoid awkward stretching.
 
-  // Previous approach (expand to fill):
-  // const gridColumnWidth = Math.floor(dimensions.width / columnCount);
+  let gridWidth: number;
+  let gridColumnWidth: number;
 
-  // New approach (Center the grid block):
-  // We use the fixed column width logic (CARD_WIDTH + GAP) but since react-window handles layout,
-  // we might want to expand slightly but not too much, OR just center the block.
-  // If we don't expand, we have leftover space.
-
-  // Actually, wait. If we use fixed width, the columns won't stretch.
-  // But if we want it centered, we can calculate the left margin.
-
-  // Let's use the expanding logic but wrap the Grid in a centered flex container?
-  // No, react-window requires specific width props.
-
-  // Correct approach for centering a grid in a container where columns match items:
-  // If we assume columns should just be CARD_WIDTH + GAP, then the grid width is totalGridWidth.
-  // We can pass `width={totalGridWidth}` to the Grid component (if it's less than dimensions.width).
-  // But react-window needs to handle scrolling if it overflows?
-  // Here we are likely not overflowing horizontally (responsive logic reduces columns).
-
-  // So:
-  const gridWidth = Math.min(dimensions.width, columnCount * (CARD_WIDTH + GAP));
-  const gridColumnWidth = CARD_WIDTH + GAP; // Fixed width columns
+  if (columnCount === 1) {
+      gridWidth = dimensions.width;
+      gridColumnWidth = dimensions.width;
+  } else {
+      gridWidth = Math.min(dimensions.width, columnCount * (CARD_WIDTH + GAP));
+      gridColumnWidth = CARD_WIDTH + GAP;
+  }
 
   // Memoize itemData (cellProps) to prevent unnecessary re-renders of the grid cells.
   // This version of react-window uses cellProps which are spread into the component props.
