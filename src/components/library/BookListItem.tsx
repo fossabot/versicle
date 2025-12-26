@@ -14,6 +14,7 @@ import { cn } from '../../lib/utils';
 import { useReaderStore } from '../../store/useReaderStore';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
+import { Progress } from '../ui/Progress';
 
 /**
  * Props for the BookListItem component.
@@ -173,8 +174,22 @@ export const BookListItem: React.FC<BookListItemProps> = ({ book, style }) => {
                     </h3>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 truncate">
                         <span className="truncate max-w-[150px]">{book.author}</span>
-                        <span>•</span>
-                        <span>{progressPercent}%</span>
+
+                        {progressPercent > 0 && (
+                            <>
+                                <span>•</span>
+                                <div className="flex items-center gap-1.5">
+                                    <Progress value={progressPercent} className="w-12 h-1.5" aria-label="Reading progress" />
+                                    <span>{progressPercent}%</span>
+                                </div>
+                            </>
+                        )}
+                        {progressPercent === 0 && (
+                             <>
+                                <span>•</span>
+                                <span>0%</span>
+                             </>
+                        )}
 
                         {durationString ? (
                             <>
