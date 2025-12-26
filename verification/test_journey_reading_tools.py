@@ -72,8 +72,8 @@ def test_journey_reading_tools(page: Page):
     # Expect Compass Pill Annotation Mode
     expect(page.get_by_test_id("compass-pill-annotation")).to_be_visible(timeout=5000)
 
-    # Click Yellow Highlight (aria-label="Highlight yellow")
-    yellow_button = page.get_by_role("button", name="Highlight yellow")
+    # Click Yellow Highlight
+    yellow_button = page.get_by_test_id("popover-color-yellow")
     expect(yellow_button).to_be_visible(timeout=3000)
     yellow_button.click()
 

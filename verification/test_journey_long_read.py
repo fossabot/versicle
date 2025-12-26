@@ -84,8 +84,8 @@ def test_long_reading_journey(page: Page):
         # Update: Look for Compass Pill Annotation Mode
         expect(page.get_by_test_id("compass-pill-annotation")).to_be_visible(timeout=5000)
 
-        # Use aria-label to click color
-        page.get_by_role("button", name="Highlight yellow").click()
+        # Use test ID to click color
+        page.get_by_test_id("popover-color-yellow").click()
 
         expect(page.get_by_test_id("compass-pill-annotation")).not_to_be_visible()
         # Wait for annotation to be saved

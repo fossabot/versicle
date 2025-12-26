@@ -272,3 +272,18 @@ This component acts as the **Orchestrator**. It subscribes to multiple Zustand s
 - **Verification**:
   - `verification/test_compass_pill.py` passes.
   - `verification/test_journey_reading.py` passes.
+
+7\. Future Improvements / Known Limitations
+-------------------------------------------
+
+### 7.1. Play from Selection CFI
+Currently, the "Play from here" feature in the Annotation bar uses a simple fallback (`player.play()`) instead of precise CFI targeting. This is because `ReaderControlBar` acts as a global controller and does not have direct access to the `epub.js` `Rendition` object required to map a CFI range to a specific queue item index efficiently.
+
+**Challenge**: `AudioPlayerService` manages a linear queue of items, but `epub.js` manages the spatial/structural representation of the book. Bridging these requires:
+1.  Access to the `Book` instance to resolve CFI ranges.
+2.  Iterating the TTS queue to find the item overlapping the selection CFI.
+
+**Proposed Solution**:
+- Move the CFI-to-Queue resolution logic into `AudioPlayerService` or `ReaderTTSController`.
+- Expose a `playFromCfi(cfi)` method in `AudioPlayerService`.
+- `ReaderControlBar` would simply invoke `playFromCfi(selectionCfi)`.
