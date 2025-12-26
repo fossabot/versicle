@@ -277,13 +277,4 @@ This component acts as the **Orchestrator**. It subscribes to multiple Zustand s
 -------------------------------------------
 
 ### 7.1. Play from Selection CFI
-Currently, the "Play from here" feature in the Annotation bar uses a simple fallback (`player.play()`) instead of precise CFI targeting. This is because `ReaderControlBar` acts as a global controller and does not have direct access to the `epub.js` `Rendition` object required to map a CFI range to a specific queue item index efficiently.
-
-**Challenge**: `AudioPlayerService` manages a linear queue of items, but `epub.js` manages the spatial/structural representation of the book. Bridging these requires:
-1.  Access to the `Book` instance to resolve CFI ranges.
-2.  Iterating the TTS queue to find the item overlapping the selection CFI.
-
-**Proposed Solution**:
-- Move the CFI-to-Queue resolution logic into `AudioPlayerService` or `ReaderTTSController`.
-- Expose a `playFromCfi(cfi)` method in `AudioPlayerService`.
-- `ReaderControlBar` would simply invoke `playFromCfi(selectionCfi)`.
+**Completed**: The "Play from here" functionality has been fully implemented by exposing the `handlePlayFromSelection` method from `ReaderView` to the global `useReaderStore`. `ReaderControlBar` now invokes this callback via the store, allowing precise playback starting from the selected text location.

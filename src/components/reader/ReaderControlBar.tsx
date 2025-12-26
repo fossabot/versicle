@@ -7,7 +7,6 @@ import { CompassPill } from '../audio/CompassPill';
 import type { ActionType } from '../audio/CompassPill';
 import { useToastStore } from '../../store/useToastStore';
 import { useNavigate } from 'react-router-dom';
-import { AudioPlayerService } from '../../lib/tts/AudioPlayerService';
 
 export const ReaderControlBar: React.FC = () => {
     // Correctly using the store-based toast
@@ -116,13 +115,7 @@ export const ReaderControlBar: React.FC = () => {
                     if (playFromSelection) {
                         playFromSelection(popover.cfiRange);
                     } else {
-                        // Fallback if reader view not active or function not registered
-                        const player = AudioPlayerService.getInstance();
-                        if (player.getQueue().length > 0) {
-                            player.play();
-                        } else {
-                            showToast("Audio not ready yet", "error");
-                        }
+                        showToast("Audio not ready yet", "error");
                     }
                     hidePopover();
                 }

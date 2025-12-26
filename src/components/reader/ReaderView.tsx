@@ -300,8 +300,10 @@ export const ReaderView: React.FC = () => {
       return () => {
           searchClient.terminate();
           reset();
+          // Ensure popover is hidden when leaving the reader
+          hidePopover();
       };
-  }, [reset]);
+  }, [reset, hidePopover]);
 
 
   // Use TTS Hook
