@@ -27,10 +27,10 @@ export const useTTS = () => {
     if (!currentBookId || !currentSectionId) return;
 
     const syncQueue = async () => {
-         const isPlaying = useTTSStore.getState().isPlaying;
+         const status = useTTSStore.getState().status;
          // If audio is active, we don't interrupt it just because the user is browsing.
          // Important note: We should not capture status changes.
-         if (isPlaying) {
+         if (status === 'playing') {
              return;
          }
 
