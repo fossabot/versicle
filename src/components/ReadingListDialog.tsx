@@ -154,7 +154,7 @@ export const ReadingListDialog: React.FC<ReadingListDialogProps> = ({ open, onOp
             <Modal open={open} onOpenChange={onOpenChange}>
                 <ModalContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden sm:rounded-lg">
                     <div className="flex items-center justify-between p-4 border-b">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 min-h-[2.25rem]">
                             <h2 className="text-xl font-bold">Reading List</h2>
                             {selectedEntries.size > 0 && (
                                 <div className="flex items-center gap-2">
