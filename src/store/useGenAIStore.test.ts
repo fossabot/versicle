@@ -3,8 +3,11 @@ import { useGenAIStore } from './useGenAIStore';
 
 describe('useGenAIStore', () => {
   beforeEach(() => {
+    // Clear both storages to be safe
     localStorage.clear();
-    useGenAIStore.getState().init(); // Reset or re-init if needed
+    sessionStorage.clear();
+
+    useGenAIStore.getState().init();
     useGenAIStore.setState({
         apiKey: '',
         model: 'gemini-2.5-flash-lite',
@@ -14,7 +17,7 @@ describe('useGenAIStore', () => {
     });
   });
 
-  it('should not persist apiKey or logs to localStorage', () => {
+  it('should persist apiKey and logs to sessionStorage (not localStorage)', () => {
     const sensitiveKey = 'secret-api-key-123';
     const logEntry = {
         id: '1',
@@ -28,20 +31,21 @@ describe('useGenAIStore', () => {
     useGenAIStore.getState().addLog(logEntry);
     useGenAIStore.getState().setEnabled(true);
 
-    // Force rehydration (simulate reload)
-    // Zustand persist middleware writes to localStorage synchronously by default
-    const storedString = localStorage.getItem('genai-storage');
-    expect(storedString).toBeTruthy();
+    // Check localStorage (should be empty of this key)
+    const localStored = localStorage.getItem('genai-storage');
+    expect(localStored).toBeNull();
 
-    const stored = JSON.parse(storedString!);
+    // Check sessionStorage (should have the data)
+    const sessionStored = sessionStorage.getItem('genai-storage');
+    expect(sessionStored).toBeTruthy();
+
+    const stored = JSON.parse(sessionStored!);
     const state = stored.state;
 
-    // These should NOT be in the stored state
-    expect(state.apiKey).toBeUndefined();
-    expect(state.logs).toBeUndefined();
-
-    // These SHOULD be persisted
+    // These SHOULD be persisted in sessionStorage now
+    expect(state.apiKey).toBe(sensitiveKey);
+    expect(state.logs).toHaveLength(1);
+    expect(state.logs[0].id).toBe('1');
     expect(state.isEnabled).toBe(true);
-    expect(state.model).toBe('gemini-2.5-flash-lite');
   });
 });

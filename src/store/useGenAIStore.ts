@@ -65,14 +65,11 @@ export const useGenAIStore = create<GenAIState>()(
     }),
     {
       name: 'genai-storage',
-      storage: createJSONStorage(() => localStorage),
-      // SECURITY: Do not persist sensitive API keys or detailed logs (which may contain PII) to localStorage.
-      // Persisting them poses a risk on shared devices or via XSS.
-      partialize: (state) => ({
-          model: state.model,
-          isEnabled: state.isEnabled,
-          usageStats: state.usageStats
-      }),
+      // SECURITY: Use sessionStorage instead of localStorage.
+      // This ensures that sensitive API keys and logs persist across page reloads (preserving user workflow)
+      // but are cleared when the tab or window is closed. This reduces the risk of long-term exposure
+      // on shared devices compared to permanent localStorage.
+      storage: createJSONStorage(() => sessionStorage),
       onRehydrateStorage: () => (state) => {
           state?.init();
       }
