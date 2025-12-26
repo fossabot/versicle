@@ -18,9 +18,10 @@
 *   **Language**: TypeScript
 *   **State**: Zustand
 *   **Storage**: IndexedDB (via `idb`)
-*   **Parsing**: epub.js
+*   **Parsing**: epub.js + PapaParse (CSV)
 *   **Audio**: Piper (WASM) / Web Speech API
 *   **Mobile**: Capacitor (Android)
+*   **Workers**: Comlink + Web Workers
 *   **Styling**: Tailwind CSS + Radix UI
 
 ## Features
@@ -36,15 +37,16 @@
 *   **Smart Segmentation**: Natural pausing at sentence boundaries.
 *   **Lexicon**: Fix mispronounced words with custom rules (Regex supported).
 *   **Offline Cache**: Generated audio is cached locally to save bandwidth and costs.
-*   **Background Play**: Keeps playing when the screen is off (Mobile).
+*   **Background Play**: Keeps playing when the screen is off (Mobile via Foreground Service).
 
 ### Management
-*   **Reading History**: Detailed session tracking.
+*   **Reading History**: Detailed session tracking with timeline visualization.
 *   **Reading List**: Track status (Read, Reading, Want to Read) and Rating. Export to CSV (Goodreads compatible).
 *   **Backups**:
     *   **Light**: JSON export of metadata/settings.
     *   **Full**: ZIP archive including all book files.
 *   **Space Saver**: "Offload" books to delete the file but keep your stats, then restore later.
+*   **Maintenance**: Built-in tools to scan for and prune orphaned data.
 
 ## Setup & Development
 
@@ -103,6 +105,7 @@ We use Docker to run end-to-end tests in a consistent environment.
 
 3.  **Run Specific Verification Script**:
     ```bash
+    # Note: Requires correct path mapping or rebuilding image if script changed
     docker run --rm versicle-verification /app/verification/test_golden_layout.py
     ```
 

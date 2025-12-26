@@ -3,6 +3,11 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { processEpub, validateZipSignature } from './ingestion';
 import { getDB } from '../db/db';
 
+// Mock browser-image-compression
+vi.mock('browser-image-compression', () => ({
+  default: vi.fn(() => Promise.resolve(new Blob(['thumbnail'], { type: 'image/jpeg' })))
+}));
+
 // Mock offscreen renderer
 vi.mock('./offscreen-renderer', () => ({
   extractContentOffscreen: vi.fn(async (file, options, onProgress) => {
