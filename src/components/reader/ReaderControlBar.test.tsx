@@ -53,7 +53,7 @@ describe('ReaderControlBar', () => {
 
         // Default store states
         mockUseAnnotationStore.mockReturnValue({
-            popover: { visible: false },
+            popover: { visible: false, text: 'selected text', cfiRange: 'cfi' },
             addAnnotation: vi.fn(),
             hidePopover: vi.fn(),
         });
@@ -64,7 +64,8 @@ describe('ReaderControlBar', () => {
         });
         mockUseReaderStore.mockReturnValue({
             immersiveMode: false,
-            bookId: null,
+            currentBookId: null,
+            currentChapterTitle: null,
         });
         mockUseLibraryStore.mockReturnValue([]); // books
         mockUseToastStore.mockReturnValue(vi.fn()); // showToast
@@ -85,11 +86,13 @@ describe('ReaderControlBar', () => {
         expect(screen.getByTestId('compass-pill-annotation')).toBeInTheDocument();
     });
 
-    it('renders active variant when bookId is present (Reader Active)', () => {
+    it('renders active variant when currentBookId is present (Reader Active)', () => {
         mockUseReaderStore.mockReturnValue({
             immersiveMode: false,
-            bookId: '123',
+            currentBookId: '123',
+            currentChapterTitle: 'Chapter 1',
         });
+        mockUseLibraryStore.mockReturnValue([{ id: '123', title: 'Book 1' }]);
         render(<ReaderControlBar />);
         expect(screen.getByTestId('compass-pill-active')).toBeInTheDocument();
     });
@@ -97,8 +100,10 @@ describe('ReaderControlBar', () => {
     it('renders compact variant when immersive mode is on', () => {
         mockUseReaderStore.mockReturnValue({
             immersiveMode: true,
-            bookId: '123',
+            currentBookId: '123',
+            currentChapterTitle: 'Chapter 1',
         });
+        mockUseLibraryStore.mockReturnValue([{ id: '123', title: 'Book 1' }]);
         render(<ReaderControlBar />);
         expect(screen.getByTestId('compass-pill-compact')).toBeInTheDocument();
     });
@@ -122,17 +127,28 @@ describe('ReaderControlBar', () => {
         const showToast = vi.fn();
 
         mockUseAnnotationStore.mockReturnValue({
-            popover: { visible: true },
+            popover: { visible: true, text: 'selected text', cfiRange: 'cfi' },
             addAnnotation,
             hidePopover,
         });
+        mockUseReaderStore.mockReturnValue({
+            immersiveMode: false,
+            currentBookId: '123',
+        });
+        mockUseLibraryStore.mockReturnValue([{ id: '123', title: 'Book 1' }]);
         mockUseToastStore.mockReturnValue(showToast);
 
         render(<ReaderControlBar />);
 
         // Test Color Action (via mocked button)
         fireEvent.click(screen.getByText('Color'));
-        expect(addAnnotation).toHaveBeenCalledWith({ type: 'highlight', color: 'yellow' });
+        expect(addAnnotation).toHaveBeenCalledWith({
+            type: 'highlight',
+            color: 'yellow',
+            bookId: '123',
+            text: 'selected text',
+            cfiRange: 'cfi'
+        });
         expect(hidePopover).toHaveBeenCalled();
     });
 });

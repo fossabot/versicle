@@ -3,7 +3,8 @@ import { useTTSStore } from '../../store/useTTSStore';
 import { useReaderStore } from '../../store/useReaderStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAnnotationStore } from '../../store/useAnnotationStore';
-import { CompassPill, ActionType } from '../audio/CompassPill';
+import { CompassPill } from '../audio/CompassPill';
+import type { ActionType } from '../audio/CompassPill';
 import { useToastStore } from '../../store/useToastStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,15 +20,13 @@ export const ReaderControlBar: React.FC = () => {
         hidePopover: state.hidePopover,
     }));
 
-    const { queue, isPlaying, play } = useTTSStore(state => ({
+    const { queue } = useTTSStore(state => ({
         queue: state.queue,
-        isPlaying: state.isPlaying,
-        play: state.play,
     }));
 
-    const { immersiveMode, bookId, currentChapterTitle } = useReaderStore(state => ({
+    const { immersiveMode, currentBookId, currentChapterTitle } = useReaderStore(state => ({
         immersiveMode: state.immersiveMode,
-        bookId: state.bookId,
+        currentBookId: state.currentBookId,
         currentChapterTitle: state.currentChapterTitle
     }));
 
@@ -40,17 +39,17 @@ export const ReaderControlBar: React.FC = () => {
 
     // Determine current book title if active
     const currentBook = useMemo(() => {
-        return bookId ? books.find(b => b.id === bookId) : undefined;
-    }, [bookId, books]);
+        return currentBookId ? books.find(b => b.id === currentBookId) : undefined;
+    }, [currentBookId, books]);
 
     // Determine State Priority
     // 1. Annotation Mode
     const isAnnotationMode = popover.visible;
 
     // 2. Audio Mode OR Active Reader
-    // If we are reading a book (bookId exists), we are active.
+    // If we are reading a book (currentBookId exists), we are active.
     // If audio queue has items, we are active.
-    const isReaderActive = !!bookId;
+    const isReaderActive = !!currentBookId;
 
     // Logic:
     let variant: 'annotation' | 'active' | 'summary' | 'compact' | null = null;
@@ -69,14 +68,27 @@ export const ReaderControlBar: React.FC = () => {
     const handleAnnotationAction = (action: ActionType, payload?: string) => {
         switch (action) {
             case 'color':
-                if (payload) {
-                    addAnnotation({ type: 'highlight', color: payload as any });
+                if (payload && currentBookId) {
+                    addAnnotation({
+                        type: 'highlight',
+                        color: payload,
+                        bookId: currentBookId,
+                        text: popover.text || '',
+                        cfiRange: popover.cfiRange || ''
+                    });
                     hidePopover();
                 }
                 break;
             case 'note':
-                if (payload) {
-                    addAnnotation({ type: 'note', note: payload });
+                if (payload && currentBookId) {
+                    addAnnotation({
+                        type: 'note',
+                        note: payload,
+                        bookId: currentBookId,
+                        text: popover.text || '',
+                        cfiRange: popover.cfiRange || '',
+                        color: 'yellow' // Default color for notes if not specified
+                    });
                     showToast("Note saved", "success");
                     hidePopover();
                 }
