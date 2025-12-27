@@ -4,7 +4,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { BookCard } from './BookCard';
 import { BookListItem } from './BookListItem';
 import { EmptyLibrary } from './EmptyLibrary';
-import { Upload, Settings, LayoutGrid, List as ListIcon, FilePlus, Search } from 'lucide-react';
+import { Upload, Settings, LayoutGrid, List as ListIcon, FilePlus, Search, ChevronDown } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -121,60 +121,71 @@ export const LibraryView: React.FC = () => {
         </div>
       )}
 
-      <header className="mb-8 flex-none flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Library</h1>
-          <p className="text-muted-foreground">Manage and read your EPUB collection</p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search books..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-              data-testid="library-search-input"
-            />
+      <header className="mb-6 flex flex-col gap-4">
+        {/* Top Row: Title and Actions */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">My Library</h1>
+            <p className="text-muted-foreground hidden md:block mt-1">Manage and read your EPUB collection</p>
           </div>
-          <div className="flex gap-2">
+
+          <div className="flex gap-1 sm:gap-2">
             <Button
-                variant="secondary"
+                variant="ghost"
                 size="icon"
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="shadow-sm"
+                className="text-foreground/80 hover:text-foreground"
                 aria-label={viewMode === 'grid' ? "Switch to list view" : "Switch to grid view"}
                 data-testid="view-toggle-button"
             >
-                {viewMode === 'grid' ? <ListIcon className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+                {viewMode === 'grid' ? <ListIcon className="w-6 h-6" /> : <LayoutGrid className="w-6 h-6" />}
             </Button>
             <Button
-              variant="secondary"
+              variant="ghost"
               size="icon"
               onClick={() => setGlobalSettingsOpen(true)}
-              className="shadow-sm"
+              className="text-foreground/80 hover:text-foreground"
               aria-label="Settings"
               data-testid="header-settings-button"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-6 h-6" />
             </Button>
             <Button
+              variant="ghost"
+              size="icon"
               onClick={triggerFileUpload}
               disabled={isImporting}
-              className="gap-2 shadow-sm"
+              className="text-foreground/80 hover:text-foreground"
               aria-label="Import book"
               data-testid="header-add-button"
             >
               {isImporting ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
               ) : (
-                <Upload className="w-4 h-4" />
+                <Upload className="w-6 h-6" />
               )}
-              <span className="font-medium hidden sm:inline">Import Book</span>
-              <span className="font-medium sm:hidden">Import</span>
             </Button>
           </div>
+        </div>
+
+        {/* Second Row: Search Bar */}
+        <div className="w-full">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 text-base bg-muted/30 border-input/60"
+              data-testid="library-search-input"
+            />
+          </div>
+        </div>
+
+        {/* Third Row: Sort By (Placeholder) */}
+        <div className="flex items-center gap-1 text-base font-medium text-foreground cursor-pointer select-none">
+          <span>Sort by: Recently Added</span>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </div>
       </header>
 
@@ -208,7 +219,7 @@ export const LibraryView: React.FC = () => {
           ) : (
             <>
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 w-full">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6 w-full">
                   {filteredBooks.map((book) => (
                     <div key={book.id} className="flex justify-center">
                       <BookCard book={book} />
