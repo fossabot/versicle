@@ -1,4 +1,4 @@
-import type { ITTSProvider, TTSOptions, TTSEvent, TTSVoice, Timepoint, SpeechSegment } from './types';
+import type { ITTSProvider, TTSOptions, TTSEvent, TTSVoice, SpeechSegment } from './types';
 import { AudioElementPlayer } from '../AudioElementPlayer';
 import { TTSCache } from '../TTSCache';
 import { CostEstimator } from '../CostEstimator';
