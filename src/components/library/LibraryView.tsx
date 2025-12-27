@@ -1,49 +1,17 @@
-import React, { useEffect, useState, useRef, useLayoutEffect, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useToastStore } from '../../store/useToastStore';
 import { BookCard } from './BookCard';
 import { BookListItem } from './BookListItem';
 import { EmptyLibrary } from './EmptyLibrary';
-import { Grid } from 'react-window';
 import { Upload, Settings, LayoutGrid, List as ListIcon, FilePlus } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { Button } from '../ui/Button';
 
-// Grid Configuration
-const CARD_WIDTH = 200; // Minimal width
-const CARD_HEIGHT = 320;
-const GAP = 12;
-const LIST_ITEM_HEIGHT = 88;
-
-/**
- * Renders a single cell within the virtualized grid of books.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const GridCell = ({ columnIndex, rowIndex, style, books, columnCount }: any) => {
-    const index = rowIndex * columnCount + columnIndex;
-    if (index >= books.length) return <div style={style} />;
-    const book = books[index];
-
-    return (
-        <div style={{ ...style, padding: GAP / 2 }}>
-           <BookCard book={book} />
-        </div>
-    );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ListCell = ({ rowIndex, style, books }: any) => {
-    const index = rowIndex;
-    if (index >= books.length) return <div style={style} />;
-    const book = books[index];
-    return <BookListItem book={book} style={style} />;
-}
-
-
 /**
  * The main library view component.
- * Displays the user's collection of books in a virtualized grid and allows importing new books.
- * Handles fetching books from the store and responsive layout calculations.
+ * Displays the user's collection of books in a responsive grid or list and allows importing new books.
+ * Handles fetching books from the store.
  *
  * @returns A React component rendering the library interface.
  */
@@ -51,52 +19,12 @@ export const LibraryView: React.FC = () => {
   const { books, fetchBooks, isLoading, error, addBook, isImporting, viewMode, setViewMode } = useLibraryStore();
   const { setGlobalSettingsOpen } = useUIStore();
   const showToast = useToastStore(state => state.showToast);
-  const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dimensions, setDimensions] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0
-  });
   const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     fetchBooks();
   }, [fetchBooks]);
-
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-
-    const observer = new ResizeObserver((entries) => {
-      // Debounce logic could be added here if needed, but ResizeObserver is already reasonably efficient.
-      // For immediate responsiveness, we'll update directly but wrapped in requestAnimationFrame to align with paint cycles.
-      window.requestAnimationFrame(() => {
-        if (!Array.isArray(entries) || !entries.length) return;
-        const entry = entries[0];
-
-        // Use contentRect for precise content box dimensions
-        const { width } = entry.contentRect;
-
-        // Ignore invalid width updates (prevents collapse in some environments)
-        if (width <= 0) return;
-
-        // Calculate height based on window to keep the original full-screen behavior
-        // (Though using contentRect height would be more robust if the parent container is constrained)
-        const top = entry.target.getBoundingClientRect().top;
-        const height = window.innerHeight - top - 20;
-
-        setDimensions(prev => {
-            if (prev.width === width && prev.height === height) return prev;
-            return { width, height };
-        });
-      });
-    });
-
-    observer.observe(containerRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [isLoading]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -155,46 +83,10 @@ export const LibraryView: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const columnCount = Math.floor((dimensions.width + GAP) / (CARD_WIDTH + GAP)) || 1;
-  // Add 1 to rowCount for spacer
-  const rowCount = Math.ceil(books.length / columnCount) + 1;
-
-  // Logic to determine grid width and column width
-  // If columnCount is 1 (e.g. mobile), we allow the single column to stretch to fill the available space.
-  // This ensures the card is centered and substantial on small screens, satisfying the "no horizontal scroll" and "width > 300px" checks if the screen permits.
-  // For multi-column layouts (desktop), we use a fixed column width (CARD_WIDTH + GAP) and center the grid block to avoid awkward stretching.
-
-  let gridWidth: number;
-  let gridColumnWidth: number;
-
-  if (columnCount === 1) {
-      gridWidth = dimensions.width;
-      gridColumnWidth = dimensions.width;
-  } else {
-      gridWidth = Math.min(dimensions.width, columnCount * (CARD_WIDTH + GAP));
-      gridColumnWidth = CARD_WIDTH + GAP;
-  }
-
-  // Memoize itemData (cellProps) to prevent unnecessary re-renders of the grid cells.
-  // This version of react-window uses cellProps which are spread into the component props.
-  const itemData = React.useMemo(() => ({ books, columnCount }), [books, columnCount]);
-
-  const getRowHeight = useCallback((index: number) => {
-      if (viewMode === 'list') {
-          if (index === books.length) return 100;
-          return LIST_ITEM_HEIGHT;
-      }
-      if (index === rowCount - 1) return 100;
-      return CARD_HEIGHT + GAP;
-  }, [viewMode, rowCount, books.length]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const GridAny = Grid as any;
-
   return (
     <div
       data-testid="library-view"
-      className="container mx-auto px-4 py-8 max-w-7xl h-screen flex flex-col bg-background text-foreground relative"
+      className="container mx-auto px-4 py-8 max-w-7xl min-h-screen flex flex-col bg-background text-foreground relative"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -275,24 +167,29 @@ export const LibraryView: React.FC = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <section
-          className="flex-1 min-h-0 w-full flex flex-col items-center"
-          ref={containerRef}
-        >
+        <section className="flex-1 w-full">
           {books.length === 0 ? (
              <EmptyLibrary onImport={triggerFileUpload} />
           ) : (
-             <GridAny
-                columnCount={viewMode === 'list' ? 1 : columnCount}
-                columnWidth={viewMode === 'list' ? dimensions.width : gridColumnWidth}
-                height={dimensions.height || 500}
-                rowCount={viewMode === 'list' ? books.length + 1 : rowCount}
-                rowHeight={getRowHeight}
-                width={viewMode === 'list' ? dimensions.width : gridWidth}
-                cellComponent={viewMode === 'list' ? ListCell : GridCell}
-                cellProps={itemData}
-                style={viewMode === 'grid' ? { margin: '0 auto' } : undefined}
-             />
+            <>
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 w-full">
+                  {books.map((book) => (
+                    <div key={book.id} className="flex justify-center">
+                      <BookCard book={book} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 w-full">
+                  {books.map((book) => (
+                    <BookListItem key={book.id} book={book} />
+                  ))}
+                </div>
+              )}
+              {/* Spacer for bottom navigation or just breathing room */}
+              <div className="h-24" />
+            </>
           )}
         </section>
       )}

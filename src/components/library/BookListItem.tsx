@@ -22,8 +22,6 @@ import { Progress } from '../ui/Progress';
 interface BookListItemProps {
     /** The metadata of the book to display. */
     book: BookMetadata;
-    /** Inline styles for positioning (used by react-window). */
-    style: React.CSSProperties;
 }
 
 const formatFileSize = (bytes?: number): string => {
@@ -54,7 +52,7 @@ const formatDuration = (chars?: number): string => {
  * @param props - Component props.
  * @returns The rendered list item.
  */
-export const BookListItem: React.FC<BookListItemProps> = ({ book, style }) => {
+export const BookListItem: React.FC<BookListItemProps> = ({ book }) => {
     const navigate = useNavigate();
     const { removeBook, offloadBook, restoreBook } = useLibraryStore();
     const showToast = useToastStore(state => state.showToast);
@@ -139,7 +137,7 @@ export const BookListItem: React.FC<BookListItemProps> = ({ book, style }) => {
     const sizeString = formatFileSize(book.fileSize);
 
     return (
-        <div style={style} className="px-4 py-2" data-testid={`book-list-item-${book.id}`}>
+        <div className="px-4 py-2" data-testid={`book-list-item-${book.id}`}>
             <div
                 className={cn(
                     "flex items-center gap-4 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group h-full border border-transparent hover:border-border",
