@@ -258,7 +258,7 @@ export const LibraryView: React.FC = () => {
           ) : (
             <>
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6 w-full">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6 w-full">
                   {filteredAndSortedBooks.map((book) => (
                     <div key={book.id} className="flex justify-center">
                       <BookCard book={book} />
