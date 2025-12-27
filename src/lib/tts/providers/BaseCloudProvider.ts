@@ -9,6 +9,7 @@ export abstract class BaseCloudProvider implements ITTSProvider {
   protected audioPlayer: AudioElementPlayer;
   protected cache: TTSCache;
   protected eventListeners: ((event: TTSEvent) => void)[] = [];
+  protected requestRegistry: Map<string, Promise<SpeechSegment>> = new Map();
 
   constructor() {
     this.audioPlayer = new AudioElementPlayer();
@@ -36,62 +37,77 @@ export abstract class BaseCloudProvider implements ITTSProvider {
 
   async play(text: string, options: TTSOptions): Promise<void> {
     try {
-        // 1. Check Cache
-        // We use default pitch 1.0 and empty lexiconHash for now (assuming text is already processed)
-        const cacheKey = await this.cache.generateKey(text, options.voiceId, options.speed, 1.0, '');
-        const cached = await this.cache.get(cacheKey);
+      const { audio, alignment } = await this.getOrFetch(text, options);
 
-        let audioBlob: Blob;
-        let alignment: Timepoint[] | undefined;
+      // 4. Emit Meta
+      if (alignment) {
+        this.emit({ type: 'meta', alignment });
+      }
 
-        if (cached) {
-            audioBlob = new Blob([cached.audio], { type: 'audio/mp3' }); // Assuming mp3 or standard
-            alignment = cached.alignment;
-        } else {
-            // 2. Cache Miss - Fetch
-            CostEstimator.getInstance().track(text);
-            const result = await this.fetchAudioData(text, options);
-            if (!result.audio) {
-                throw new Error("No audio returned from provider");
-            }
-            audioBlob = result.audio;
-            alignment = result.alignment;
-
-            // 3. Save to Cache
-            await this.cache.put(cacheKey, await audioBlob.arrayBuffer(), alignment);
-        }
-
-        // 4. Emit Meta
-        if (alignment) {
-            this.emit({ type: 'meta', alignment });
-        }
-
-        // 5. Play
-        this.audioPlayer.setRate(options.speed);
-        // We need to wait for playback to START. playBlob returns a promise that resolves when it starts.
-        await this.audioPlayer.playBlob(audioBlob);
-        this.emit({ type: 'start' });
+      // 5. Play
+      this.audioPlayer.setRate(options.speed);
+      // We need to wait for playback to START. playBlob returns a promise that resolves when it starts.
+      if (audio) {
+        await this.audioPlayer.playBlob(audio);
+      }
+      this.emit({ type: 'start' });
 
     } catch (e) {
-        this.emit({ type: 'error', error: e });
-        throw e;
+      this.emit({ type: 'error', error: e });
+      throw e;
     }
   }
 
   async preload(text: string, options: TTSOptions): Promise<void> {
+    try {
+      await this.getOrFetch(text, options);
+    } catch (e) {
+      console.warn("Preload failed", e);
+    }
+  }
+
+  protected async getOrFetch(text: string, options: TTSOptions): Promise<SpeechSegment> {
+    const cacheKey = await this.cache.generateKey(text, options.voiceId, options.speed, 1.0, '');
+
+    // 1. Permanent Cache Check
+    const cached = await this.cache.get(cacheKey);
+    if (cached) {
+      return {
+        audio: new Blob([cached.audio], { type: 'audio/mp3' }),
+        alignment: cached.alignment,
+        isNative: false
+      };
+    }
+
+    // 2. Active Registry Check
+    const existingPromise = this.requestRegistry.get(cacheKey);
+    if (existingPromise) {
+      return await existingPromise;
+    }
+
+    // 3. Initiate Fetch (Owner)
+    // Only the owner tracks cost
+    CostEstimator.getInstance().track(text);
+
+    const fetchPromise = (async () => {
       try {
-          const cacheKey = await this.cache.generateKey(text, options.voiceId, options.speed, 1.0, '');
-          const cached = await this.cache.get(cacheKey);
-          if (!cached) {
-             CostEstimator.getInstance().track(text);
-             const result = await this.fetchAudioData(text, options);
-             if (result.audio) {
-                 await this.cache.put(cacheKey, await result.audio.arrayBuffer(), result.alignment);
-             }
-          }
-      } catch (e) {
-          console.warn("Preload failed", e);
+        const result = await this.fetchAudioData(text, options);
+        if (!result.audio) {
+          throw new Error("No audio returned from provider");
+        }
+
+        // Write to permanent cache
+        await this.cache.put(cacheKey, await result.audio.arrayBuffer(), result.alignment);
+
+        return result;
+      } finally {
+        // Cleanup registry
+        this.requestRegistry.delete(cacheKey);
       }
+    })();
+
+    this.requestRegistry.set(cacheKey, fetchPromise);
+    return await fetchPromise;
   }
 
   pause(): void {
