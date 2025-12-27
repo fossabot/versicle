@@ -121,7 +121,8 @@ describe('LibraryView', () => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 { id: '3', title: 'C', author: 'X', addedAt: 200, lastRead: 300 } as any
             ],
-            viewMode: 'grid'
+            viewMode: 'grid',
+            sortOrder: 'recent'
         });
 
         render(<LibraryView />);
