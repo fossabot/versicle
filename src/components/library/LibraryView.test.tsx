@@ -5,23 +5,6 @@ import { LibraryView } from './LibraryView';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useToastStore } from '../../store/useToastStore';
 
-// Mock react-window
-vi.mock('react-window', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Grid: ({ cellComponent: Cell, cellProps, columnCount, rowCount }: any) => (
-    <div data-testid="virtual-grid">
-      {Array.from({ length: rowCount }).flatMap((_, r) =>
-         Array.from({ length: columnCount }).map((_, c) =>
-            <div key={`${r}-${c}`}>
-                {/* Ensure style properties are numbers for calculations */}
-                <Cell columnIndex={c} rowIndex={r} style={{ width: 100, height: 100, left: 0, top: 0 }} {...cellProps} />
-            </div>
-         )
-      )}
-    </div>
-  )
-}));
-
 // Mock BookCard
 vi.mock('./BookCard', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,7 +54,6 @@ describe('LibraryView', () => {
     it('renders loading state', () => {
         useLibraryStore.setState({ isLoading: true });
         render(<LibraryView />);
-        expect(screen.queryByTestId('virtual-grid')).not.toBeInTheDocument();
         expect(document.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
@@ -87,20 +69,15 @@ describe('LibraryView', () => {
                 { id: '1', title: 'Book 1' } as any,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 { id: '2', title: 'Book 2' } as any
-            ]
+            ],
+            viewMode: 'grid'
         });
 
         render(<LibraryView />);
 
-        act(() => {
-            window.dispatchEvent(new Event('resize'));
-        });
-
         await waitFor(() => {
-            expect(screen.getByTestId('virtual-grid')).toBeInTheDocument();
+            expect(screen.getAllByTestId('book-card')).toHaveLength(2);
         });
-
-        expect(screen.getAllByTestId('book-card')).toHaveLength(2);
     });
 
     it('handles drag and drop import', async () => {
