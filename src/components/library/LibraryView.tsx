@@ -4,9 +4,12 @@ import { useToastStore } from '../../store/useToastStore';
 import { BookCard } from './BookCard';
 import { BookListItem } from './BookListItem';
 import { EmptyLibrary } from './EmptyLibrary';
-import { Upload, Settings, LayoutGrid, List as ListIcon, FilePlus } from 'lucide-react';
+import { Upload, Settings, LayoutGrid, List as ListIcon, FilePlus, Search } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+
+type SortOption = 'recent' | 'last_read' | 'author' | 'title';
 
 /**
  * The main library view component.
@@ -21,6 +24,8 @@ export const LibraryView: React.FC = () => {
   const showToast = useToastStore(state => state.showToast);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('recent');
 
   useEffect(() => {
     fetchBooks();
@@ -83,6 +88,33 @@ export const LibraryView: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const filteredAndSortedBooks = books
+    .filter(book => {
+      const query = searchQuery.toLowerCase();
+      return (
+        (book.title || '').toLowerCase().includes(query) ||
+        (book.author || '').toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'recent':
+          // Sort by addedAt descending (newest first)
+          return (b.addedAt || 0) - (a.addedAt || 0);
+        case 'last_read':
+          // Sort by lastRead descending (most recently read first)
+          return (b.lastRead || 0) - (a.lastRead || 0);
+        case 'author':
+          // Sort by author ascending (A-Z)
+          return (a.author || '').localeCompare(b.author || '');
+        case 'title':
+          // Sort by title ascending (A-Z)
+          return (a.title || '').localeCompare(b.title || '');
+        default:
+          return 0;
+      }
+    });
+
   return (
     <div
       data-testid="library-view"
@@ -111,12 +143,15 @@ export const LibraryView: React.FC = () => {
         </div>
       )}
 
-      <header className="mb-8 flex-none flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Library</h1>
-          <p className="text-muted-foreground">Manage and read your EPUB collection</p>
-        </div>
-        <div className="flex gap-2">
+      <header className="mb-6 flex flex-col gap-4">
+        {/* Top Row: Title and Actions */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">My Library</h1>
+            <p className="text-muted-foreground hidden md:block mt-1">Manage and read your EPUB collection</p>
+          </div>
+
+          <div className="flex gap-2">
             <Button
                 variant="secondary"
                 size="icon"
@@ -149,8 +184,40 @@ export const LibraryView: React.FC = () => {
               ) : (
                 <Upload className="w-4 h-4" />
               )}
-              <span className="font-medium">Import Book</span>
+              <span className="font-medium hidden sm:inline">Import Book</span>
+              <span className="font-medium sm:hidden">Import</span>
             </Button>
+          </div>
+        </div>
+
+        {/* Second Row: Search Bar */}
+        <div className="w-full">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              data-testid="library-search-input"
+            />
+          </div>
+        </div>
+
+        {/* Third Row: Sort By */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="whitespace-nowrap">Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="bg-transparent font-medium text-foreground border-none focus:ring-0 cursor-pointer p-0 pr-8"
+            data-testid="sort-select"
+          >
+            <option value="recent">Recently Added</option>
+            <option value="last_read">Last Read</option>
+            <option value="author">Author</option>
+            <option value="title">Title</option>
+          </select>
         </div>
       </header>
 
@@ -170,11 +237,22 @@ export const LibraryView: React.FC = () => {
         <section className="flex-1 w-full">
           {books.length === 0 ? (
              <EmptyLibrary onImport={triggerFileUpload} />
+          ) : filteredAndSortedBooks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <p className="text-lg">No books found matching "{searchQuery}"</p>
+              <Button
+                variant="link"
+                onClick={() => setSearchQuery('')}
+                className="mt-2"
+              >
+                Clear search
+              </Button>
+            </div>
           ) : (
             <>
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 w-full">
-                  {books.map((book) => (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6 w-full">
+                  {filteredAndSortedBooks.map((book) => (
                     <div key={book.id} className="flex justify-center">
                       <BookCard book={book} />
                     </div>
@@ -182,7 +260,7 @@ export const LibraryView: React.FC = () => {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2 w-full">
-                  {books.map((book) => (
+                  {filteredAndSortedBooks.map((book) => (
                     <BookListItem key={book.id} book={book} />
                   ))}
                 </div>
