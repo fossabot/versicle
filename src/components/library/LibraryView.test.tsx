@@ -66,9 +66,9 @@ describe('LibraryView', () => {
         useLibraryStore.setState({
             books: [
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                { id: '1', title: 'Book 1' } as any,
+                { id: '1', title: 'Book 1', author: 'Author 1' } as any,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                { id: '2', title: 'Book 2' } as any
+                { id: '2', title: 'Book 2', author: 'Author 2' } as any
             ],
             viewMode: 'grid'
         });
@@ -77,6 +77,57 @@ describe('LibraryView', () => {
 
         await waitFor(() => {
             expect(screen.getAllByTestId('book-card')).toHaveLength(2);
+        });
+    });
+
+    it('filters books by search query', async () => {
+        useLibraryStore.setState({
+            books: [
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                { id: '1', title: 'The Great Gatsby', author: 'F. Scott Fitzgerald' } as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                { id: '2', title: '1984', author: 'George Orwell' } as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                { id: '3', title: 'Brave New World', author: 'Aldous Huxley' } as any
+            ],
+            viewMode: 'grid'
+        });
+
+        render(<LibraryView />);
+
+        const searchInput = screen.getByTestId('library-search-input');
+        fireEvent.change(searchInput, { target: { value: 'George' } });
+
+        await waitFor(() => {
+            expect(screen.getAllByTestId('book-card')).toHaveLength(1);
+            expect(screen.getByText('1984')).toBeInTheDocument();
+        });
+
+        fireEvent.change(searchInput, { target: { value: 'Great' } });
+
+        await waitFor(() => {
+            expect(screen.getAllByTestId('book-card')).toHaveLength(1);
+            expect(screen.getByText('The Great Gatsby')).toBeInTheDocument();
+        });
+    });
+
+    it('shows no results message when search returns nothing', async () => {
+        useLibraryStore.setState({
+            books: [
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                { id: '1', title: 'The Great Gatsby', author: 'F. Scott Fitzgerald' } as any
+            ],
+            viewMode: 'grid'
+        });
+
+        render(<LibraryView />);
+
+        const searchInput = screen.getByTestId('library-search-input');
+        fireEvent.change(searchInput, { target: { value: 'Harry Potter' } });
+
+        await waitFor(() => {
+            expect(screen.queryByTestId('book-card')).not.toBeInTheDocument();
+            expect(screen.getByText('No books found matching "Harry Potter"')).toBeInTheDocument();
         });
     });
 
