@@ -197,34 +197,37 @@ export const LibraryView: React.FC = () => {
           </div>
         </div>
 
-        {/* Second Row: Search Bar */}
-        <div className="w-full">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-              data-testid="library-search-input"
-            />
+        {/* Combined Row: Search and Sort */}
+        <div className="flex flex-col gap-4 md:flex-row-reverse md:items-center md:justify-between">
+          {/* Search Bar */}
+          <div className="w-full md:w-72">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+                data-testid="library-search-input"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Third Row: Sort By */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="whitespace-nowrap">Sort by:</span>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as SortOption)}
-            className="bg-transparent font-medium text-foreground border-none focus:ring-0 cursor-pointer p-0 pr-8"
-            data-testid="sort-select"
-          >
-            <option value="recent">Recently Added</option>
-            <option value="last_read">Last Read</option>
-            <option value="author">Author</option>
-            <option value="title">Title</option>
-          </select>
+          {/* Sort By */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="whitespace-nowrap">Sort by:</span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as SortOption)}
+              className="bg-transparent font-medium text-foreground border-none focus:ring-0 cursor-pointer p-0 pr-8"
+              data-testid="sort-select"
+            >
+              <option value="recent">Recently Added</option>
+              <option value="last_read">Last Read</option>
+              <option value="author">Author</option>
+              <option value="title">Title</option>
+            </select>
+          </div>
         </div>
       </header>
 
