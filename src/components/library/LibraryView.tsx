@@ -25,13 +25,7 @@ const GridCell = ({ columnIndex, rowIndex, style, books, columnCount }: any) => 
     const book = books[index];
 
     return (
-        <div style={{
-            ...style,
-            left: Number(style.left) + GAP / 2,
-            top: Number(style.top) + GAP / 2,
-            width: Number(style.width) - GAP,
-            height: Number(style.height) - GAP,
-        }}>
+        <div style={{ ...style, padding: GAP / 2 }}>
            <BookCard book={book} />
         </div>
     );
