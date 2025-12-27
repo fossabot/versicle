@@ -1,5 +1,7 @@
 # Versicle
 
+> **Note:** **Versicle** is an experimental project implemented almost entirely with **Google Jules**, an advanced AI software engineer agent.
+
 **Versicle** is a local-first, privacy-focused EPUB reader and audiobook player. It runs entirely in your browser (or as a mobile app) and gives you complete ownership of your library.
 
 ## Why Versicle?
@@ -9,7 +11,7 @@
 *   **Hybrid Intelligence**:
     *   **Offline TTS**: Use local Neural voices (Piper) for free, unlimited offline listening.
     *   **Cloud TTS**: Connect your own API keys (OpenAI, Google) for studio-quality narration.
-    *   **AI Enhanced**: Use Google Gemini to generate smart Tables of Content and summaries.
+    *   **AI Enhanced**: Use Google Gemini to generate smart Tables of Content and Summaries.
 *   **Data Ownership**: Export your data at any time. Full backups (ZIP) or Metadata (JSON).
 
 ## Tech Stack
@@ -20,6 +22,7 @@
 *   **Storage**: IndexedDB (via `idb`)
 *   **Parsing**: epub.js + PapaParse (CSV)
 *   **Audio**: Piper (WASM) / Web Speech API
+*   **AI**: Google Gemini (via `@google/generative-ai`)
 *   **Mobile**: Capacitor (Android)
 *   **Workers**: Comlink + Web Workers
 *   **Styling**: Tailwind CSS + Radix UI
@@ -28,12 +31,15 @@
 
 ### Reading (The "Reading Room")
 *   **Customizable**: Fonts, themes, line height, margins via a dedicated Visual Settings interface.
-*   **Formats**: EPUB, ZIP (Batch Import).
+*   **Formats**: EPUB, ZIP (Batch Import), Folder Import (Batch).
+*   **Drag & Drop**: Drag files anywhere to import.
 *   **Search**: Fast, offline full-text search (RegExp based) running in a Web Worker.
 *   **Annotations**: Highlights and notes.
 
 ### Listening (The "Listening Room")
-*   **Text-to-Speech**: Turn any book into an audiobook with the Unified Audio Panel.
+*   **Unified Control Bar**: Seamless audio control with the "Compass Pill" UI.
+*   **Smart Handoff**: Continue listening exactly where you left off, even after app restarts.
+*   **Text-to-Speech**: Turn any book into an audiobook.
 *   **Smart Segmentation**: Natural pausing at sentence boundaries.
 *   **Lexicon**: Fix mispronounced words with custom rules (Regex supported).
 *   **Offline Cache**: Generated audio is cached locally to save bandwidth and costs.
@@ -58,14 +64,13 @@
 ### Installation
 
 1.  Clone the repository.
-2.  Install dependencies:
+2.  Install dependencies (automatically sets up Piper WASM assets):
     ```bash
     npm install
     ```
-3.  Prepare WASM assets (Piper):
-    ```bash
-    npm run prepare-piper
-    ```
+    *Note: If Piper assets are missing, run `npm run prepare-piper`.*
+
+3.  (Optional) Read `AGENTS.md` for AI assistant guidelines.
 
 ### Running Locally
 
@@ -91,7 +96,7 @@ npx vitest src/lib/ingestion.test.ts
 ```
 
 #### Verification Suite (Docker)
-We use Docker to run end-to-end tests in a consistent environment.
+We use Docker to run end-to-end tests in a consistent environment using Playwright.
 
 1.  **Build the Image**:
     ```bash
@@ -105,7 +110,7 @@ We use Docker to run end-to-end tests in a consistent environment.
 
 3.  **Run Specific Verification Script**:
     ```bash
-    # Note: Requires correct path mapping or rebuilding image if script changed
+    # Run a specific verification script (e.g., layout test)
     docker run --rm versicle-verification /app/verification/test_golden_layout.py
     ```
 
