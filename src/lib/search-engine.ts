@@ -95,7 +95,7 @@ export class SearchEngine {
         // SECURITY: Limit regex execution time to prevent ReDoS (Regular Expression Denial of Service)
         // A complex document or query could cause the regex engine to hang.
         const startTime = Date.now();
-        const TIME_LIMIT_MS = 100;
+        const TIME_LIMIT_MS = 500;
 
         const results: SearchResult[] = [];
         const MAX_RESULTS = 50;
