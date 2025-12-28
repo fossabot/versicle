@@ -341,6 +341,10 @@ export const useTTSStore = create<TTSState>()(
                 player.setBackgroundAudioMode(state.backgroundAudioMode);
                 player.setBackgroundVolume(state.whiteNoiseVolume);
                 player.setPrerollEnabled(state.prerollEnabled);
+                player.setSpeed(state.rate);
+                if (state.voice) {
+                    player.setVoice(state.voice.id);
+                }
             }
         },
     }
