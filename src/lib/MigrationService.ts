@@ -70,9 +70,17 @@ export class MigrationService {
                     continue;
                 }
 
+                // Ensure file is correct type (File or ArrayBuffer)
+                let ingestibleFile: File | ArrayBuffer;
+                if (file instanceof Blob && !(file instanceof File)) {
+                     ingestibleFile = new File([file], book.filename || 'book.epub', { type: file.type || 'application/epub+zip' });
+                } else {
+                     ingestibleFile = file as File | ArrayBuffer;
+                }
+
                 // 2. Re-extract content with EMPTY options
                 // We reuse extractContentOffscreen but with minimal options
-                const chapters = await extractContentOffscreen(file, {
+                const chapters = await extractContentOffscreen(ingestibleFile, {
                     abbreviations: [],
                     alwaysMerge: [],
                     // we keep sanitization enabled as it was likely enabled before
