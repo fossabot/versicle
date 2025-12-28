@@ -116,6 +116,8 @@ def test_smart_toc_failure(page):
 
     # 2. Service Failure Scenario
     print("--- Scenario 2: Service Failure ---")
+    # Reset history state to ensure sidebar is closed after reload
+    page.evaluate("history.replaceState(null, '')")
     page.evaluate("""() => {
         localStorage.setItem('genai-storage', JSON.stringify({ state: { isEnabled: true, apiKey: 'mock-key', model: 'gemini-2.5-flash-lite' }, version: 0 }));
         localStorage.setItem('mockGenAIError', 'true');
