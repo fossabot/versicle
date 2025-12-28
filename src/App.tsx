@@ -16,6 +16,7 @@ import { StorageFullError } from './types/errors';
 import { Capacitor } from '@capacitor/core';
 import { ForegroundService, Importance } from '@capawesome-team/capacitor-android-foreground-service';
 import { AudioPlayerService } from './lib/tts/AudioPlayerService';
+import { MigrationService } from './lib/MigrationService';
 
 /**
  * Main Application component.
@@ -79,6 +80,24 @@ function App() {
 
         // Initialize DB
         await getDB();
+
+        // Check and run migrations if necessary
+        const migrationRequired = await MigrationService.isMigrationRequired();
+        if (migrationRequired) {
+            // We run migration in background, but we need to notify user?
+            // The plan said "Background Migration".
+            // "Show a non-blocking progress indicator (e.g., "Updating library format...")"
+            // We can fire it and forget, letting Toast handle updates?
+            // Or use a transient state in App?
+            MigrationService.migrateLibrary((progress, message) => {
+                 if (progress === 0) {
+                     useToastStore.getState().showToast('Updating library format...', 'info');
+                 }
+                 if (progress === 100) {
+                     useToastStore.getState().showToast('Library update complete.', 'success');
+                 }
+            }).catch(e => console.error("Migration failed", e));
+        }
 
         // Wait for Android init to complete (or fail gracefully)
         await androidInitPromise;
