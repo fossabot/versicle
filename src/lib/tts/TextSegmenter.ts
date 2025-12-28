@@ -279,15 +279,10 @@ export class TextSegmenter {
                         const startCfi = parseCfiRange(last.cfi);
                         const endCfi = parseCfiRange(current.cfi);
 
-                        if (startCfi && endCfi && startCfi.parent === endCfi.parent) {
-                             // Simple case: same parent
-                             last.cfi = generateCfiRange(startCfi.rawStart, endCfi.rawEnd);
-                        } else {
-                            // Complex case: disparate CFIs or different parents.
-                            // fallback: keep last.cfi start, use current.cfi end if possible,
-                            // or just hope generateCfiRange handles it.
-                            // generateCfiRange handles common prefix logic.
-                             last.cfi = generateCfiRange(last.cfi, current.cfi);
+                        if (startCfi && endCfi) {
+                             // We want the range from the START of the first segment to the END of the second segment.
+                             // generateCfiRange takes two points (start and end) and finds the common parent.
+                             last.cfi = generateCfiRange(startCfi.fullStart, endCfi.fullEnd);
                         }
 
                         continue;

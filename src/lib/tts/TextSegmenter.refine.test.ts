@@ -93,10 +93,10 @@ describe('TextSegmenter.refineSegments', () => {
 
         // start: /6/2!/4/1:10
         // end: /6/2!/4/2:10
-        // common: /6/2!/4/
-        // startRel: 1:10
-        // endRel: 2:10
-        // Expected: epubcfi(/6/2!/4/,1:10,2:10)
-        expect(refined[0].cfi).toBe('epubcfi(/6/2!/4/,1:10,2:10)');
+        // common: /6/2!/4 (split at slash)
+        // startRel: /1:10
+        // endRel: /2:10
+        // Expected: epubcfi(/6/2!/4,/1:10,/2:10)
+        expect(refined[0].cfi).toBe('epubcfi(/6/2!/4,/1:10,/2:10)');
     });
 });

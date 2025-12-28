@@ -97,9 +97,9 @@ To transition to the reactive model, existing books must be converted to the "Ma
 
     -   **Background Migration**: On application startup, detect if the stored version is lower than the current version.
 
-    -   **Re-ingestion Pass**: For each book in the library, trigger a background task that performs the "Maximal Splitting" ingestion logic. Since the book file (blob) is already in the `files` store, this does not require user action or networking.
+    -   **Re-ingestion Pass**: For each book in the library, trigger a blocking task that performs the "Maximal Splitting" ingestion logic. Since the book file (blob) is already in the `files` store, this does not require user action or networking.
 
-    -   **UI Feedback**: Show a non-blocking progress indicator (e.g., "Updating library format...") during the migration.
+    -   **UI Feedback**: Show a **blocking interstitial** (full-screen overlay) with a progress bar during the migration to prevent user interaction/race conditions.
 
     -   **Safety**: This migration only affects the `tts_content` table; annotations and reading history (CFI-based) remain valid as the base structure of the EPUB has not changed.
 
@@ -128,8 +128,10 @@ While `generateCfiRange` works well for segments that share a common parent (mos
 *   **Discovery**: `epub.js` CFI range syntax (`epubcfi(P, S, E)`) assumes a common parent path `P`. If two segments have different parents, a simple "common prefix" extraction might fail or produce invalid CFIs if not handled carefully.
 *   **Solution**: The implemented `TextSegmenter.refineSegments` attempts to parse and match parents. If they match, it uses `generateCfiRange` with the precise start/end offsets. If they don't (rare edge case), it falls back to `generateCfiRange` on the full raw CFI strings, relying on its internal common-prefix logic to find the highest common ancestor, which is robust enough for `epub.js`.
 
-### 2. Migration Service
+### 2. Migration Service & Strategy Change
 A dedicated `MigrationService` was created to handle the transition.
+*   **Blocking Strategy**: Based on PR feedback, the migration strategy was updated from background to **blocking**. This ensures no race conditions occur if a user tries to play a book while it is being re-segmented.
+*   **UI Implementation**: `App.tsx` renders a blocking full-screen overlay with a progress bar when migration is active.
 *   **App Metadata**: Added `app_metadata` object store to `EpubLibraryDB` (v14) to track `segmentation_version` separate from the schema version.
 *   **Flow**: On startup (`App.tsx`), the service checks the version. If outdated (< 1), it iterates all books, retrieves the source file from the `files` store, and re-runs `extractContentOffscreen` with empty abbreviation lists.
 *   **Offloaded Books**: Books that have been "offloaded" (binary removed to save space) cannot be migrated immediately. The service logs a warning and skips them. These books will naturally be "migrated" (re-ingested) when the user restores them, as the restore process uses the new ingestion logic.
