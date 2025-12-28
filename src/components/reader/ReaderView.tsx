@@ -31,6 +31,7 @@ import { useSmartTOC } from '../../hooks/useSmartTOC';
 import { Wand2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Dialog } from '../ui/Dialog';
+import { useSidebarState } from '../../hooks/useSidebarState';
 
 /**
  * The main reader interface component.
@@ -42,6 +43,7 @@ import { Dialog } from '../ui/Dialog';
 export const ReaderView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { activeSidebar, setSidebar } = useSidebarState();
   const viewerRef = useRef<HTMLDivElement>(null);
   const previousLocation = useRef<{ start: string; end: string; timestamp: number } | null>(null);
 
@@ -467,11 +469,8 @@ export const ReaderView: React.FC = () => {
       };
   }, [rendition, isRenditionReady, id]);
 
-
-  const [showToc, setShowToc] = useState(false);
   const [useSyntheticToc, setUseSyntheticToc] = useState(false);
   const [syntheticToc, setSyntheticToc] = useState<NavigationItem[]>([]);
-  const [showAnnotations, setShowAnnotations] = useState(false);
 
   // Smart TOC Hook
   const { enhanceTOC, isEnhancing, progress: tocProgress } = useSmartTOC(
@@ -490,7 +489,6 @@ export const ReaderView: React.FC = () => {
   const [audioPanelOpen, setAudioPanelOpen] = useState(false);
 
   // Search State
-  const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -666,7 +664,7 @@ export const ReaderView: React.FC = () => {
                 style={{ paddingLeft: `${level * 1.0}rem` }}
                 onClick={() => {
                     rendition?.display(item.href);
-                    setShowToc(false);
+                    setSidebar('none');
                 }}
              >
                  {item.label.trim()}
@@ -679,6 +677,10 @@ export const ReaderView: React.FC = () => {
           </li>
       );
   }
+
+  const showToc = activeSidebar === 'toc';
+  const showAnnotations = activeSidebar === 'annotations';
+  const showSearch = activeSidebar === 'search';
 
   return (
     <div data-testid="reader-view" className="flex flex-col h-screen bg-background text-foreground relative">
@@ -753,7 +755,10 @@ export const ReaderView: React.FC = () => {
                 size="icon"
                 data-testid="reader-toc-button"
                 aria-label="Table of Contents"
-                onClick={() => { setShowToc(!showToc); setShowAnnotations(false); setShowSearch(false); }}
+                onClick={() => {
+                    if (activeSidebar === 'toc') setSidebar('none');
+                    else setSidebar('toc');
+                }}
                 className={cn("rounded-full text-muted-foreground", showToc && "bg-accent text-accent-foreground")}
             >
                 <List className="w-5 h-5" />
@@ -763,7 +768,10 @@ export const ReaderView: React.FC = () => {
                 size="icon"
                 data-testid="reader-annotations-button"
                 aria-label="Annotations"
-                onClick={() => { setShowAnnotations(!showAnnotations); setShowToc(false); setShowSearch(false); }}
+                onClick={() => {
+                    if (activeSidebar === 'annotations') setSidebar('none');
+                    else setSidebar('annotations');
+                }}
                 className={cn("rounded-full text-muted-foreground", showAnnotations && "bg-accent text-accent-foreground")}
             >
                 <Highlighter className="w-5 h-5" />
@@ -774,11 +782,10 @@ export const ReaderView: React.FC = () => {
                 data-testid="reader-search-button"
                 aria-label="Search"
                 onClick={() => {
-                    const willOpen = !showSearch;
-                    setShowSearch(willOpen);
-                    setShowToc(false);
-                    setShowAnnotations(false);
-                    if (willOpen) {
+                    if (activeSidebar === 'search') {
+                        setSidebar('none');
+                    } else {
+                        setSidebar('search');
                         handleCheckIndex();
                     }
                 }}
@@ -919,7 +926,7 @@ export const ReaderView: React.FC = () => {
                  </div>
                  <AnnotationList onNavigate={(cfi) => {
                      rendition?.display(cfi);
-                     if (window.innerWidth < 768) setShowAnnotations(false);
+                     if (window.innerWidth < 768) setSidebar('none');
                  }} />
              </div>
          )}
@@ -933,7 +940,7 @@ export const ReaderView: React.FC = () => {
                         <button
                             data-testid="search-close-button"
                             aria-label="Close search"
-                            onClick={() => setShowSearch(false)}
+                            onClick={() => setSidebar('none')}
                             className="p-2 hover:bg-border rounded -mr-2"
                         >
                             <X className="w-4 h-4 text-muted-foreground" />

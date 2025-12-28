@@ -99,6 +99,7 @@ def test_smart_toc_failure(page):
     expect(page.get_by_test_id("reader-view")).to_be_visible(timeout=20000)
 
     page.get_by_test_id("reader-toc-button").click()
+    expect(page.get_by_test_id("reader-toc-sidebar")).to_be_visible()
     page.get_by_label("Generated Titles").click()
 
     page.get_by_role("button", name="Enhance Titles with AI").click()
@@ -115,6 +116,8 @@ def test_smart_toc_failure(page):
 
     # 2. Service Failure Scenario
     print("--- Scenario 2: Service Failure ---")
+    # Reset history state to ensure sidebar is closed after reload
+    page.evaluate("history.replaceState(null, '')")
     page.evaluate("""() => {
         localStorage.setItem('genai-storage', JSON.stringify({ state: { isEnabled: true, apiKey: 'mock-key', model: 'gemini-2.5-flash-lite' }, version: 0 }));
         localStorage.setItem('mockGenAIError', 'true');
@@ -130,6 +133,7 @@ def test_smart_toc_failure(page):
         expect(page.get_by_test_id("reader-view")).to_be_visible(timeout=20000)
 
     page.get_by_test_id("reader-toc-button").click()
+    expect(page.get_by_test_id("reader-toc-sidebar")).to_be_visible()
     page.get_by_label("Generated Titles").click()
 
     page.get_by_role("button", name="Enhance Titles with AI").click()
