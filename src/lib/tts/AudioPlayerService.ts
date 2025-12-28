@@ -648,13 +648,14 @@ export class AudioPlayerService {
   setSpeed(speed: number) {
       this.speed = speed;
       return this.enqueue(async () => {
-        if (this.status === 'playing') {
-            await this.stopInternal();
+        // If we are currently active, restart the current sentence with new speed
+        // WITHOUT triggering setStatus('stopped') / mediaState 'none'
+        if (this.status === 'playing' || this.status === 'loading') {
+            this.provider.stop();
             await this.playInternal();
-        } else if (this.status === 'paused') {
-            this.setStatus('stopped');
-            await this.stopInternal();
         }
+        // If paused or stopped, we just update the speed variable (done above)
+        // and the next manual 'play' will use it.
       });
   }
 
@@ -679,11 +680,9 @@ export class AudioPlayerService {
   setVoice(voiceId: string) {
       this.voiceId = voiceId;
       return this.enqueue(async () => {
-        if (this.status === 'playing') {
-            await this.stopInternal();
+        if (this.status === 'playing' || this.status === 'loading') {
+            this.provider.stop();
             await this.playInternal();
-        } else if (this.status === 'paused') {
-            this.setStatus('stopped');
         }
       });
   }
