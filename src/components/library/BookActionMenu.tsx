@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Trash2, CloudOff, RefreshCw } from 'lucide-react';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useToastStore } from '../../store/useToastStore';
@@ -17,7 +17,11 @@ interface BookActionMenuProps {
     children: React.ReactNode;
 }
 
-export const BookActionMenu: React.FC<BookActionMenuProps> = ({ book, children }) => {
+export interface BookActionMenuHandle {
+    triggerRestore: () => void;
+}
+
+export const BookActionMenu = forwardRef<BookActionMenuHandle, BookActionMenuProps>(({ book, children }, ref) => {
     const { removeBook, offloadBook, restoreBook } = useLibraryStore();
     const showToast = useToastStore(state => state.showToast);
 
@@ -25,6 +29,12 @@ export const BookActionMenu: React.FC<BookActionMenuProps> = ({ book, children }
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isOffloadDialogOpen, setIsOffloadDialogOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useImperativeHandle(ref, () => ({
+        triggerRestore: () => {
+            fileInputRef.current?.click();
+        }
+    }));
 
     const handleDeleteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -82,7 +92,7 @@ export const BookActionMenu: React.FC<BookActionMenuProps> = ({ book, children }
                 onChange={handleFileChange}
                 accept=".epub"
                 className="hidden"
-                data-testid={`restore-input-menu-${book.id}`}
+                data-testid={`restore-input-${book.id}`}
                 onClick={(e) => e.stopPropagation()}
             />
 
@@ -166,4 +176,6 @@ export const BookActionMenu: React.FC<BookActionMenuProps> = ({ book, children }
             />
         </>
     );
-};
+});
+
+BookActionMenu.displayName = "BookActionMenu";

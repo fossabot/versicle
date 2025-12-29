@@ -2,12 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { BookMetadata } from '../../types/db';
 import { MoreVertical, Cloud } from 'lucide-react';
-import { useLibraryStore } from '../../store/useLibraryStore';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
-import { BookActionMenu } from './BookActionMenu';
+import { BookActionMenu, BookActionMenuHandle } from './BookActionMenu';
 
 /**
  * Props for the BookCard component.
@@ -38,9 +37,8 @@ const formatDuration = (chars?: number): string => {
  */
 export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
   const navigate = useNavigate();
-  const { restoreBook } = useLibraryStore();
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const actionMenuRef = useRef<BookActionMenuHandle>(null);
 
   useEffect(() => {
     let url: string | null = null;
@@ -58,8 +56,8 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
 
   const handleCardClick = () => {
     if (book.isOffloaded) {
-      // Trigger restore
-      fileInputRef.current?.click();
+      // Trigger restore via ActionMenu
+      actionMenuRef.current?.triggerRestore();
     } else {
       navigate(`/read/${book.id}`);
     }
@@ -69,19 +67,6 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleCardClick();
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-        try {
-            await restoreBook(book.id, e.target.files[0]);
-        } catch (error) {
-            console.error("Restore failed", error);
-        }
-    }
-    if (e.target.value) {
-        e.target.value = '';
     }
   };
 
@@ -96,15 +81,6 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
       data-testid={`book-card-${book.id}`}
       className="group flex flex-col bg-card text-card-foreground rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-border h-full cursor-pointer relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full"
     >
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept=".epub"
-        className="hidden"
-        data-testid={`restore-input-${book.id}`}
-      />
-
       <div className="aspect-[2/3] w-full bg-muted relative overflow-hidden shadow-inner flex flex-col">
         {coverUrl ? (
           <LazyLoadImage
@@ -135,7 +111,7 @@ export const BookCard: React.FC<BookCardProps> = React.memo(({ book }) => {
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-            <BookActionMenu book={book}>
+            <BookActionMenu book={book} ref={actionMenuRef}>
                 <div className="h-11 w-11">
                     <Button
                         variant="ghost"
