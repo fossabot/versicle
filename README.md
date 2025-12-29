@@ -1,4 +1,6 @@
 # Versicle
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvrwarp%2Fversicle.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fvrwarp%2Fversicle?ref=badge_shield)
+
 
 > **Note:** **Versicle** is an experimental project implemented almost entirely with **Google Jules**, an advanced AI software engineer agent.
 
@@ -117,3 +119,7 @@ We use Docker to run end-to-end tests in a consistent environment using Playwrig
 ## Contributing
 
 Please see `architecture.md` for a deep dive into the system design.
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fvrwarp%2Fversicle.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fvrwarp%2Fversicle?ref=badge_large)
