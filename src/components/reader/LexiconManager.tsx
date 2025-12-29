@@ -210,6 +210,11 @@ export function LexiconManager({ open, onOpenChange, initialTerm }: LexiconManag
                   rulesToDelete = all.filter(r => r.bookId === currentBookId);
               }
 
+              if (!window.confirm(`${rulesToDelete.length} entries will be replaced with ${newRules.length} new entries. Continue?`)) {
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                  return;
+              }
+
               if (rulesToDelete.length > 0) {
                   await lexiconService.deleteRules(rulesToDelete.map(r => r.id));
               }
