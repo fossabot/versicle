@@ -82,7 +82,7 @@ export const BookActionMenu: React.FC<BookActionMenuProps> = ({ book, children }
                 onChange={handleFileChange}
                 accept=".epub"
                 className="hidden"
-                data-testid={`restore-input-${book.id}`}
+                data-testid={`restore-input-menu-${book.id}`}
                 onClick={(e) => e.stopPropagation()}
             />
 
