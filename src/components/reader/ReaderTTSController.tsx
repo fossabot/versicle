@@ -109,6 +109,15 @@ export const ReaderTTSController: React.FC<ReaderTTSControllerProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       const { status: currentStatus, currentIndex: idx, queue: q } = stateRef.current;
 
       if (e.key === 'ArrowLeft') {
