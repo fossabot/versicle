@@ -180,7 +180,7 @@ export class AudioPlayerService {
       try {
           await this.mediaSessionManager.setMetadata({
               title: item.title || 'Chapter Text',
-              artist: 'Versicle',
+              artist: item.author || 'Versicle',
               album: item.bookTitle || '',
               artwork: item.coverUrl ? [{ src: item.coverUrl }] : []
           });
@@ -824,7 +824,8 @@ export class AudioPlayerService {
                       isPreroll: true,
                       title: title,
                       bookTitle: bookMetadata?.title,
-                      author: bookMetadata?.author
+                      author: bookMetadata?.author,
+                      coverUrl: bookMetadata?.coverUrl
                   });
               }
 
@@ -847,7 +848,8 @@ export class AudioPlayerService {
                   isPreroll: true,
                   title: title,
                   bookTitle: bookMetadata?.title,
-                  author: bookMetadata?.author
+                  author: bookMetadata?.author,
+                  coverUrl: bookMetadata?.coverUrl
               });
           }
 
