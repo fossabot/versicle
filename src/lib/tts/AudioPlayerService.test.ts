@@ -51,27 +51,40 @@ vi.mock('./LexiconService', () => ({
 vi.mock('./MediaSessionManager');
 vi.mock('../../db/DBService', () => ({
   dbService: {
-    getBookMetadata: vi.fn().mockResolvedValue({}),
+    getBookMetadata: vi.fn().mockResolvedValue({
+        title: 'Test Book',
+        author: 'Test Author',
+        coverUrl: 'http://example.com/cover.jpg'
+    }),
     updatePlaybackState: vi.fn().mockResolvedValue(undefined),
     getTTSState: vi.fn().mockResolvedValue(null),
     saveTTSState: vi.fn(),
     updateReadingHistory: vi.fn(),
-    getSections: vi.fn().mockResolvedValue([]),
-    getContentAnalysis: vi.fn(),
-    getTTSContent: vi.fn(),
+    getSections: vi.fn().mockResolvedValue([
+        { sectionId: 'sec1', characterCount: 100 },
+        { sectionId: 'sec2', characterCount: 0 } // Empty section
+    ]),
+    getContentAnalysis: vi.fn().mockResolvedValue({ structure: { title: 'Chapter 1' } }),
+    getTTSContent: vi.fn().mockImplementation((bookId, sectionId) => {
+        if (sectionId === 'sec2') return Promise.resolve({ sentences: [] });
+        return Promise.resolve({
+            sentences: [{ text: "Sentence 1", cfi: "cfi1" }]
+        });
+    }),
+    saveTTSPosition: vi.fn(),
   }
 }));
 vi.mock('./CostEstimator');
 
-// Mock useTTSStore
+// Mock useTTSStore to avoid circular dependency
 vi.mock('../../store/useTTSStore', () => ({
-    useTTSStore: {
-        getState: vi.fn().mockReturnValue({
-            customAbbreviations: [],
-            alwaysMerge: [],
-            sentenceStarters: []
-        })
-    }
+  useTTSStore: {
+    getState: vi.fn().mockReturnValue({
+        customAbbreviations: [],
+        alwaysMerge: [],
+        sentenceStarters: []
+    })
+  }
 }));
 
 describe('AudioPlayerService', () => {
@@ -97,6 +110,40 @@ describe('AudioPlayerService', () => {
                 resolve();
             });
         });
+    });
+
+    it('should include coverUrl in queue items including Preroll', async () => {
+        // Enable preroll
+        service.setPrerollEnabled(true);
+        service.setBookId('book1');
+
+        // Load section 0 (normal content)
+        await service.loadSection(0, false);
+
+        const queue = service.getQueue();
+        expect(queue.length).toBeGreaterThan(0);
+
+        // Check Preroll item (first item)
+        expect(queue[0].isPreroll).toBe(true);
+        // This expectation will fail until fixed
+        expect(queue[0].coverUrl).toBe('http://example.com/cover.jpg');
+
+        // Check Content item
+        expect(queue[1].coverUrl).toBe('http://example.com/cover.jpg');
+    });
+
+    it('should include coverUrl in queue items for empty chapters', async () => {
+        service.setBookId('book1');
+
+        // Load section 1 (empty content)
+        await service.loadSection(1, false);
+
+        const queue = service.getQueue();
+        expect(queue.length).toBe(1);
+        expect(queue[0].isPreroll).toBe(true); // Empty message is marked as preroll
+
+        // This expectation will fail until fixed
+        expect(queue[0].coverUrl).toBe('http://example.com/cover.jpg');
     });
 
     it('should transition to completed status when queue finishes', async () => {
