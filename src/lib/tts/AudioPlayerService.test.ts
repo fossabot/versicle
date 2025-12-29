@@ -63,6 +63,17 @@ vi.mock('../../db/DBService', () => ({
 }));
 vi.mock('./CostEstimator');
 
+// Mock useTTSStore
+vi.mock('../../store/useTTSStore', () => ({
+    useTTSStore: {
+        getState: vi.fn().mockReturnValue({
+            customAbbreviations: [],
+            alwaysMerge: [],
+            sentenceStarters: []
+        })
+    }
+}));
+
 describe('AudioPlayerService', () => {
     let service: AudioPlayerService;
 

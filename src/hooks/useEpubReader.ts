@@ -7,6 +7,39 @@ import { sanitizeContent } from '../lib/sanitizer';
 import { runCancellable, CancellationError } from '../lib/cancellable-task-runner';
 
 /**
+ * Recursive helper to find a title in the ToC by matching HREF.
+ */
+const findTitleInToc = (toc: NavigationItem[], href: string): string | null => {
+    // Standardize href: remove fragment if it's not essential for matching?
+    // Actually, toc items often have fragments. Spine items usually don't (unless they are part of a file).
+    // The spine item href passed here is typically the file path (e.g. "chapter1.html").
+    // We want to find the ToC item that points to this file.
+    // Logic:
+    // 1. Exact match.
+    // 2. File match (ignoring fragment).
+    // But we prioritize the "best" match. Since we only have the file path from spine,
+    // we should look for a ToC item that points to the file.
+    // If multiple point to the same file (different anchors), we probably want the first one (Chapter title),
+    // or maybe the one corresponding to the start?
+    // Given we only have the spine item href here, we can only reliably match the file.
+
+    for (const item of toc) {
+        if (item.href === href) return item.label;
+
+        // Check if item.href matches the file path of the spine item
+        const itemPath = item.href.split('#')[0];
+        const spinePath = href.split('#')[0];
+        if (itemPath === spinePath) return item.label;
+
+        if (item.subitems && item.subitems.length > 0) {
+            const found = findTitleInToc(item.subitems, href);
+            if (found) return found;
+        }
+    }
+    return null;
+};
+
+/**
  * Configuration options for the EpubReader hook.
  */
 export interface EpubReaderOptions {
@@ -170,9 +203,10 @@ export function useEpubReader(
 
         // Load navigation
         const nav = yield newBook.loaded.navigation;
-        setToc(nav.toc);
+        const tocItems = nav.toc;
+        setToc(tocItems);
         if (optionsRef.current.onTocLoaded) {
-            optionsRef.current.onTocLoaded(nav.toc);
+            optionsRef.current.onTocLoaded(tocItems);
         }
 
         // Register themes
@@ -231,8 +265,16 @@ export function useEpubReader(
 
                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                  const item = newBook.spine.get(currentLocation.start.href) as any;
-                 const title = item ? (item.label || 'Chapter') : 'Unknown';
+                 let title = item ? (item.label || 'Chapter') : 'Unknown';
                  const sectionId = item ? item.href : '';
+
+                 // Improve title resolution
+                 if (item && (title === 'Chapter' || !item.label)) {
+                     const betterTitle = findTitleInToc(tocItems, item.href);
+                     if (betterTitle) {
+                         title = betterTitle;
+                     }
+                 }
 
                  if (optionsRef.current.onLocationChange) {
                      optionsRef.current.onLocationChange(currentLocation, percentage, title, sectionId);
@@ -268,8 +310,16 @@ export function useEpubReader(
 
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
              const item = newBook.spine.get(location.start.href) as any;
-             const title = item ? (item.label || 'Chapter') : 'Unknown';
+             let title = item ? (item.label || 'Chapter') : 'Unknown';
              const sectionId = item ? item.href : '';
+
+             // Improve title resolution
+             if (item && (title === 'Chapter' || !item.label)) {
+                 const betterTitle = findTitleInToc(tocItems, item.href);
+                 if (betterTitle) {
+                     title = betterTitle;
+                 }
+             }
 
              if (optionsRef.current.onLocationChange) {
                  optionsRef.current.onLocationChange(location, percentage, title, sectionId);
