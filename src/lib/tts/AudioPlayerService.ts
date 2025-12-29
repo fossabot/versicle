@@ -10,6 +10,8 @@ import { LexiconService } from './LexiconService';
 import { MediaSessionManager, type MediaSessionMetadata } from './MediaSessionManager';
 import { dbService } from '../../db/DBService';
 import type { SectionMetadata, LexiconRule } from '../../types/db';
+import { TextSegmenter } from './TextSegmenter';
+import { useTTSStore } from '../../store/useTTSStore';
 
 const NO_TEXT_MESSAGES = [
     "This chapter appears to be empty.",
@@ -658,13 +660,14 @@ export class AudioPlayerService {
   setSpeed(speed: number) {
       this.speed = speed;
       return this.enqueue(async () => {
-        if (this.status === 'playing') {
-            await this.stopInternal();
+        // If we are currently active, restart the current sentence with new speed
+        // WITHOUT triggering setStatus('stopped') / mediaState 'none'
+        if (this.status === 'playing' || this.status === 'loading') {
+            this.provider.stop();
             await this.playInternal();
-        } else if (this.status === 'paused') {
-            this.setStatus('stopped');
-            await this.stopInternal();
         }
+        // If paused or stopped, we just update the speed variable (done above)
+        // and the next manual 'play' will use it.
       });
   }
 
@@ -689,11 +692,9 @@ export class AudioPlayerService {
   setVoice(voiceId: string) {
       this.voiceId = voiceId;
       return this.enqueue(async () => {
-        if (this.status === 'playing') {
-            await this.stopInternal();
+        if (this.status === 'playing' || this.status === 'loading') {
+            this.provider.stop();
             await this.playInternal();
-        } else if (this.status === 'paused') {
-            this.setStatus('stopped');
         }
       });
   }
@@ -837,6 +838,15 @@ export class AudioPlayerService {
           const newQueue: TTSQueueItem[] = [];
 
           if (ttsContent && ttsContent.sentences.length > 0) {
+              // Dynamic Refinement: Merge segments based on current settings
+              const settings = useTTSStore.getState();
+              const refinedSentences = TextSegmenter.refineSegments(
+                  ttsContent.sentences,
+                  settings.customAbbreviations,
+                  settings.alwaysMerge,
+                  settings.sentenceStarters
+              );
+
               // Add Preroll if enabled
               if (this.prerollEnabled) {
                   const prerollText = this.generatePreroll(title, Math.round(section.characterCount / 5), this.speed);
@@ -850,7 +860,7 @@ export class AudioPlayerService {
                   });
               }
 
-              ttsContent.sentences.forEach(s => {
+              refinedSentences.forEach(s => {
                   newQueue.push({
                       text: s.text,
                       cfi: s.cfi,
